@@ -85,6 +85,11 @@ case $CMD in
         # Clean up the coverage file
         rm coverage.out
         ;;
+    acceptance-test)
+        echo -e "${BLUE}Running acceptance tests...${NC}"
+        load_env
+        go test -v -run TestHTTPRequest
+        ;;
     lint)
         echo -e "${BLUE}Running linter...${NC}"
         check_command "golangci-lint"

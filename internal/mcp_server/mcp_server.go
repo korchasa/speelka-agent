@@ -45,7 +45,7 @@ func (s *MCPServer) ServeDaemon(handler server.ToolHandlerFunc) error {
 	s.logger.Info("MCP SSE server initialized successfully")
 
 	addr := fmt.Sprintf("%s:%d", s.config.HTTP.Host, s.config.HTTP.Port)
-	baseUrl := fmt.Sprintf("https://%s:%d", s.config.HTTP.Host, s.config.HTTP.Port)
+	baseUrl := fmt.Sprintf("http://%s:%d", s.config.HTTP.Host, s.config.HTTP.Port)
 	s.sseServer = server.NewSSEServer(s.server, server.WithBaseURL(baseUrl))
 	if err := s.sseServer.Start(addr); err != nil {
 		return fmt.Errorf("failed to serve SSE MCP server: %w", err)

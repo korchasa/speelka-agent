@@ -42,7 +42,7 @@ bin/
 .env.production
 
 # Application files
-app.log
+*.log
 cmd/test
 main
 speelka-agent

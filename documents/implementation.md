@@ -47,6 +47,38 @@
   - Request handling
   - Debug hooks
   - Graceful shutdown
+  - SSE (Server-Sent Events) for real-time communication
+
+#### HTTP Server Implementation
+- The MCP server uses the SSE (Server-Sent Events) server from `github.com/mark3labs/mcp-go/server`
+- When running in daemon mode (`agent.Start(true, ctx)`), the server exposes two main endpoints:
+  - `/sse` - For establishing a Server-Sent Events connection to receive real-time updates
+  - `/message` - For sending HTTP POST requests to invoke tools
+
+- **Request Format**:
+  ```json
+  {
+    "method": "tools/call",
+    "params": {
+      "name": "process",
+      "arguments": {
+        "input": "User query text here"
+      }
+    }
+  }
+  ```
+
+- **Response Format**:
+  ```json
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": "Response from the LLM or tool",
+    "isError": false
+  }
+  ```
+
+- The server is started in `MCPServer.ServeDaemon()` which initializes an SSE server and starts it on the configured host and port
 
 ### MCP Connector
 - **Purpose**: Manages external tool connections
@@ -315,3 +347,45 @@ func TestConvertToolsToLLM(t *testing.T) {
 - Mocking of external dependencies
 - Table-driven test cases
 - Integration tests for component interactions
+
+## Run Script Commands
+
+The project includes a versatile `run` script that provides various commands for development, testing, and integration:
+
+| Command | Description | Usage |
+|---------|-------------|-------|
+| `test` | Run all tests with coverage | `./run test` |
+| `lint` | Run code linting | `./run lint` |
+| `build` | Build the project | `./run build` |
+| `dev` | Run in development mode | `./run dev` |
+| `call` | Test with simple query | `./run call` |
+| `complex-call` | Test with complex query | `./run complex-call` |
+| `http-call` | Call process over HTTP | `./run http-call [url]` |
+| `fetch_url` | Fetch URL via MCP | `./run fetch_url <url>` |
+| `check` | Run all project checks | `./run check` |
+
+### HTTP Call Testing
+
+The `http-call` command provides a way to test HTTP connections and make calls using the MCP CLI:
+
+```bash
+# Test default connection (localhost:3000)
+./run http-call
+
+# Test specific endpoint
+./run http-call http://localhost:3001
+```
+
+Features:
+- Validates HTTP server availability
+- Automatically starts server if not detected
+- Configures appropriate port based on URL
+- Uses MCP CLI to test actual integration
+- Provides detailed status feedback
+- Cleans up resources after testing
+
+Implementation details:
+1. Checks if server is running at specified URL
+2. If not running, starts server using architect.json config
+3. Makes test call using MCP CLI
+4. Reports success/failure status

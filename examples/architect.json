@@ -8,11 +8,6 @@
             "argument_name": "query",
             "argument_description": "Architecture query or task to process"
         },
-        "http": {
-            "enabled": true,
-            "host": "localhost",
-            "port": 3001
-        },
         "stdio": {
             "enabled": true,
             "buffer_size": 8192,
