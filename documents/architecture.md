@@ -103,7 +103,7 @@ The JSON configuration structure is hierarchically organized:
 
 ```json
 {
-  "server": {
+  "agent": {
     "name": "speelka-agent",
     "version": "1.0.0",
     "tool": {
@@ -112,55 +112,58 @@ The JSON configuration structure is hierarchically organized:
       "argument_name": "input",
       "argument_description": "User query to process"
     },
-    "http": {
-      "enabled": true,
-      "host": "localhost",
-      "port": 3000
-    },
-    "stdio": {
-      "enabled": true,
-      "buffer_size": 8192,
-      "auto_detect": false
-    },
-    "debug": false
-  },
-  "mcp_connector": {
-    "servers": [
-      {
-        "id": "server-id-1",
-        "transport": "stdio",
-        "command": "docker",
-        "arguments": ["run", "-i", "--rm", "mcp/time"],
-        "environment": {
-          "NODE_ENV": "production"
-        }
+    "llm": {
+      "provider": "openai",
+      "api_key": "your_api_key_here",
+      "model": "gpt-4o",
+      "max_tokens": 0,
+      "temperature": 0.7,
+      "prompt_template": "You are a helpful AI assistant...",
+      "retry": {
+        "max_retries": 3,
+        "initial_backoff": 1.0,
+        "max_backoff": 30.0,
+        "backoff_multiplier": 2.0
       }
-    ],
-    "retry": {
-      "max_retries": 3,
-      "initial_backoff": 1.0,
-      "max_backoff": 30.0,
-      "backoff_multiplier": 2.0
+    },
+    "connections": {
+      "servers": [
+        {
+          "id": "server-id-1",
+          "transport": "stdio",
+          "command": "docker",
+          "arguments": ["run", "-i", "--rm", "mcp/time"],
+          "environment": {
+            "NODE_ENV": "production"
+          }
+        }
+      ],
+      "retry": {
+        "max_retries": 3,
+        "initial_backoff": 1.0,
+        "max_backoff": 30.0,
+        "backoff_multiplier": 2.0
+      }
     }
   },
-  "llm": {
-    "provider": "openai",
-    "api_key": "your_api_key_here",
-    "model": "gpt-4o",
-    "max_tokens": 0,
-    "temperature": 0.7,
-    "prompt_template": "You are a helpful AI assistant...",
-    "retry": {
-      "max_retries": 3,
-      "initial_backoff": 1.0,
-      "max_backoff": 30.0,
-      "backoff_multiplier": 2.0
+  "runtime": {
+    "log": {
+      "level": "info",
+      "format": "text",
+      "output": "stdout"
+    },
+    "transports": {
+      "stdio": {
+        "enabled": true,
+        "buffer_size": 8192,
+        "auto_detect": false
+      },
+      "http": {
+        "enabled": true,
+        "host": "localhost",
+        "port": 3000
+      }
     }
-  },
-  "log": {
-    "level": "info",
-    "format": "text",
-    "output": "stdout"
   }
 }
 ```
@@ -206,17 +209,19 @@ graph TD
 ```mermaid
 graph TD
     A[Environment Variables] --> B[Configuration Manager]
-    B --> C[Server Config]
-    B --> D[LLM Config]
-    B --> E[MCP Config]
-    B --> F[Log Config]
-    C --> G[HTTP Settings]
-    C --> H[Stdio Settings]
+    B --> C[Agent Config]
+    B --> D[Runtime Config]
     C --> I[Tool Settings]
-    D --> J[Provider Settings]
-    D --> K[Model Settings]
-    D --> L[Retry Settings]
-    E --> M[Server Connections]
-    E --> N[Transport Settings]
-    E --> O[Retry Settings]
+    C --> J[LLM Settings]
+    C --> K[Connections Settings]
+    D --> E[Log Config]
+    D --> F[Transports Config]
+    I --> L[Tool Name and Description]
+    J --> M[Provider Settings]
+    J --> N[Model Settings]
+    J --> O[Retry Settings]
+    K --> P[Server Connections]
+    K --> Q[Retry Settings]
+    F --> R[HTTP Settings]
+    F --> S[Stdio Settings]
 ```

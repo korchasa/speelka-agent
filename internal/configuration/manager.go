@@ -27,7 +27,7 @@ type Manager struct {
 
 // Configuration represents the complete JSON configuration structure
 type Configuration struct {
-	Server struct {
+	Agent struct {
 		Name    string `json:"name"`
 		Version string `json:"version"`
 		Tool    struct {
@@ -36,54 +36,57 @@ type Configuration struct {
 			ArgumentName        string `json:"argument_name"`
 			ArgumentDescription string `json:"argument_description"`
 		} `json:"tool"`
-		HTTP struct {
-			Enabled bool   `json:"enabled"`
-			Host    string `json:"host"`
-			Port    int    `json:"port"`
-		} `json:"http"`
-		Stdio struct {
-			Enabled    bool `json:"enabled"`
-			BufferSize int  `json:"buffer_size"`
-			AutoDetect bool `json:"auto_detect"`
-		} `json:"stdio"`
-		Debug bool `json:"debug"`
-	} `json:"server"`
-	MCPConnector struct {
-		Servers []struct {
-			ID          string            `json:"id"`
-			Transport   string            `json:"transport"`
-			URL         string            `json:"url,omitempty"`
-			APIKey      string            `json:"api_key,omitempty"`
-			Command     string            `json:"command,omitempty"`
-			Arguments   []string          `json:"arguments,omitempty"`
-			Environment map[string]string `json:"environment,omitempty"`
-		} `json:"servers"`
-		Retry struct {
-			MaxRetries        int     `json:"max_retries"`
-			InitialBackoff    float64 `json:"initial_backoff"`
-			MaxBackoff        float64 `json:"max_backoff"`
-			BackoffMultiplier float64 `json:"backoff_multiplier"`
-		} `json:"retry"`
-	} `json:"mcp_connector"`
-	LLM struct {
-		Provider       string  `json:"provider"`
-		APIKey         string  `json:"api_key"`
-		Model          string  `json:"model"`
-		MaxTokens      int     `json:"max_tokens"`
-		Temperature    float64 `json:"temperature"`
-		PromptTemplate string  `json:"prompt_template"`
-		Retry          struct {
-			MaxRetries        int     `json:"max_retries"`
-			InitialBackoff    float64 `json:"initial_backoff"`
-			MaxBackoff        float64 `json:"max_backoff"`
-			BackoffMultiplier float64 `json:"backoff_multiplier"`
-		} `json:"retry"`
-	} `json:"llm"`
-	Log struct {
-		Level  string `json:"level"`
-		Format string `json:"format"`
-		Output string `json:"output"`
-	} `json:"log"`
+		LLM struct {
+			Provider       string  `json:"provider"`
+			APIKey         string  `json:"api_key"`
+			Model          string  `json:"model"`
+			MaxTokens      int     `json:"max_tokens"`
+			Temperature    float64 `json:"temperature"`
+			PromptTemplate string  `json:"prompt_template"`
+			Retry          struct {
+				MaxRetries        int     `json:"max_retries"`
+				InitialBackoff    float64 `json:"initial_backoff"`
+				MaxBackoff        float64 `json:"max_backoff"`
+				BackoffMultiplier float64 `json:"backoff_multiplier"`
+			} `json:"retry"`
+		} `json:"llm"`
+		Connections struct {
+			Servers []struct {
+				ID          string            `json:"id"`
+				Transport   string            `json:"transport"`
+				URL         string            `json:"url,omitempty"`
+				APIKey      string            `json:"api_key,omitempty"`
+				Command     string            `json:"command,omitempty"`
+				Arguments   []string          `json:"arguments,omitempty"`
+				Environment map[string]string `json:"environment,omitempty"`
+			} `json:"servers"`
+			Retry struct {
+				MaxRetries        int     `json:"max_retries"`
+				InitialBackoff    float64 `json:"initial_backoff"`
+				MaxBackoff        float64 `json:"max_backoff"`
+				BackoffMultiplier float64 `json:"backoff_multiplier"`
+			} `json:"retry"`
+		} `json:"connections"`
+	} `json:"agent"`
+	Runtime struct {
+		Log struct {
+			Level  string `json:"level"`
+			Format string `json:"format"`
+			Output string `json:"output"`
+		} `json:"log"`
+		Transports struct {
+			Stdio struct {
+				Enabled    bool `json:"enabled"`
+				BufferSize int  `json:"buffer_size"`
+				AutoDetect bool `json:"auto_detect"`
+			} `json:"stdio"`
+			HTTP struct {
+				Enabled bool   `json:"enabled"`
+				Host    string `json:"host"`
+				Port    int    `json:"port"`
+			} `json:"http,omitempty"`
+		} `json:"transports"`
+	} `json:"runtime"`
 }
 
 // NewConfigurationManager creates a new instance of ConfigurationManagerSpec.
@@ -126,30 +129,30 @@ func (cm *Manager) loadFromJSON(jsonConfig string) error {
 	// Convert the JSON configuration to the internal configuration types
 	// MCP Server Config
 	cm.mcpServerConfig = types.MCPServerConfig{
-		Name:    config.Server.Name,
-		Version: config.Server.Version,
+		Name:    config.Agent.Name,
+		Version: config.Agent.Version,
 		Tool: types.MCPServerToolConfig{
-			Name:                config.Server.Tool.Name,
-			Description:         config.Server.Tool.Description,
-			ArgumentName:        config.Server.Tool.ArgumentName,
-			ArgumentDescription: config.Server.Tool.ArgumentDescription,
+			Name:                config.Agent.Tool.Name,
+			Description:         config.Agent.Tool.Description,
+			ArgumentName:        config.Agent.Tool.ArgumentName,
+			ArgumentDescription: config.Agent.Tool.ArgumentDescription,
 		},
 		HTTP: types.HTTPConfig{
-			Enabled: config.Server.HTTP.Enabled,
-			Host:    config.Server.HTTP.Host,
-			Port:    config.Server.HTTP.Port,
+			Enabled: config.Runtime.Transports.HTTP.Enabled,
+			Host:    config.Runtime.Transports.HTTP.Host,
+			Port:    config.Runtime.Transports.HTTP.Port,
 		},
 		Stdio: types.StdioConfig{
-			Enabled:    config.Server.Stdio.Enabled,
-			BufferSize: config.Server.Stdio.BufferSize,
-			AutoDetect: config.Server.Stdio.AutoDetect,
+			Enabled:    config.Runtime.Transports.Stdio.Enabled,
+			BufferSize: config.Runtime.Transports.Stdio.BufferSize,
+			AutoDetect: config.Runtime.Transports.Stdio.AutoDetect,
 		},
-		Debug: config.Server.Debug,
+		Debug: false, // Debug flag is removed in the new structure
 	}
 
 	// MCP Connector Config
 	var servers []types.MCPServerConnection
-	for _, server := range config.MCPConnector.Servers {
+	for _, server := range config.Agent.Connections.Servers {
 		// Convert environment map to slice of "KEY=VALUE" strings
 		var envVars []string
 		for key, value := range server.Environment {
@@ -170,26 +173,26 @@ func (cm *Manager) loadFromJSON(jsonConfig string) error {
 	cm.mcpConnectorConfig = types.MCPConnectorConfig{
 		Servers: servers,
 		RetryConfig: types.RetryConfig{
-			MaxRetries:        config.MCPConnector.Retry.MaxRetries,
-			InitialBackoff:    config.MCPConnector.Retry.InitialBackoff,
-			MaxBackoff:        config.MCPConnector.Retry.MaxBackoff,
-			BackoffMultiplier: config.MCPConnector.Retry.BackoffMultiplier,
+			MaxRetries:        config.Agent.Connections.Retry.MaxRetries,
+			InitialBackoff:    config.Agent.Connections.Retry.InitialBackoff,
+			MaxBackoff:        config.Agent.Connections.Retry.MaxBackoff,
+			BackoffMultiplier: config.Agent.Connections.Retry.BackoffMultiplier,
 		},
 	}
 
 	// LLM Config
 	cm.llmServiceConfig = types.LLMConfig{
-		Provider:             config.LLM.Provider,
-		Model:                config.LLM.Model,
-		APIKey:               config.LLM.APIKey,
-		MaxTokens:            config.LLM.MaxTokens,
-		Temperature:          config.LLM.Temperature,
-		SystemPromptTemplate: config.LLM.PromptTemplate,
+		Provider:             config.Agent.LLM.Provider,
+		Model:                config.Agent.LLM.Model,
+		APIKey:               config.Agent.LLM.APIKey,
+		MaxTokens:            config.Agent.LLM.MaxTokens,
+		Temperature:          config.Agent.LLM.Temperature,
+		SystemPromptTemplate: config.Agent.LLM.PromptTemplate,
 		RetryConfig: types.RetryConfig{
-			MaxRetries:        config.LLM.Retry.MaxRetries,
-			InitialBackoff:    config.LLM.Retry.InitialBackoff,
-			MaxBackoff:        config.LLM.Retry.MaxBackoff,
-			BackoffMultiplier: config.LLM.Retry.BackoffMultiplier,
+			MaxRetries:        config.Agent.LLM.Retry.MaxRetries,
+			InitialBackoff:    config.Agent.LLM.Retry.InitialBackoff,
+			MaxBackoff:        config.Agent.LLM.Retry.MaxBackoff,
+			BackoffMultiplier: config.Agent.LLM.Retry.BackoffMultiplier,
 		},
 	}
 
@@ -200,28 +203,28 @@ func (cm *Manager) loadFromJSON(jsonConfig string) error {
 	}
 
 	// Log Config
-	level, err := log.ParseLevel(config.Log.Level)
+	level, err := log.ParseLevel(config.Runtime.Log.Level)
 	if err != nil {
-		return fmt.Errorf("invalid log level `%s`: %v", config.Log.Level, err)
+		return fmt.Errorf("invalid log level `%s`: %v", config.Runtime.Log.Level, err)
 	}
 
 	var formatter log.Formatter
-	if config.Log.Format == "json" {
+	if config.Runtime.Log.Format == "json" {
 		formatter = &log.JSONFormatter{}
 	} else {
 		formatter = &log.TextFormatter{}
 	}
 
 	var output io.Writer
-	switch config.Log.Output {
+	switch config.Runtime.Log.Output {
 	case "stdout":
 		output = os.Stdout
 	case "stderr":
 		output = os.Stderr
 	default:
-		outputFile, err := os.OpenFile(config.Log.Output, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		outputFile, err := os.OpenFile(config.Runtime.Log.Output, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
-			return fmt.Errorf("failed to open log file `%s`: %v", config.Log.Output, err)
+			return fmt.Errorf("failed to open log file `%s`: %v", config.Runtime.Log.Output, err)
 		}
 		output = outputFile
 	}

@@ -1,5 +1,5 @@
 {
-    "server": {
+    "agent": {
         "name": "simple-speelka-agent",
         "version": "1.0.0",
         "tool": {
@@ -8,59 +8,61 @@
             "argument_name": "input",
             "argument_description": "User query to process"
         },
-        "stdio": {
-            "enabled": true,
-            "buffer_size": 8192,
-            "auto_detect": false
-        },
-        "debug": false
-    },
-    "mcp_connector": {
-        "servers": [
-            {
-                "id": "time",
-                "transport": "stdio",
-                "command": "docker",
-                "arguments": [
-                    "run",
-                    "-i",
-                    "--rm",
-                    "mcp/time"
-                ]
-            },
-            {
-                "id": "mcp-filesystem-server",
-                "transport": "stdio",
-                "command": "mcp-filesystem-server",
-                "arguments": [
-                    "/Users/korchasa/www/speelka/speelka-agent"
-                ]
+        "llm": {
+            "provider": "openai",
+            "api_key": "no value",
+            "model": "gpt-4o",
+            "max_tokens": 0,
+            "temperature": null,
+            "prompt_template": "You are a helpful AI assistant. Respond to the following request:\n\n{{input}}\n\nProvide a detailed and helpful response.\n\nAvailable tools:\n{{tools}}",
+            "retry": {
+                "max_retries": 3,
+                "initial_backoff": 1.0,
+                "max_backoff": 30.0,
+                "backoff_multiplier": 2.0
             }
-        ],
-        "retry": {
-            "max_retries": 3,
-            "initial_backoff": 1.0,
-            "max_backoff": 30.0,
-            "backoff_multiplier": 2.0
+        },
+        "connections": {
+            "servers": [{
+                    "id": "time",
+                    "transport": "stdio",
+                    "command": "docker",
+                    "arguments": [
+                        "run",
+                        "-i",
+                        "--rm",
+                        "mcp/time"
+                    ]
+                },
+                {
+                    "id": "mcp-filesystem-server",
+                    "transport": "stdio",
+                    "command": "mcp-filesystem-server",
+                    "arguments": [
+                        "/Users/korchasa/www/speelka/speelka-agent"
+                    ]
+                }
+            ],
+            "retry": {
+                "max_retries": 3,
+                "initial_backoff": 1.0,
+                "max_backoff": 30.0,
+                "backoff_multiplier": 2.0
+            }
         }
     },
-    "llm": {
-        "provider": "openai",
-        "api_key": "no value",
-        "model": "gpt-4o",
-        "max_tokens": 0,
-        "temperature": null,
-        "prompt_template": "You are a helpful AI assistant. Respond to the following request:\n\n{{input}}\n\nProvide a detailed and helpful response.\n\nAvailable tools:\n{{tools}}",
-        "retry": {
-            "max_retries": 3,
-            "initial_backoff": 1.0,
-            "max_backoff": 30.0,
-            "backoff_multiplier": 2.0
+    "runtime": {
+        "log": {
+            "level": "info",
+            "format": "text",
+            "output": "./app.log"
+        },
+        "transports": {
+            "stdio": {
+                "enabled": true,
+                "buffer_size": 8192,
+                "auto_detect": false
+            }
         }
-    },
-    "log": {
-        "level": "info",
-        "format": "text",
-        "output": "./app.log"
     }
 }

@@ -377,7 +377,7 @@ docker-compose up -d
 
 - [x] Short format for logs on INFO level
 - [x] Change config format
-- [ ] Configuration page
+- [ ] Configuration page: Добавь в режим демона страницу /config, которая будет отображать html-страну с текушим конфигом, возможностью его менять и подсказкой
 - [ ] Testing
   - [ ] Agent
   - [ ] LLM Service
