@@ -80,7 +80,6 @@ func TestHTTPRequest(t *testing.T) {
 	// 	},
 	// 	"log": map[string]interface{}{
 	// 		"level":  "info",
-	// 		"format": "text",
 	// 		"output": "./app.log",
 	// 	},
 	// }

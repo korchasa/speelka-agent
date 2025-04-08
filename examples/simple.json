@@ -54,7 +54,6 @@
     "runtime": {
         "log": {
             "level": "info",
-            "format": "text",
             "output": "./app.log"
         },
         "transports": {

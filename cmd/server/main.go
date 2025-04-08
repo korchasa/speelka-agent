@@ -83,15 +83,13 @@ func run(ctx context.Context) error {
 
 	if *daemonMode {
 		log.SetLevel(logrus.DebugLevel)
-		log.SetFormatter(&logrus.JSONFormatter{})
-		log.SetReportCaller(true)
 		log.SetOutput(os.Stdout)
 	} else {
 		log.SetLevel(logrus.DebugLevel)
-		log.SetFormatter(utils.NewCustomLogFormatter())
-		log.SetReportCaller(true)
 		log.SetOutput(os.Stderr)
 	}
+	log.SetReportCaller(true)
+	log.SetFormatter(utils.NewCustomLogFormatter())
 	log.Info("Logger initialized with default configuration")
 
 	// Set up panic handler
@@ -107,7 +105,6 @@ func run(ctx context.Context) error {
 	// Reconfigure the logger with parameters from configuration
 	logConfig := configManager.GetLogConfig()
 	log.SetLevel(logConfig.Level)
-	//log.SetFormatter(logConfig.Formatter)
 	log.SetOutput(logConfig.Output)
 	log.Info("Logger reconfigured with settings from configuration")
 

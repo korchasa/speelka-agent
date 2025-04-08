@@ -13,7 +13,7 @@ The agent facilitates communication with LLM models using configurable parameter
 - **Tool Orchestration**: Redirect tool calls from the LLM to appropriate MCP servers and include results in subsequent LLM requests
 - **Answer Generation**: Return the final answer when the LLM completes its processing
 - **Command-Line Interface**: Run as a command-line tool (script mode)
-- **HTTP Interface**: Not implemented yet
+- **HTTP Interface**: Support for HTTP transport with Server-Sent Events (SSE)
 - **Error Handling**: Comprehensive error handling with retry strategies for transient failures
 
 ## Architecture
@@ -64,7 +64,7 @@ Example:
 ```bash
 # Set the CONFIG_JSON environment variable
 export CONFIG_JSON='{
-  "server": {
+  "agent": {
     "name": "speelka-agent",
     "version": "1.0.0",
     "tool": {
@@ -73,23 +73,27 @@ export CONFIG_JSON='{
       "argument_name": "input",
       "argument_description": "User query to process"
     },
-    "stdio": {
-      "enabled": true,
-      "buffer_size": 8192,
-      "auto_detect": false
+    "llm": {
+      "provider": "openai",
+      "api_key": "your_api_key_here",
+      "model": "gpt-4o",
+      "temperature": 0.7,
+      "prompt_template": "You are a helpful AI assistant...",
+      "retry": {
+        "max_retries": 3,
+        "initial_backoff": 1.0,
+        "max_backoff": 30.0,
+        "backoff_multiplier": 2.0
+      }
     }
   },
-  "llm": {
-    "provider": "openai",
-    "api_key": "your_api_key_here",
-    "model": "gpt-4o",
-    "temperature": 0.7,
-    "prompt_template": "You are a helpful AI assistant...",
-    "retry": {
-      "max_retries": 3,
-      "initial_backoff": 1.0,
-      "max_backoff": 30.0,
-      "backoff_multiplier": 2.0
+  "runtime": {
+    "transports": {
+      "stdio": {
+        "enabled": true,
+        "buffer_size": 8192,
+        "auto_detect": false
+      }
     }
   }
 }'
@@ -121,34 +125,40 @@ The Speelka Agent also supports configuration through environment variables:
 
 Main configuration categories:
 
-1. **Server Settings**:
-   - `server.name` - Name of the MCP server
-   - `server.version` - Version of the MCP server
-   - `server.stdio.enabled` - Enable stdio server
-   - `server.tool.name` - Name of the tool provided by the server
-   - `server.tool.description` - Description of the tool provided by the server
-   - `server.tool.argument_name` - Name of the tool argument
-   - `server.tool.argument_description` - Description of the tool argument
+1. **Agent Settings**:
+   - `agent.name` - Name of the agent
+   - `agent.version` - Version of the agent
+   - `agent.tool.name` - Name of the tool provided by the agent
+   - `agent.tool.description` - Description of the tool provided by the agent
+   - `agent.tool.argument_name` - Name of the tool argument
+   - `agent.tool.argument_description` - Description of the tool argument
 
 2. **LLM Settings**:
-   - `llm.provider` - LLM provider (openai, anthropic)
-   - `llm.api_key` - API key for LLM provider (can also be set via LLM_API_KEY environment variable)
-   - `llm.model` - LLM model to use
-   - `llm.temperature` - Temperature parameter
-   - `llm.prompt_template` - Template for system messages, using Jinja2 format
+   - `agent.llm.provider` - LLM provider (openai, anthropic)
+   - `agent.llm.api_key` - API key for LLM provider (can also be set via LLM_API_KEY environment variable)
+   - `agent.llm.model` - LLM model to use
+   - `agent.llm.temperature` - Temperature parameter
+   - `agent.llm.prompt_template` - Template for system messages, using Jinja2 format
+   - `agent.llm.retry.*` - Retry configuration for LLM requests
 
-3. **Logging**:
-   - `log.level` - Logging level (debug, info, warn, error, fatal, panic)
-   - `log.format` - Log format (text, json)
-   - `log.output` - Log output destination (stdout, stderr, or file path)
+3. **Connection Settings**:
+   - `agent.connections.servers` - Array of MCP server configurations
+   - `agent.connections.servers[].id` - ID of the MCP server
+   - `agent.connections.servers[].transport` - Transport type (stdio)
+   - `agent.connections.servers[].command` - Command for stdio transport
+   - `agent.connections.servers[].arguments` - Arguments for stdio transport command
+   - `agent.connections.servers[].environment` - Environment variables for stdio transport
+   - `agent.connections.retry.*` - Retry configuration for connection attempts
 
-4. **MCP Connector Configuration**:
-   - `mcp_connector.servers` - Array of MCP server configurations
-   - `mcp_connector.servers[].id` - ID of the MCP server
-   - `mcp_connector.servers[].transport` - Transport type (stdio)
-   - `mcp_connector.servers[].command` - Command for stdio transport
-   - `mcp_connector.servers[].arguments` - Arguments for stdio transport command
-   - `mcp_connector.servers[].environment` - Environment variables for stdio transport
+4. **Runtime Settings**:
+   - `runtime.log.level` - Logging level (debug, info, warn, error, fatal, panic)
+   - `runtime.log.output` - Log output destination (stdout, stderr, or file path)
+   - `runtime.transports.stdio.enabled` - Enable stdio server
+   - `runtime.transports.stdio.buffer_size` - Buffer size for stdio transport
+   - `runtime.transports.stdio.auto_detect` - Auto-detect stdio mode
+   - `runtime.transports.http.enabled` - Enable HTTP server
+   - `runtime.transports.http.host` - HTTP server host
+   - `runtime.transports.http.port` - HTTP server port
 
 ## CONFIG_JSON Structure
 
@@ -156,59 +166,66 @@ Below is a comprehensive overview of the CONFIG_JSON structure:
 
 ```json
 {
-  "server": {
-    "name": "string",          // Name of the MCP server
-    "version": "string",       // Version of the MCP server
+  "agent": {
+    "name": "string",          // Name of the agent
+    "version": "string",       // Version of the agent
     "tool": {
-      "name": "string",        // Name of the tool provided by the server
-      "description": "string", // Description of the tool provided by the server
+      "name": "string",        // Name of the tool provided by the agent
+      "description": "string", // Description of the tool provided by the agent
       "argument_name": "string", // Name of the tool argument
       "argument_description": "string" // Description of the tool argument
     },
-    "stdio": {
-      "enabled": boolean,     // Enable stdin/stdout server (default: true)
-      "buffer_size": number,  // Buffer size for reading/writing (default: 8192)
-      "auto_detect": boolean  // Auto-detect stdio mode (default: false)
-    },
-    "debug": boolean          // Enable debug mode (default: false)
-  },
-  "mcp_connector": {
-    "servers": [
-      {
-        "id": "string",       // Unique ID of the MCP server
-        "transport": "string", // Transport type ("stdio")
-        "command": "string",  // Command for stdio transport
-        "arguments": ["string"], // Arguments for stdio transport command
-        "environment": {      // Environment variables for stdio transport
-          "key": "value"
-        }
+    "llm": {
+      "provider": "string",     // LLM provider ("openai", "anthropic")
+      "api_key": "string",      // API key for the LLM provider
+      "model": "string",        // LLM model name
+      "max_tokens": number,     // Maximum tokens to generate (default: 0)
+      "temperature": number,    // Temperature parameter (default: 0.7)
+      "prompt_template": "string", // System prompt template with Jinja2 format
+      "retry": {
+        "max_retries": number,  // Maximum number of retry attempts (default: 3)
+        "initial_backoff": number, // Initial backoff in seconds (default: 1.0)
+        "max_backoff": number,  // Maximum backoff in seconds (default: 30.0)
+        "backoff_multiplier": number // Backoff multiplier (default: 2.0)
       }
-    ],
-    "retry": {
-      "max_retries": number,  // Maximum number of retry attempts (default: 3)
-      "initial_backoff": number, // Initial backoff in seconds (default: 1.0)
-      "max_backoff": number,  // Maximum backoff in seconds (default: 30.0)
-      "backoff_multiplier": number // Backoff multiplier (default: 2.0)
+    },
+    "connections": {
+      "servers": [
+        {
+          "id": "string",       // Unique ID of the MCP server
+          "transport": "string", // Transport type ("stdio")
+          "command": "string",  // Command for stdio transport
+          "arguments": ["string"], // Arguments for stdio transport command
+          "environment": {      // Environment variables for stdio transport
+            "key": "value"
+          }
+        }
+      ],
+      "retry": {
+        "max_retries": number,  // Maximum number of retry attempts (default: 3)
+        "initial_backoff": number, // Initial backoff in seconds (default: 1.0)
+        "max_backoff": number,  // Maximum backoff in seconds (default: 30.0)
+        "backoff_multiplier": number // Backoff multiplier (default: 2.0)
+      }
     }
   },
-  "llm": {
-    "provider": "string",     // LLM provider ("openai", "anthropic")
-    "api_key": "string",      // API key for the LLM provider
-    "model": "string",        // LLM model name
-    "max_tokens": number,     // Maximum tokens to generate (default: 0)
-    "temperature": number,    // Temperature parameter (default: 0.7)
-    "prompt_template": "string", // System prompt template with Jinja2 format
-    "retry": {
-      "max_retries": number,  // Maximum number of retry attempts (default: 3)
-      "initial_backoff": number, // Initial backoff in seconds (default: 1.0)
-      "max_backoff": number,  // Maximum backoff in seconds (default: 30.0)
-      "backoff_multiplier": number // Backoff multiplier (default: 2.0)
+  "runtime": {
+    "log": {
+      "level": "string",        // Log level (debug, info, warn, error, fatal, panic)
+      "output": "string"        // Output destination (stdout, stderr, file path)
+    },
+    "transports": {
+      "stdio": {
+        "enabled": boolean,     // Enable stdin/stdout server (default: true)
+        "buffer_size": number,  // Buffer size for reading/writing (default: 8192)
+        "auto_detect": boolean  // Auto-detect stdio mode (default: false)
+      },
+      "http": {
+        "enabled": boolean,     // Enable HTTP server (default: false)
+        "host": "string",       // HTTP server host (default: "localhost")
+        "port": number         // HTTP server port (default: 3000)
+      }
     }
-  },
-  "log": {
-    "level": "string",        // Log level (debug, info, warn, error, fatal, panic)
-    "format": "string",       // Log format (text, json)
-    "output": "string"        // Output destination (stdout, stderr, file path)
   }
 }
 ```

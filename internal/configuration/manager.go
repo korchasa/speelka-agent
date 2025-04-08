@@ -71,7 +71,6 @@ type Configuration struct {
 	Runtime struct {
 		Log struct {
 			Level  string `json:"level"`
-			Format string `json:"format"`
 			Output string `json:"output"`
 		} `json:"log"`
 		Transports struct {
@@ -208,13 +207,6 @@ func (cm *Manager) loadFromJSON(jsonConfig string) error {
 		return fmt.Errorf("invalid log level `%s`: %v", config.Runtime.Log.Level, err)
 	}
 
-	var formatter log.Formatter
-	if config.Runtime.Log.Format == "json" {
-		formatter = &log.JSONFormatter{}
-	} else {
-		formatter = &log.TextFormatter{}
-	}
-
 	var output io.Writer
 	switch config.Runtime.Log.Output {
 	case "stdout":
@@ -230,9 +222,8 @@ func (cm *Manager) loadFromJSON(jsonConfig string) error {
 	}
 
 	cm.logConfig = types.LogConfig{
-		Level:     level,
-		Formatter: formatter,
-		Output:    output,
+		Level:  level,
+		Output: output,
 	}
 
 	return nil

@@ -60,7 +60,6 @@
     },
     "log": {
         "level": "info",
-        "format": "text",
         "output": "./architect.log"
     }
 }

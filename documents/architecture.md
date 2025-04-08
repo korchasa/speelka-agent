@@ -149,7 +149,6 @@ The JSON configuration structure is hierarchically organized:
   "runtime": {
     "log": {
       "level": "info",
-      "format": "text",
       "output": "stdout"
     },
     "transports": {
