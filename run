@@ -1,0 +1,164 @@
+#!/bin/bash
+
+# Exit immediately if a command exits with a non-zero status
+set -e
+
+# Colors for better readability
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to load environment variables from .env file
+function load_env() {
+    if [ -f .env ]; then
+        export $(grep -v '^#' .env | xargs)
+    fi
+}
+
+# Function to check if required command exists
+function check_command() {
+    if ! command -v $1 &> /dev/null; then
+        echo -e "${RED}Error: Required command '$1' is not installed.${NC}"
+        exit 1
+    fi
+}
+
+function help() {
+    echo -e "${BLUE}Usage:${NC} ./run <command> [options]"
+    echo ""
+    echo -e "${GREEN}Commands:${NC}"
+    echo "  test                  Run all tests with coverage information"
+    echo "  lint                  Run code linting"
+    echo "  build                 Build the project"
+    echo "  dev                   Run the application in development mode"
+    echo "  call                  Call a process using MCP with default question"
+    echo "  complex-call          Call a complex process using MCP"
+    echo "  check                 Run all checks in project (test, lint)"
+    echo "  fetch_url <url>       Fetch a URL using MCP"
+    echo "  help                  Display this help message"
+    echo ""
+    echo -e "${YELLOW}Examples:${NC}"
+    echo "  ./run dev             Start development server"
+    echo "  ./run test            Run all tests with coverage"
+    echo "  ./run fetch_url https://example.com"
+}
+
+# Display help if no arguments provided
+if [ $# -eq 0 ]; then
+    help
+    exit 0
+fi
+
+CMD=$1
+shift
+
+case $CMD in
+    test)
+        # Create .coverage directory if it doesn't exist
+        mkdir -p .coverage
+
+        echo -e "${BLUE}Running all tests with coverage...${NC}"
+        echo -e "${YELLOW}-------------------------------------${NC}"
+
+        # Run tests with coverage for all packages
+        go test ./... -coverprofile=coverage.out
+
+        echo -e "${YELLOW}-------------------------------------${NC}"
+
+        # Generate HTML report
+        go tool cover -html=coverage.out -o .coverage/coverage.html
+
+        # Show package coverage summary
+        echo -e "${GREEN}Coverage by package:${NC}"
+        echo -e "${YELLOW}-------------------------------------${NC}"
+        go tool cover -func=coverage.out | grep -v "total:" | sort
+
+        # Show total coverage
+        echo -e "${YELLOW}-------------------------------------${NC}"
+        echo -e "${GREEN}Total coverage:${NC}"
+        go tool cover -func=coverage.out | grep "total:"
+        echo -e "${YELLOW}-------------------------------------${NC}"
+        echo -e "${GREEN}HTML coverage report generated in .coverage/coverage.html${NC}"
+
+        # Clean up the coverage file
+        rm coverage.out
+        ;;
+    lint)
+        echo -e "${BLUE}Running linter...${NC}"
+        check_command "golangci-lint"
+        golangci-lint run ./... --verbose
+        ;;
+    build)
+        echo -e "${BLUE}Building project...${NC}"
+        mkdir -p bin
+        go build -o bin/speelka-agent ./cmd/server/main.go
+        echo -e "${GREEN}Build complete: bin/speelka-agent${NC}"
+        ;;
+    fetch_url)
+        if [ -z "$1" ]; then
+            echo -e "${RED}Error: URL parameter is required.${NC}"
+            echo "Usage: ./run fetch_url <url>"
+            exit 1
+        fi
+        url="$1"
+        echo -e "${BLUE}Fetching URL: ${url}${NC}"
+        check_command "mcp"
+        check_command "npx"
+        mcp call fetch_url --params "{\"url\": \"${url}\"}" npx -y fetcher-mcp
+        ;;
+    dev)
+        echo -e "${BLUE}Applying env variables from .env file${NC}"
+        load_env
+        echo -e "${BLUE}Starting development server...${NC}"
+        go run -race ./cmd/server/main.go "$@"
+        ;;
+    call)
+        echo -e "${BLUE}Test agent with 'What time is it now?' request${NC}"
+        (
+            load_env
+            export CONFIG_JSON="$(cat examples/simple.json)"
+            check_command "mcp"
+            mcp call process --params '{"input": "What time is it now?"}' go run -race ./cmd/server/main.go
+        )
+        ;;
+    complex-call)
+        echo -e "${BLUE}Test agent with 'What is in the oldest file in the directory, including all nested directories?' request${NC}"
+        (
+            load_env
+            export CONFIG_JSON="$(cat examples/simple.json)"
+            check_command "mcp"
+            mcp call process --params '{"input": "What is in the oldest file in the directory, including all nested directories? Show only 10 first lines of the file."}' go run -race ./cmd/server/main.go
+        )
+        ;;
+    check)
+        echo -e "${BLUE}Running all project checks...${NC}"
+
+        echo -e "\n${YELLOW}1. Building project${NC}"
+        ./run build
+
+        echo -e "\n${YELLOW}2. Running linter${NC}"
+        ./run lint
+
+        echo -e "\n${YELLOW}3. Running tests${NC}"
+        ./run test
+
+        echo -e "\n${YELLOW}4. Running call${NC}"
+        ./run call
+
+        echo -e "\n${YELLOW}5. Running complex call${NC}"
+        ./run complex-call
+
+        echo -e "\n${GREEN}✓ All checks passed!${NC}"
+        ;;
+    help)
+        help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $CMD${NC}"
+        echo ""
+        help
+        exit 1
+        ;;
+esac

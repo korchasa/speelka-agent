@@ -1,0 +1,14 @@
+---
+description: How to fix code
+globs: 
+alwaysApply: false
+---
+# TESTS FIX ALGORITHM
+
+1. Analyze errors by reviewing logs and stack traces if they exist.
+2. Isolate failing tests to focus on the specific issues.
+3. Study the tests to understand the expected behavior.
+4. Review relevant code sections and documentation.
+5. Reproduce the issue using a minimal example.
+6. Formulate and test hypotheses incrementally, documenting each step.
+7. Apply minimal necessary changes to fix the error once confirmed.

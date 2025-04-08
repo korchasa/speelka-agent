@@ -1,0 +1,17 @@
+---
+description: How to compact documentation files
+globs: 
+alwaysApply: false
+---
+# TEXT COMPACTION RULES
+- Remove history: Remove history, updates, and changelog.
+- Use only english in all files.
+- Use combined extractive & abstractive summarization: First, extract ALL facts, then compress them into concise, coherent content WITHOUT LOSING ANY FACTS.
+- Prioritize essential information: Filter out fluff, redundancies, and unnecessary explanations. Use high-information words.
+- Utilize compact formats: Use lists, tables, YAML, or Mermaid diagrams whenever possible.
+- Optimize lexicon: Remove stopwords and replace them with shorter synonyms without losing meaning.
+- Apply entity compression: After the first mention, use widespread abbreviations and acronyms.
+- Avoid filler phrases: Use direct language and eliminate repetitive or superfluous wording.
+- Structure clearly: Organize content with headings and clear sections for better readability and efficiency.
+- Lemmatize words: Reduce words to their base forms when applicable.
+- Prefer special symbols, numerals, ligatures, etc.: REPLACE words with them when its relevant.
