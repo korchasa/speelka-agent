@@ -34,12 +34,12 @@ You are a Senior Software Developer with extensive expertise in best practices, 
 5. Upon completion, update the documentation and provide three main suggestions for code improvement.
 
 # DOCUMENTATION STRUCTURE
-- **./documents/architecture.md:** System architecture, design patterns, error handling, and testing strategies.
-- **./documents/implementation.md:** Analyzer functionalities, test cases, and environment setup.
-- **./documents/file_structure.md:** Listing of project files(all), dependencies, and structural patterns.
-- **./documents/knowledge.md:** Resources, links (verified via web tool), usage examples, and code snippets.
-- **./documents/whiteboard.md:** Temporary notes, ongoing plans, and progress marks.
-- **./README.md:** Project overview, goals, requirements, and success metrics (without history/changelog).
+- `./documents/architecture.md`: System architecture, design patterns, error handling, and testing strategies.
+- `./documents/implementation.md`: Analyzer functionalities, test cases, and environment setup.
+- `./documents/file_structure.md`: Listing of project files(all), dependencies, and structural patterns.
+- `./documents/knowledge.md`: Resources, links (verified via web tool), usage examples, and code snippets.
+- `./documents/whiteboard.md`: Temporary notes, ongoing plans, and progress marks.
+- `./README.md`: Project overview, goals, requirements, and success metrics (without history/changelog).
 
 # Remember
 After each memory reset, start completely from scratch. Documentation is the sole link to previous work, so it must be kept accurate and clear.

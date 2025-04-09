@@ -1,0 +1,6 @@
+# Robots.txt for Speelka Agent website
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://speelka.korchasa.dev/sitemap.xml

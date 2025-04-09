@@ -4,6 +4,18 @@
 
 Speelka Agent is a Go-based implementation of an agent system that integrates with Large Language Models (LLMs) and provides tool execution capabilities through the Machine Cognition Protocol (MCP). The system is designed to be modular, extensible, and follows clean architectural patterns.
 
+## Key Advantages
+
+Speelka Agent offers significant benefits for LLM system integrations:
+
+1. **Client-Side Context Optimization**: Reduces context size requirements on the client side, resulting in more efficient token usage and cost savings
+2. **LLM Flexibility**: Allows different LLM providers and configurations between client and agent sides, optimizing for performance and cost
+3. **Precise Agent Definition**: Enables detailed agent behavior definition through prompt engineering
+4. **Centralized Tool Management**: Provides a single point of control for all available tools
+5. **Integration Options**: Supports multiple integration methods including MCP stdio, MCP HTTP* and Simple HTTP API* (*planned)
+6. **Reliability**: Includes built-in retry mechanisms for handling transient failures
+7. **Extensibility**: Supports system behavior extensions without requiring client-side changes
+
 ## Core Design Principles
 
 1. **Separation of Concerns**: Each component has a single responsibility

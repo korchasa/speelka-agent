@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Speelka Agent - Smart LLM orchestrator for tool-enhanced AI workflows with MCP server integration">
+    <meta name="keywords" content="Speelka Agent, MCP, LLM, AI, Machine Cognition Protocol, Go, Tool Orchestration">
+    <meta name="author" content="Stanislav Korchagin">
+    <title>Speelka Agent - MCP Server for LLM Integration</title>
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://speelka.korchasa.dev/">
+
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Speelka Agent - MCP Server for LLM Integration">
+    <meta property="og:description" content="Smart LLM orchestrator for tool-enhanced AI workflows with MCP server integration. Optimize context size and orchestrate LLM interactions with other tools.">
+    <meta property="og:image" content="https://speelka.korchasa.dev/img/image.png">
+    <meta property="og:url" content="https://speelka.korchasa.dev/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Speelka Agent">
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Speelka Agent - MCP Server for LLM Integration">
+    <meta name="twitter:description" content="Smart LLM orchestrator for tool-enhanced AI workflows with MCP server integration. Optimize context size and orchestrate LLM interactions.">
+    <meta name="twitter:image" content="https://speelka.korchasa.dev/img/image.png">
+
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Mermaid.js for diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js" defer></script>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Speelka Agent",
+      "description": "Smart LLM orchestrator for tool-enhanced AI workflows with MCP server integration",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Cross-platform",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "url": "https://speelka.korchasa.dev/",
+      "sameAs": [
+        "https://github.com/korchasa/speelka-agent"
+      ],
+      "author": {
+        "@type": "Person",
+        "name": "Stanislav Korchagin"
+      }
+    }
+    </script>
+</head>
+<body>
+    <!-- Header -->
+    <header id="header" role="banner">
+        <nav class="container" aria-label="Main navigation">
+            <div class="logo">
+                <a href="#" aria-label="Speelka Agent home">Speelka Agent</a>
+            </div>
+            <ul class="nav-links" id="nav-links">
+                <li><a href="#features" aria-label="Go to Features section">Features</a></li>
+                <li><a href="#architecture" aria-label="Go to Architecture section">Architecture</a></li>
+                <li><a href="#usage" aria-label="Go to Usage section">Usage</a></li>
+                <li><a href="#documentation" aria-label="Go to Documentation section">Docs</a></li>
+                <li><a href="https://github.com/korchasa/speelka-agent" class="btn-github" aria-label="View on GitHub"><i class="fab fa-github" aria-hidden="true"></i> GitHub</a></li>
+            </ul>
+            <div class="hamburger" aria-label="Toggle menu" role="button" tabindex="0" aria-expanded="false" aria-controls="nav-links">
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="hero" class="container" role="region" aria-labelledby="hero-heading">
+        <div class="hero-content">
+            <h1 id="hero-heading">Speelka Agent</h1>
+            <h2>Smart LLM orchestrator for tool-enhanced AI workflows</h2>
+            <p>Transform your MCP server ecosystem with centralized tool management and optimized context usage for more powerful LLM interactions.</p>
+            <div class="hero-buttons" role="group" aria-label="Get started options">
+                <a href="#usage" class="btn btn-primary" aria-label="Configure Agent">Configure Agent</a>
+                <a href="https://github.com/korchasa/speelka-agent" class="btn btn-secondary" target="_blank" rel="noopener noreferrer" aria-label="View on GitHub"><i class="fab fa-github" aria-hidden="true"></i> View on GitHub</a>
+            </div>
+        </div>
+        <div class="hero-image" aria-hidden="true">
+            <img src="img/image.png" alt="Speelka Agent architecture diagram showing the flow between MCP Client, Speelka Agent, LLM Service and External Tools" width="500" height="400" loading="eager">
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features">
+        <div class="container">
+            <h2 class="section-title">Key Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-compress-alt"></i></div>
+                    <h3>Context Size Optimization</h3>
+                    <p>Reduce client-side context size for more efficient processing and lower token consumption.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-exchange-alt"></i></div>
+                    <h3>Flexible LLM Configuration</h3>
+                    <p>Use different LLM providers and settings between client-side and agent for optimized cost and performance.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-file-alt"></i></div>
+                    <h3>Precise Agent Definition</h3>
+                    <p>Precisely describe agent functionality in prompts for better control and more predictable behavior.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-tools"></i></div>
+                    <h3>Centralized Tool Management</h3>
+                    <p>Manage and orchestrate all tools from a central location for better consistency and control.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-code"></i></div>
+                    <h3>Flexible Integration Options</h3>
+                    <p>Integrate via MCP stdio, MCP HTTP*, or Simple HTTP API* depending on your system requirements. (*planned)</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-sync"></i></div>
+                    <h3>Built-in Retry Mechanism</h3>
+                    <p>Ensure reliability with automatic retries for transient failures and network issues.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-expand-alt"></i></div>
+                    <h3>Extensible Architecture</h3>
+                    <p>Extend and modify system behavior without requiring changes to client-side implementations.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section id="architecture">
+        <div class="container">
+            <h2 class="section-title">Architecture</h2>
+
+            <div class="architecture-flow">
+                <div class="mermaid-container">
+                    <pre class="mermaid">
+%%{
+  init: {
+    'theme': 'dark',
+    'themeVariables': {
+      'primaryColor': '#8a5cf6',
+      'primaryTextColor': '#f9fafb',
+      'primaryBorderColor': '#8a5cf6',
+      'lineColor': '#8a5cf6',
+      'secondaryColor': '#6d28d9',
+      'tertiaryColor': '#131525'
+    }
+  }
+}%%
+flowchart TB
+    User["Any MCP Client"] --> |"1. Request"| Agent["Speelka Agent"]
+    Agent --> |"2. Format prompt"| LLM["LLM Service"]
+    LLM --> |"3. Tool calls"| Agent
+    Agent --> |"4. Execute tools"| Tools["External MCP Tools"]
+    Tools --> |"5. Return results"| Agent
+    Agent --> |"6. Process repeat"| LLM
+    Agent --> |"7. Final answer"| User
+
+    classDef default fill:#131525,stroke:#8a5cf6,stroke-width:2px,color:#f9fafb;
+                    </pre>
+                </div>
+                <div class="flow-description">
+                    <ol class="flow-list">
+                        <li><span>User request is received by the Agent</span></li>
+                        <li><span>Agent processes the request and initializes a Chat session</span></li>
+                        <li><span>LLM Service is called with the formatted prompt and available tools</span></li>
+                        <li><span>LLM responds with text and/or tool calls</span></li>
+                        <li><span>For each tool call, MCP Connector executes the tool on an appropriate server</span></li>
+                        <li><span>Tool results are added to the Chat history</span></li>
+                        <li><span>The process repeats until LLM issues an "answer" command</span></li>
+                        <li><span>Final response is returned to the user through Agent</span></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Usage Section (formerly Configuration) -->
+    <section id="usage">
+        <div class="container">
+            <h2 class="section-title">Usage</h2>
+            <p class="section-subtitle">Customize your Speelka Agent setup</p>
+
+            <div class="config-section">
+                <div class="tab-container">
+                    <div class="tab active" onclick="openTab(event, 'agentTab')">Agent Settings</div>
+                    <div class="tab" onclick="openTab(event, 'connectionsTab')">Connections</div>
+                    <div class="tab" onclick="openTab(event, 'runtimeTab')">Runtime</div>
+                </div>
+
+                <div id="agentTab" class="tab-content active">
+                    <div class="form-group">
+                        <label for="agentName">Agent Name:</label>
+                        <input type="text" id="agentName" value="speelka-agent" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="agentVersion">Agent Version:</label>
+                        <input type="text" id="agentVersion" value="1.0.0" />
+                    </div>
+
+                    <h3>Tool Configuration</h3>
+                    <div class="form-group">
+                        <label for="toolName">Tool Name:</label>
+                        <input type="text" id="toolName" value="process" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="toolDescription">Tool Description:</label>
+                        <input type="text" id="toolDescription" value="Process tool for handling user queries with LLM" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="argumentName">Argument Name:</label>
+                        <input type="text" id="argumentName" value="input" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="argumentDescription">Argument Description:</label>
+                        <input type="text" id="argumentDescription" value="User query to process" />
+                    </div>
+
+                    <h3>LLM Configuration</h3>
+                    <div class="form-group">
+                        <label for="llmProvider">LLM Provider:</label>
+                        <select id="llmProvider">
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="llmApiKey">API Key:</label>
+                        <input type="text" id="llmApiKey" placeholder="Enter your API key here" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="llmModel">Model:</label>
+                        <input type="text" id="llmModel" value="gpt-4o" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="llmMaxTokens">Max Tokens (0 for default):</label>
+                        <input type="number" id="llmMaxTokens" value="0" min="0" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="llmTemperature">Temperature (0.0-1.0):</label>
+                        <input type="number" id="llmTemperature" value="0.7" min="0" max="1" step="0.1" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="promptTemplate">Prompt Template:</label>
+                        <textarea id="promptTemplate">You are a helpful AI assistant. Respond to the following request:
+
+{{input}}
+
+Provide a detailed and helpful response.
+
+Available tools:
+{{tools}}</textarea>
+                    </div>
+
+                    <h3>Retry Configuration</h3>
+                    <div class="form-group">
+                        <label for="maxRetries">Max Retries:</label>
+                        <input type="number" id="maxRetries" value="3" min="1" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="initialBackoff">Initial Backoff (seconds):</label>
+                        <input type="number" id="initialBackoff" value="1.0" min="0.1" step="0.1" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="maxBackoff">Max Backoff (seconds):</label>
+                        <input type="number" id="maxBackoff" value="30.0" min="1" step="0.1" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="backoffMultiplier">Backoff Multiplier:</label>
+                        <input type="number" id="backoffMultiplier" value="2.0" min="1" step="0.1" />
+                    </div>
+                </div>
+
+                <div id="connectionsTab" class="tab-content">
+                    <h3>MCP Server Connections</h3>
+                    <div id="serversContainer">
+                        <!-- Server configurations will be added here -->
+                    </div>
+
+                    <button class="add-server-btn btn btn-secondary" onclick="addServer()">Add Server</button>
+
+                    <h3>Connection Retry Configuration</h3>
+                    <div class="form-group">
+                        <label for="connMaxRetries">Max Retries:</label>
+                        <input type="number" id="connMaxRetries" value="3" min="1" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="connInitialBackoff">Initial Backoff (seconds):</label>
+                        <input type="number" id="connInitialBackoff" value="1.0" min="0.1" step="0.1" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="connMaxBackoff">Max Backoff (seconds):</label>
+                        <input type="number" id="connMaxBackoff" value="30.0" min="1" step="0.1" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="connBackoffMultiplier">Backoff Multiplier:</label>
+                        <input type="number" id="connBackoffMultiplier" value="2.0" min="1" step="0.1" />
+                    </div>
+                </div>
+
+                <div id="runtimeTab" class="tab-content">
+                    <h3>Log Configuration</h3>
+                    <div class="form-group">
+                        <label for="logLevel">Log Level:</label>
+                        <select id="logLevel">
+                            <option value="debug">Debug</option>
+                            <option value="info" selected>Info</option>
+                            <option value="warn">Warn</option>
+                            <option value="error">Error</option>
+                            <option value="fatal">Fatal</option>
+                            <option value="panic">Panic</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="logOutput">Log Output:</label>
+                        <input type="text" id="logOutput" value="stdout" placeholder="stdout, stderr, or file path" />
+                    </div>
+
+                    <h3>Transport Configuration</h3>
+                    <div class="form-group">
+                        <label for="stdioEnabled">Enable STDIO Transport:</label>
+                        <select id="stdioEnabled">
+                            <option value="true" selected>Enabled</option>
+                            <option value="false">Disabled</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="stdioBufferSize">STDIO Buffer Size:</label>
+                        <input type="number" id="stdioBufferSize" value="8192" min="1024" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="stdioAutoDetect">STDIO Auto Detect:</label>
+                        <select id="stdioAutoDetect">
+                            <option value="true">Enabled</option>
+                            <option value="false" selected>Disabled</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="httpEnabled">Enable HTTP Transport:</label>
+                        <select id="httpEnabled">
+                            <option value="true">Enabled</option>
+                            <option value="false" selected>Disabled</option>
+                        </select>
+                    </div>
+
+                    <div id="httpSettings" style="display: none;">
+                        <div class="form-group">
+                            <label for="httpHost">HTTP Host:</label>
+                            <input type="text" id="httpHost" value="localhost" />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="httpPort">HTTP Port:</label>
+                            <input type="number" id="httpPort" value="3000" min="1" max="65535" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="config-actions">
+                <div class="config-io-buttons">
+                    <label for="uploadConfig" class="btn btn-secondary" title="Upload configuration from JSON file">
+                        <i class="fas fa-upload"></i> Upload
+                    </label>
+                    <input type="file" id="uploadConfig" accept=".json" style="display: none;" onchange="uploadConfig(this)">
+                    <button class="btn btn-secondary" onclick="downloadConfig()" title="Download configuration as JSON file">
+                        <i class="fas fa-download"></i> Download
+                    </button>
+
+                </div>
+            </div>
+
+            <div class="output-container">
+                <h3>Generated Configuration</h3>
+                <pre id="generatedConfig" class="code-block"><button class="copy-btn" aria-label="Copy code" onclick="copyConfig()"><i class="fas fa-copy"></i></button>// Configuration will appear here</pre>
+            </div>
+
+            <div class="instructions">
+                <h3>How to Use This Configuration</h3>
+
+                <p>Set the CONFIG_JSON environment variable with your configuration:</p>
+                <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>export CONFIG_JSON='YOUR_CONFIGURATION_JSON'
+export LLM_API_KEY='...'
+</code></pre>
+
+                <h4>MCP stdio</h4>
+                <p>Add speelka-agent binary to your MCP client:</p>
+<pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>{
+    "mcpServers": {
+        "speelka-agent": {
+            "command": "speelka-agent",
+            "args": []
+            "env": {
+                "CONFIG_JSON": "...YOUR_CONFIGURATION_JSON..."
+                "LLM_API_KEY": "...YOU_LLM_API_KEY..."
+            }
+        }
+    }
+}</code></pre>
+
+
+                <p>Add speelka-agent to your MCP client with Docker:</p>
+                <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>{
+    "mcpServers": {
+        "speelka-agent": {
+            "command": "docker",
+            "args": ["run", "-i", "--rm", "-e", "CONFIG_JSON=$CONFIG_JSON", "-e", "LLM_API_KEY=$LLM_API_KEY" "ghcr.io/korchasa/speelka-agent:latest"]
+            "env": {
+                "CONFIG_JSON": "...YOUR_CONFIGURATION_JSON..."
+                "LLM_API_KEY": "...YOU_LLM_API_KEY..."
+            }
+        }
+    }
+}</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- Documentation Section -->
+    <section id="documentation">
+        <div class="container">
+            <h2 class="section-title">Documentation</h2>
+            <p class="section-subtitle">Complete documentation is available on GitHub</p>
+
+            <div class="github-link-container">
+                <a href="https://github.com/korchasa/speelka-agent#readme" class="btn btn-github">
+                    <i class="fab fa-github"></i> View Documentation on GitHub
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-about">
+                    <h3>Speelka Agent</h3>
+                    <p>Smart LLM orchestrator for tool-enhanced AI workflows, with the ability to utilize tools from other MCP servers.</p>
+                </div>
+
+                <div class="footer-links">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#architecture">Architecture</a></li>
+                        <li><a href="#usage">Usage</a></li>
+                        <li><a href="#documentation">Documentation</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-github">
+                    <h3>GitHub</h3>
+                    <ul>
+                        <li><a href="https://github.com/korchasa/speelka-agent">Repository</a></li>
+                        <li><a href="https://github.com/korchasa/speelka-agent/issues">Issues</a></li>
+                        <li><a href="https://github.com/korchasa/speelka-agent/pulls">Pull Requests</a></li>
+                        <li><a href="https://github.com/korchasa/speelka-agent/blob/main/LICENSE">License</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2023 Speelka Agent. Licensed under <a href="https://github.com/korchasa/speelka-agent/blob/main/LICENSE">MIT License</a>.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/main.js" defer></script>
+</body>
+</html>

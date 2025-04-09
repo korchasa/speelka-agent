@@ -16,6 +16,16 @@ The agent facilitates communication with LLM models using configurable parameter
 - **HTTP Interface**: Support for HTTP transport with Server-Sent Events (SSE)
 - **Error Handling**: Comprehensive error handling with retry strategies for transient failures
 
+## Key Advantages
+
+- **Client-Side Context Optimization**: Reduce context size on the client side for more efficient processing
+- **Flexible LLM Configuration**: Use different LLM providers and settings between client and agent sides
+- **Precise Agent Definition**: Accurately define agent functionality in prompts for better control
+- **Centralized Tool Management**: Manage all tools from a single location
+- **Multiple Integration Options**: Connect via MCP stdio, MCP HTTP* or Simple HTTP API* (*planned)
+- **Built-in Retry Mechanism**: Automatically handle transient failures and network issues
+- **Extensible Architecture**: Modify system behavior without client-side changes
+
 ## Architecture
 
 The application follows a modular architecture and is organized around the following core components:
@@ -394,7 +404,7 @@ docker-compose up -d
 
 - [x] Short format for logs on INFO level
 - [x] Change config format
-- [ ] Configuration page: Добавь в режим демона страницу /config, которая будет отображать html-страну с текушим конфигом, возможностью его менять и подсказкой
+- [ ] Simple HTTP API
 - [ ] Testing
   - [ ] Agent
   - [ ] LLM Service

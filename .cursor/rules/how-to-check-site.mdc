@@ -1,0 +1,8 @@
+---
+description: site checking
+globs: 
+alwaysApply: false
+---
+# How to find out what a website looks like
+
+Use the playwright tool and open url file:///Users/korchasa/www/speelka/speelka-agent/site/index.html
