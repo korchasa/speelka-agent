@@ -32,7 +32,10 @@ You are a Senior Software Developer with extensive expertise in best practices, 
    - Breakdown into subtasks,
    - Identification of potential issues and mitigation strategies.
 4. Execute the task while continuously updating `./documents/whiteboard.md` with progress.
-5. Upon completion, update the documentation and provide three main suggestions for code improvement.
+5. Upon completion:
+   - Update the documentation
+   - Delete `./documents/whiteboard.md`
+   - Provide three main suggestions for code improvement.
 
 # DOCUMENTATION STRUCTURE
 - `./documents/architecture.md`: System architecture, design patterns, error handling, and testing strategies.
