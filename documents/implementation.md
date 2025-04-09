@@ -396,48 +396,46 @@ Implementation details:
 
 ## Prompt Template Validation
 
-The configuration system includes validation for prompt templates to ensure they contain all required placeholders:
+The prompt template validation system ensures that all required placeholders are present in the template. This is crucial for the proper functioning of the agent, as missing placeholders would result in incomplete or incorrect prompts being sent to the LLM.
 
-1. Each prompt template must contain at least two required placeholders:
-   - `{{argumentName}}` - Where `argumentName` is the value specified in the tool's `argument_name` configuration
-   - `{{tools}}` - For rendering the available tools description
+### Key Features
 
-2. Validation occurs during configuration loading in the `loadFromJSON` method:
-   - The `validatePromptTemplate` function checks for the presence of required placeholders
-   - If any required placeholder is missing, an error is returned and configuration loading fails
+1. **Required Placeholder Validation**: Checks that all required placeholders (tool argument name and `tools`) are present in the template.
+2. **Detailed Error Messages**: When validation fails, the system provides comprehensive error messages that:
+   - List all missing placeholders
+   - Explain that placeholders should match the configuration
+   - Identify common mistakes users make (e.g., hardcoded placeholder names)
+   - Provide an example of a correct template
 
-3. The validation process:
-   - Extracts all placeholders from the template using regex pattern `{{\s*([a-zA-Z0-9_]+)\s*}}`
-   - Checks that both the tool's argument name and "tools" are present in the extracted placeholders
-   - Supports whitespace within the placeholder syntax, e.g., `{{ placeholder }}`
+3. **Early Validation**: Template validation occurs during configuration loading, ensuring issues are caught before runtime.
 
-4. Dynamic placeholder usage:
-   - The Chat component now accepts the argument name from the configuration
-   - In `chat.Begin()`, the placeholder name is dynamically determined from the configuration
-   - This ensures consistency between the configuration validation and runtime usage
+### Implementation
 
-5. Example of valid prompt template:
-   ```
-   # User query
-   {{query}}
+The validation logic is implemented in the `validatePromptTemplate` method of the `Manager` struct in the `configuration` package. It:
 
-   # Available tools
-   {{tools}}
-   ```
+1. Extracts all placeholders from the template using a regex pattern
+2. Checks if all required placeholders are present
+3. Generates detailed error messages for missing placeholders
 
-6. Example of valid prompt template with different argument name:
-   ```
-   # User input
-   {{input}}
+Error messages are specifically designed to guide users toward proper configuration, explaining the relationship between placeholder names and the tool configuration.
 
-   # Available tools
-   {{tools}}
-   ```
+### Example Error Message
 
-7. Example of invalid prompt template (missing the tools placeholder):
-   ```
-   # User query
-   {{query}}
-   ```
+When a template is missing required placeholders, an error like this is generated:
 
-This validation ensures that the LLM will always receive a properly formatted prompt with all necessary placeholders, preventing runtime errors when the chat system attempts to format the template.
+```
+prompt template is missing required placeholder(s): input
+
+Expected placeholder '{{input}}' should match the 'argument_name' value in your tool configuration.
+Common mistake: Using a hardcoded placeholder name like '{{query}}' instead of the configured argument name.
+
+Example of a valid template:
+You are a helpful assistant.
+
+User request: {{input}}
+
+Available tools:
+{{tools}}
+```
+
+This clear error messaging significantly improves the user experience when configuring prompt templates.

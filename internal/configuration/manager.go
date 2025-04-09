@@ -277,14 +277,14 @@ func (cm *Manager) validatePromptTemplate(template string, argumentName string) 
 
 		// If argumentName is missing, provide specific guidance
 		if contains(missingPlaceholders, argumentName) {
-			errMsg += fmt.Sprintf("\n\nExpected placeholder '{{%s}}' should match the 'argument_name' value in your tool configuration.", argumentName)
+			errMsg += "\n\nExpected placeholder '{{" + argumentName + "}}' should match the 'argument_name' value in your tool configuration."
 			errMsg += "\nCommon mistake: Using a hardcoded placeholder name like '{{query}}' instead of the configured argument name."
 		}
 
 		// Always provide an example of a valid template
-		errMsg += fmt.Sprintf("\n\nExample of a valid template:\nYou are a helpful assistant.\n\nUser request: {{%s}}\n\nAvailable tools:\n{{tools}}", argumentName)
+		errMsg += "\n\nExample of a valid template:\nYou are a helpful assistant.\n\nUser request: {{" + argumentName + "}}\n\nAvailable tools:\n{{tools}}"
 
-		return fmt.Errorf(errMsg)
+		return fmt.Errorf("%s", errMsg)
 	}
 
 	return nil

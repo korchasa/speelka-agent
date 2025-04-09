@@ -42,7 +42,7 @@ func TestValidatePromptTemplate(t *testing.T) {
 		template := `Template with only {{tools}} placeholder`
 		err := cm.TestValidatePromptTemplate(template, "query")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "missing required placeholder {{query}}")
+		assert.Contains(t, err.Error(), "missing required placeholder(s): query")
 	})
 
 	t.Run("invalid template missing tools placeholder", func(t *testing.T) {
@@ -50,7 +50,7 @@ func TestValidatePromptTemplate(t *testing.T) {
 		template := `Template with only {{query}} placeholder`
 		err := cm.TestValidatePromptTemplate(template, "query")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "missing required placeholder {{tools}}")
+		assert.Contains(t, err.Error(), "missing required placeholder(s): tools")
 	})
 
 	t.Run("invalid empty template", func(t *testing.T) {
@@ -77,7 +77,7 @@ func TestValidatePromptTemplate(t *testing.T) {
 		// Should fail when looking for a different argument name
 		err = cm.TestValidatePromptTemplate(template, "query")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "missing required placeholder {{query}}")
+		assert.Contains(t, err.Error(), "missing required placeholder(s): query")
 	})
 }
 
