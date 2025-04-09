@@ -280,20 +280,20 @@ function generateConfigObject() {
     const agentVersion = document.getElementById('agentVersion').value;
     const toolName = document.getElementById('toolName').value;
     const toolDescription = document.getElementById('toolDescription').value;
-    const argumentName = document.getElementById('argumentName').value;
-    const argumentDescription = document.getElementById('argumentDescription').value;
+    const toolArgumentName = document.getElementById('toolArgumentName').value;
+    const toolArgumentDescription = document.getElementById('toolArgumentDescription').value;
 
     // LLM section
     const llmProvider = document.getElementById('llmProvider').value;
-    const llmApiKey = document.getElementById('llmApiKey').value;
+    const llmAPIKey = document.getElementById('llmAPIKey').value;
     const llmModel = document.getElementById('llmModel').value;
     const llmMaxTokens = parseInt(document.getElementById('llmMaxTokens').value);
     const llmTemperature = parseFloat(document.getElementById('llmTemperature').value);
-    const promptTemplate = document.getElementById('promptTemplate').value;
-    const maxRetries = parseInt(document.getElementById('maxRetries').value);
-    const initialBackoff = parseFloat(document.getElementById('initialBackoff').value);
-    const maxBackoff = parseFloat(document.getElementById('maxBackoff').value);
-    const backoffMultiplier = parseFloat(document.getElementById('backoffMultiplier').value);
+    const llmPromptTemplate = document.getElementById('llmPromptTemplate').value;
+    const llmRetryMaxRetries = parseInt(document.getElementById('llmRetryMaxRetries').value);
+    const llmRetryInitialBackoff = parseFloat(document.getElementById('llmRetryInitialBackoff').value);
+    const llmRetryMaxBackoff = parseFloat(document.getElementById('llmRetryMaxBackoff').value);
+    const llmRetryBackoffMultiplier = parseFloat(document.getElementById('llmRetryBackoffMultiplier').value);
 
     // Connections section
     const mcpServers = {};
@@ -325,17 +325,16 @@ function generateConfigObject() {
         };
     });
 
-    const connMaxRetries = parseInt(document.getElementById('connMaxRetries').value);
-    const connInitialBackoff = parseFloat(document.getElementById('connInitialBackoff').value);
-    const connMaxBackoff = parseFloat(document.getElementById('connMaxBackoff').value);
-    const connBackoffMultiplier = parseFloat(document.getElementById('connBackoffMultiplier').value);
+    const connRetryMaxRetries = parseInt(document.getElementById('connRetryMaxRetries').value);
+    const connRetryInitialBackoff = parseFloat(document.getElementById('connRetryInitialBackoff').value);
+    const connRetryMaxBackoff = parseFloat(document.getElementById('connRetryMaxBackoff').value);
+    const connRetryBackoffMultiplier = parseFloat(document.getElementById('connRetryBackoffMultiplier').value);
 
     // Runtime section
     const logLevel = document.getElementById('logLevel').value;
     const logOutput = document.getElementById('logOutput').value;
     const stdioEnabled = document.getElementById('stdioEnabled').value === 'true';
     const stdioBufferSize = parseInt(document.getElementById('stdioBufferSize').value);
-    const stdioAutoDetect = document.getElementById('stdioAutoDetect').value === 'true';
     const httpEnabled = document.getElementById('httpEnabled').value === 'true';
     const httpHost = document.getElementById('httpHost').value;
     const httpPort = parseInt(document.getElementById('httpPort').value);
@@ -348,30 +347,30 @@ function generateConfigObject() {
             tool: {
                 name: toolName,
                 description: toolDescription,
-                argument_name: argumentName,
-                argument_description: argumentDescription
+                argument_name: toolArgumentName,
+                argument_description: toolArgumentDescription
             },
             llm: {
                 provider: llmProvider,
-                api_key: llmApiKey || "YOUR_API_KEY_HERE",
+                api_key: llmAPIKey || "YOUR_API_KEY_HERE",
                 model: llmModel,
                 max_tokens: llmMaxTokens,
                 temperature: llmTemperature,
-                prompt_template: promptTemplate,
+                prompt_template: llmPromptTemplate,
                 retry: {
-                    max_retries: maxRetries,
-                    initial_backoff: initialBackoff,
-                    max_backoff: maxBackoff,
-                    backoff_multiplier: backoffMultiplier
+                    max_retries: llmRetryMaxRetries,
+                    initial_backoff: llmRetryInitialBackoff,
+                    max_backoff: llmRetryMaxBackoff,
+                    backoff_multiplier: llmRetryBackoffMultiplier
                 }
             },
             connections: {
                 mcpServers: mcpServers,
                 retry: {
-                    max_retries: connMaxRetries,
-                    initial_backoff: connInitialBackoff,
-                    max_backoff: connMaxBackoff,
-                    backoff_multiplier: connBackoffMultiplier
+                    max_retries: connRetryMaxRetries,
+                    initial_backoff: connRetryInitialBackoff,
+                    max_backoff: connRetryMaxBackoff,
+                    backoff_multiplier: connRetryBackoffMultiplier
                 }
             }
         },
@@ -383,8 +382,7 @@ function generateConfigObject() {
             transports: {
                 stdio: {
                     enabled: stdioEnabled,
-                    buffer_size: stdioBufferSize,
-                    auto_detect: stdioAutoDetect
+                    buffer_size: stdioBufferSize
                 },
                 http: {
                     enabled: httpEnabled,
@@ -612,25 +610,25 @@ function applyConfigToForm(config) {
             if (config.agent.tool) {
                 setValue('toolName', config.agent.tool.name);
                 setValue('toolDescription', config.agent.tool.description);
-                setValue('argumentName', config.agent.tool.argument_name);
-                setValue('argumentDescription', config.agent.tool.argument_description);
+                setValue('toolArgumentName', config.agent.tool.argument_name);
+                setValue('toolArgumentDescription', config.agent.tool.argument_description);
             }
 
             // LLM settings
             if (config.agent.llm) {
                 setValue('llmProvider', config.agent.llm.provider);
-                setValue('llmApiKey', config.agent.llm.api_key);
+                setValue('llmAPIKey', config.agent.llm.api_key);
                 setValue('llmModel', config.agent.llm.model);
                 setValue('llmMaxTokens', config.agent.llm.max_tokens);
                 setValue('llmTemperature', config.agent.llm.temperature);
-                setValue('promptTemplate', config.agent.llm.prompt_template);
+                setValue('llmPromptTemplate', config.agent.llm.prompt_template);
 
                 // Retry settings
                 if (config.agent.llm.retry) {
-                    setValue('maxRetries', config.agent.llm.retry.max_retries);
-                    setValue('initialBackoff', config.agent.llm.retry.initial_backoff);
-                    setValue('maxBackoff', config.agent.llm.retry.max_backoff);
-                    setValue('backoffMultiplier', config.agent.llm.retry.backoff_multiplier);
+                    setValue('llmRetryMaxRetries', config.agent.llm.retry.max_retries);
+                    setValue('llmRetryInitialBackoff', config.agent.llm.retry.initial_backoff);
+                    setValue('llmRetryMaxBackoff', config.agent.llm.retry.max_backoff);
+                    setValue('llmRetryBackoffMultiplier', config.agent.llm.retry.backoff_multiplier);
                 }
             }
 
@@ -646,14 +644,23 @@ function applyConfigToForm(config) {
                 if (config.agent.connections.mcpServers && typeof config.agent.connections.mcpServers === 'object') {
                     serverCounter = 0; // Reset counter
 
-                    // Handle new mcpServers object format
-                    Object.entries(config.agent.connections.mcpServers).forEach(([id, server]) => {
+                    // Handle new mcpServers object format - ensure all servers are properly processed
+                    const mcpServersEntries = Object.keys(config.agent.connections.mcpServers).map(key => [
+                        key,
+                        config.agent.connections.mcpServers[key]
+                    ]);
+
+                    // Process each server explicitly using array
+                    for (let i = 0; i < mcpServersEntries.length; i++) {
+                        const [id, server] = mcpServersEntries[i];
                         addServerFromConfig(id, server);
-                    });
+                    }
                 } else if (config.agent.connections.servers && Array.isArray(config.agent.connections.servers)) {
                     // Handle legacy servers array format for backward compatibility
                     serverCounter = 0; // Reset counter
-                    config.agent.connections.servers.forEach(server => {
+
+                    for (let i = 0; i < config.agent.connections.servers.length; i++) {
+                        const server = config.agent.connections.servers[i];
                         const id = server.id || `server-${serverCounter}`;
                         const serverObj = {
                             command: server.command,
@@ -661,7 +668,7 @@ function applyConfigToForm(config) {
                             environment: server.environment || {}
                         };
                         addServerFromConfig(id, serverObj);
-                    });
+                    }
                 } else {
                     // Add a default server if none in config
                     addServer();
@@ -669,11 +676,13 @@ function applyConfigToForm(config) {
 
                 // Connection retry settings
                 if (config.agent.connections.retry) {
-                    setValue('connMaxRetries', config.agent.connections.retry.max_retries);
-                    setValue('connInitialBackoff', config.agent.connections.retry.initial_backoff);
-                    setValue('connMaxBackoff', config.agent.connections.retry.max_backoff);
-                    setValue('connBackoffMultiplier', config.agent.connections.retry.backoff_multiplier);
+                    setValue('connRetryMaxRetries', config.agent.connections.retry.max_retries);
+                    setValue('connRetryInitialBackoff', config.agent.connections.retry.initial_backoff);
+                    setValue('connRetryMaxBackoff', config.agent.connections.retry.max_backoff);
+                    setValue('connRetryBackoffMultiplier', config.agent.connections.retry.backoff_multiplier);
                 }
+            } else {
+                console.log("No connections found in config");
             }
         }
 
@@ -691,7 +700,6 @@ function applyConfigToForm(config) {
                 if (config.runtime.transports.stdio) {
                     setValue('stdioEnabled', config.runtime.transports.stdio.enabled.toString());
                     setValue('stdioBufferSize', config.runtime.transports.stdio.buffer_size);
-                    setValue('stdioAutoDetect', config.runtime.transports.stdio.auto_detect.toString());
                 }
 
                 // HTTP settings
@@ -732,15 +740,24 @@ function addServerFromConfig(id, serverConfig) {
     // Build environment string
     let envStr = '';
     if (serverConfig.environment && typeof serverConfig.environment === 'object') {
-        envStr = Object.entries(serverConfig.environment)
-            .map(([key, value]) => `${key}=${value}`)
-            .join(', ');
+        if (Array.isArray(serverConfig.environment)) {
+            // Handle array of environment variables format
+            envStr = serverConfig.environment.join(', ');
+        } else {
+            // Handle object format
+            envStr = Object.entries(serverConfig.environment)
+                .map(([key, value]) => `${key}=${value}`)
+                .join(', ');
+        }
     }
+
+    // Escape special characters in id to avoid issues with user-provided values
+    const safeId = id.replace(/[^a-zA-Z0-9-_]/g, '_');
 
     serverDiv.innerHTML = `
         <div class="form-group">
             <label for="serverId-${serverId}">Server ID:</label>
-            <input type="text" id="serverId-${serverId}" value="${id}" />
+            <input type="text" id="serverId-${serverId}" value="${safeId}" />
         </div>
 
         <div class="form-group">
