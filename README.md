@@ -1,6 +1,6 @@
 # Speelka Agent
 
-Speelka Agent is a Go-based implementation of an agent system that integrates with Large Language Models (LLMs) and provides tool execution capabilities through the Model Context Protocol (MCP).
+Speelka Agent is a universal LLM agent based on the Model Context Protocol (MCP), providing tool execution capabilities through a Go-based implementation.
 
 ## Key Advantages
 
