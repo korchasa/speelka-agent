@@ -23,27 +23,23 @@
             }
         },
         "connections": {
-            "servers": [
-                {
-                    "id": "time",
-                    "transport": "stdio",
+            "mcpServers": {
+                "time": {
                     "command": "docker",
-                    "arguments": [
+                    "args": [
                         "run",
                         "-i",
                         "--rm",
                         "mcp/time"
                     ]
                 },
-                {
-                    "id": "mcp-filesystem-server",
-                    "transport": "stdio",
+                "mcp-filesystem-server": {
                     "command": "mcp-filesystem-server",
-                    "arguments": [
+                    "args": [
                         "."
                     ]
                 }
-            ],
+            },
             "retry": {
                 "max_retries": 3,
                 "initial_backoff": 1.0,

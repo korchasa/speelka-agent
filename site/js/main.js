@@ -172,13 +172,6 @@ function addServer() {
         </div>
 
         <div class="form-group">
-            <label for="serverTransport-${serverId}">Transport:</label>
-            <select id="serverTransport-${serverId}">
-                <option value="stdio" selected>STDIO</option>
-            </select>
-        </div>
-
-        <div class="form-group">
             <label for="serverCommand-${serverId}">Command:</label>
             <input type="text" id="serverCommand-${serverId}" value="docker" />
         </div>
@@ -303,12 +296,11 @@ function generateConfigObject() {
     const backoffMultiplier = parseFloat(document.getElementById('backoffMultiplier').value);
 
     // Connections section
-    const servers = [];
+    const mcpServers = {};
     const serverDivs = document.querySelectorAll('.server-container');
     serverDivs.forEach(div => {
         const id = div.id;
         const serverId = document.getElementById(`serverId-${id.split('-')[1]}`).value;
-        const transport = document.getElementById(`serverTransport-${id.split('-')[1]}`).value;
         const command = document.getElementById(`serverCommand-${id.split('-')[1]}`).value;
         const argsStr = document.getElementById(`serverArgs-${id.split('-')[1]}`).value;
         const envStr = document.getElementById(`serverEnv-${id.split('-')[1]}`).value;
@@ -326,13 +318,11 @@ function generateConfigObject() {
             }
         });
 
-        servers.push({
-            id: serverId,
-            transport,
+        mcpServers[serverId] = {
             command,
-            arguments: args,
+            args,
             environment: env
-        });
+        };
     });
 
     const connMaxRetries = parseInt(document.getElementById('connMaxRetries').value);
@@ -376,7 +366,7 @@ function generateConfigObject() {
                 }
             },
             connections: {
-                servers: servers,
+                mcpServers: mcpServers,
                 retry: {
                     max_retries: connMaxRetries,
                     initial_backoff: connInitialBackoff,
@@ -431,7 +421,7 @@ export LLM_API_KEY='...'`;
                 "speelka-agent": {
                     command: "speelka-agent",
                     args: [],
-                    env: {
+                    environment: {
                         CONFIG_JSON: escapedCompactConfigJson,
                         LLM_API_KEY: "...YOU_LLM_API_KEY..."
                     }
@@ -449,7 +439,7 @@ export LLM_API_KEY='...'`;
                 "speelka-agent": {
                     command: "docker",
                     args: ["run", "-i", "--rm", "-e", "CONFIG_JSON=$CONFIG_JSON", "-e", "LLM_API_KEY=$LLM_API_KEY", "ghcr.io/korchasa/speelka-agent:latest"],
-                    env: {
+                    environment: {
                         CONFIG_JSON: escapedCompactConfigJson,
                         LLM_API_KEY: "...YOU_LLM_API_KEY..."
                     }
@@ -653,11 +643,24 @@ function applyConfigToForm(config) {
                 }
 
                 // Add servers from config
-                if (config.agent.connections.servers && Array.isArray(config.agent.connections.servers)) {
+                if (config.agent.connections.mcpServers && typeof config.agent.connections.mcpServers === 'object') {
                     serverCounter = 0; // Reset counter
 
+                    // Handle new mcpServers object format
+                    Object.entries(config.agent.connections.mcpServers).forEach(([id, server]) => {
+                        addServerFromConfig(id, server);
+                    });
+                } else if (config.agent.connections.servers && Array.isArray(config.agent.connections.servers)) {
+                    // Handle legacy servers array format for backward compatibility
+                    serverCounter = 0; // Reset counter
                     config.agent.connections.servers.forEach(server => {
-                        addServerFromConfig(server);
+                        const id = server.id || `server-${serverCounter}`;
+                        const serverObj = {
+                            command: server.command,
+                            args: server.arguments || [],
+                            environment: server.environment || {}
+                        };
+                        addServerFromConfig(id, serverObj);
                     });
                 } else {
                     // Add a default server if none in config
@@ -712,7 +715,7 @@ function applyConfigToForm(config) {
 }
 
 // Add a server from configuration
-function addServerFromConfig(serverConfig) {
+function addServerFromConfig(id, serverConfig) {
     const serversContainer = document.getElementById('serversContainer');
     if (!serversContainer) return;
 
@@ -722,8 +725,9 @@ function addServerFromConfig(serverConfig) {
     serverDiv.className = 'server-container';
     serverDiv.id = `server-${serverId}`;
 
-    // Build server arguments string
-    const argsStr = Array.isArray(serverConfig.arguments) ? serverConfig.arguments.join(', ') : '';
+    // Handle both new args and legacy arguments
+    const argsArray = serverConfig.args || serverConfig.arguments || [];
+    const argsStr = Array.isArray(argsArray) ? argsArray.join(', ') : '';
 
     // Build environment string
     let envStr = '';
@@ -736,14 +740,7 @@ function addServerFromConfig(serverConfig) {
     serverDiv.innerHTML = `
         <div class="form-group">
             <label for="serverId-${serverId}">Server ID:</label>
-            <input type="text" id="serverId-${serverId}" value="${serverConfig.id || `server-${serverId}`}" />
-        </div>
-
-        <div class="form-group">
-            <label for="serverTransport-${serverId}">Transport:</label>
-            <select id="serverTransport-${serverId}">
-                <option value="stdio" ${serverConfig.transport === 'stdio' ? 'selected' : ''}>STDIO</option>
-            </select>
+            <input type="text" id="serverId-${serverId}" value="${id}" />
         </div>
 
         <div class="form-group">

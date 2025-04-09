@@ -43,18 +43,14 @@ func TestHTTPRequest(t *testing.T) {
 	// 		"debug": false,
 	// 	},
 	// 	"mcp_connector": map[string]interface{}{
-	// 		"servers": []map[string]interface{}{
-	// 			{
-	// 				"id":        "time",
-	// 				"transport": "stdio",
-	// 				"command":   "docker",
-	// 				"arguments": []string{"run", "-i", "--rm", "mcp/time"},
+	// 		"mcpServers": map[string]interface{}{
+	// 			"time": map[string]interface{}{
+	// 				"command": "docker",
+	// 				"args":    []string{"run", "-i", "--rm", "mcp/time"},
 	// 			},
-	// 			{
-	// 				"id":        "mcp-filesystem-server",
-	// 				"transport": "stdio",
-	// 				"command":   "mcp-filesystem-server",
-	// 				"arguments": []string{"/Users/korchasa/www/speelka/speelka-agent"},
+	// 			"mcp-filesystem-server": map[string]interface{}{
+	// 				"command": "mcp-filesystem-server",
+	// 				"args":    []string{"/Users/korchasa/www/speelka/speelka-agent"},
 	// 			},
 	// 		},
 	// 		"retry": map[string]interface{}{

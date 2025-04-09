@@ -421,9 +421,9 @@ export LLM_API_KEY='...'
     "mcpServers": {
         "speelka-agent": {
             "command": "speelka-agent",
-            "args": []
-            "env": {
-                "CONFIG_JSON": "...YOUR_CONFIGURATION_JSON..."
+            "args": [],
+            "environment": {
+                "CONFIG_JSON": "...YOUR_CONFIGURATION_JSON...",
                 "LLM_API_KEY": "...YOU_LLM_API_KEY..."
             }
         }
@@ -436,9 +436,9 @@ export LLM_API_KEY='...'
     "mcpServers": {
         "speelka-agent": {
             "command": "docker",
-            "args": ["run", "-i", "--rm", "-e", "CONFIG_JSON=$CONFIG_JSON", "-e", "LLM_API_KEY=$LLM_API_KEY" "ghcr.io/korchasa/speelka-agent:latest"]
-            "env": {
-                "CONFIG_JSON": "...YOUR_CONFIGURATION_JSON..."
+            "args": ["run", "-i", "--rm", "-e", "CONFIG_JSON=$CONFIG_JSON", "-e", "LLM_API_KEY=$LLM_API_KEY", "ghcr.io/korchasa/speelka-agent:latest"],
+            "environment": {
+                "CONFIG_JSON": "...YOUR_CONFIGURATION_JSON...",
                 "LLM_API_KEY": "...YOU_LLM_API_KEY..."
             }
         }

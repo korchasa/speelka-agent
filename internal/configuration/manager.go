@@ -53,15 +53,13 @@ type Configuration struct {
 			} `json:"retry"`
 		} `json:"llm"`
 		Connections struct {
-			Servers []struct {
-				ID          string            `json:"id"`
-				Transport   string            `json:"transport"`
+			McpServers map[string]struct {
 				URL         string            `json:"url,omitempty"`
 				APIKey      string            `json:"api_key,omitempty"`
 				Command     string            `json:"command,omitempty"`
-				Arguments   []string          `json:"arguments,omitempty"`
+				Args        []string          `json:"args,omitempty"`
 				Environment map[string]string `json:"environment,omitempty"`
-			} `json:"servers"`
+			} `json:"mcpServers"`
 			Retry struct {
 				MaxRetries        int     `json:"max_retries"`
 				InitialBackoff    float64 `json:"initial_backoff"`
@@ -152,27 +150,25 @@ func (cm *Manager) loadFromJSON(jsonConfig string) error {
 	}
 
 	// MCP Connector Config
-	var servers []types.MCPServerConnection
-	for _, server := range config.Agent.Connections.Servers {
+	mcpServers := make(map[string]types.MCPServerConnection)
+	for serverID, server := range config.Agent.Connections.McpServers {
 		// Convert environment map to slice of "KEY=VALUE" strings
 		var envVars []string
 		for key, value := range server.Environment {
 			envVars = append(envVars, fmt.Sprintf("%s=%s", key, value))
 		}
 
-		servers = append(servers, types.MCPServerConnection{
-			ID:          server.ID,
-			Transport:   server.Transport,
+		mcpServers[serverID] = types.MCPServerConnection{
 			URL:         server.URL,
 			APIKey:      server.APIKey,
 			Command:     server.Command,
-			Arguments:   server.Arguments,
+			Args:        server.Args,
 			Environment: envVars,
-		})
+		}
 	}
 
 	cm.mcpConnectorConfig = types.MCPConnectorConfig{
-		Servers: servers,
+		McpServers: mcpServers,
 		RetryConfig: types.RetryConfig{
 			MaxRetries:        config.Agent.Connections.Retry.MaxRetries,
 			InitialBackoff:    config.Agent.Connections.Retry.InitialBackoff,

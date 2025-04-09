@@ -50,35 +50,35 @@ func (mc *MCPConnector) InitAndConnectToMCPs(ctx context.Context) error {
 	mc.dataLock.Lock()
 	defer mc.dataLock.Unlock()
 	// Connecting to all configured MCP servers
-	for _, srvCfg := range mc.config.Servers {
-		mc.logger.Infof("Connecting to MCP server `%s`", srvCfg.ID)
+	for serverID, srvCfg := range mc.config.McpServers {
+		mc.logger.Infof("Connecting to MCP server `%s`", serverID)
 		mc.logger.Debugf("Details: %s", utils.SDump(srvCfg))
-		mcpClient, err := mc.ConnectServer(ctx, srvCfg)
+		mcpClient, err := mc.ConnectServer(ctx, serverID, srvCfg)
 		if err != nil {
 			return error_handling.WrapError(
 				err,
-				fmt.Sprintf("failed to connect to MCP server %s", srvCfg.ID),
+				fmt.Sprintf("failed to connect to MCP server %s", serverID),
 				error_handling.ErrorCategoryExternal,
 			)
 		}
-		mc.logger.Infof("Connected to MCP server `%s`", srvCfg.ID)
+		mc.logger.Infof("Connected to MCP server `%s`", serverID)
 
 		toolsResp, err := mcpClient.ListTools(ctx, mcp.ListToolsRequest{})
 		if err != nil {
 			return error_handling.WrapError(
 				err,
-				fmt.Sprintf("failed to list tools from MCP server %s", srvCfg.ID),
+				fmt.Sprintf("failed to list tools from MCP server %s", serverID),
 				error_handling.ErrorCategoryExternal,
 			)
 		}
 		for _, tool := range toolsResp.Tools {
-			mc.logger.Infof("Tool `%s` found on server `%s`", tool.Name, srvCfg.ID)
+			mc.logger.Infof("Tool `%s` found on server `%s`", tool.Name, serverID)
 			mc.logger.Debugf("Details: %s", utils.SDump(tool))
 		}
-		mc.logger.Infof("Received %d tools from server `%s`", len(toolsResp.Tools), srvCfg.ID)
+		mc.logger.Infof("Received %d tools from server `%s`", len(toolsResp.Tools), serverID)
 
-		mc.clients[srvCfg.ID] = mcpClient
-		mc.tools[srvCfg.ID] = toolsResp.Tools
+		mc.clients[serverID] = mcpClient
+		mc.tools[serverID] = toolsResp.Tools
 	}
 	mc.logger.Infof("Connected to %d MCP servers", len(mc.clients))
 	return nil
@@ -87,26 +87,19 @@ func (mc *MCPConnector) InitAndConnectToMCPs(ctx context.Context) error {
 // ConnectServer connects to an MCP server using HTTP or stdio transport.
 // Responsibility: Establishing a connection with a specific MCP server
 // Features: Selects the appropriate transport based on configuration and uses a retry strategy
-func (mc *MCPConnector) ConnectServer(ctx context.Context, serverConfig types.MCPServerConnection) (client.MCPClient, error) {
+func (mc *MCPConnector) ConnectServer(ctx context.Context, serverID string, serverConfig types.MCPServerConnection) (client.MCPClient, error) {
 	// Define a function that attempts to connect
 	var mcpClient client.MCPClient
 	connectFn := func() error {
 		var err error
 
-		// Create the appropriate client based on transport type
-		if serverConfig.Transport == "stdio" {
-			if serverConfig.Command == "" {
-				return error_handling.NewError(
-					"command is required for stdio transport",
-					error_handling.ErrorCategoryValidation,
-				)
-			}
-
+		// Determine transport type based on available fields
+		if serverConfig.Command != "" {
 			// Use stdio client for command-based servers
 			mcpClient, err = client.NewStdioMCPClient(
 				serverConfig.Command,
 				serverConfig.Environment,
-				serverConfig.Arguments...,
+				serverConfig.Args...,
 			)
 			if err != nil {
 				return error_handling.WrapError(
@@ -115,15 +108,8 @@ func (mc *MCPConnector) ConnectServer(ctx context.Context, serverConfig types.MC
 					error_handling.ErrorCategoryExternal,
 				)
 			}
-		} else {
-			// Default to HTTP client with SSE
-			if serverConfig.URL == "" {
-				return error_handling.NewError(
-					"URL is required for HTTP transport",
-					error_handling.ErrorCategoryValidation,
-				)
-			}
-
+		} else if serverConfig.URL != "" {
+			// Use HTTP client with SSE
 			// Set up headers
 			headers := make(map[string]string)
 			if serverConfig.APIKey != "" {
@@ -142,6 +128,11 @@ func (mc *MCPConnector) ConnectServer(ctx context.Context, serverConfig types.MC
 					error_handling.ErrorCategoryExternal,
 				)
 			}
+		} else {
+			return error_handling.NewError(
+				"neither command nor URL is specified for MCP server connection",
+				error_handling.ErrorCategoryValidation,
+			)
 		}
 
 		// Initialize the client with timeout

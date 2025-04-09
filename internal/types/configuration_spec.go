@@ -122,11 +122,11 @@ type MCPServerToolConfig struct {
 
 // MCPConnectorConfig represents the configuration for the MCP connector.
 // Responsibility: Storing parameters for connecting to MCP servers
-// Features: Contains a list of servers to connect to and parameters
+// Features: Contains a map of servers to connect to and parameters
 // for the connection retry strategy
 type MCPConnectorConfig struct {
-	// Servers is a list of MCP servers to connect to.
-	Servers []MCPServerConnection
+	// McpServers is a map of MCP servers to connect to, with the key being the server ID.
+	McpServers map[string]MCPServerConnection
 
 	// RetryConfig is the configuration for retrying failed connections.
 	RetryConfig RetryConfig
@@ -134,15 +134,8 @@ type MCPConnectorConfig struct {
 
 // MCPServerConnection represents a connection to an MCP server.
 // Responsibility: Storing parameters for establishing a connection to a specific MCP server
-// Features: Supports various transport types (HTTP, stdio) and
-// contains all necessary information for authentication and connection configuration
+// Features: Contains all necessary information for connection configuration
 type MCPServerConnection struct {
-	// ID is a unique identifier for this server connection.
-	ID string
-
-	// Transport is the transport type to use ("http" or "stdio").
-	Transport string
-
 	// URL is the URL of the MCP server (for HTTP transport).
 	URL string
 
@@ -152,18 +145,19 @@ type MCPServerConnection struct {
 	// Command is the command to execute for stdio transport.
 	Command string
 
-	// Arguments are the arguments to pass to the command for stdio transport.
-	Arguments []string
+	// Args are the arguments to pass to the command for stdio transport.
+	Args []string
 
 	// Environment is a list of environment variables to set for the stdio transport command in the format "KEY=VALUE".
 	Environment []string
 }
 
 func (s *MCPServerConnection) GetDSN() string {
-	if s.Transport == "http" {
-		return fmt.Sprintf("http://%s@%s", s.ID, s.URL)
+	// Determine transport type based on command or URL
+	if s.URL != "" {
+		return fmt.Sprintf("http://%s", s.URL)
 	} else {
-		return fmt.Sprintf("stdio: id='%s' command='%s %s' envs='%s'", s.ID, s.Command, strings.Join(s.Arguments, " "), strings.Join(s.Environment, ","))
+		return fmt.Sprintf("stdio: command='%s %s' envs='%s'", s.Command, strings.Join(s.Args, " "), strings.Join(s.Environment, ","))
 	}
 }
 
