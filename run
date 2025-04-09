@@ -114,9 +114,7 @@ case $CMD in
         mcp call fetch_url --params "{\"url\": \"${url}\"}" npx -y fetcher-mcp
         ;;
     dev)
-        echo -e "${BLUE}Applying env variables from .env file${NC}"
         load_env
-        echo -e "${BLUE}Starting development server...${NC}"
         go run -race ./cmd/server/main.go "$@"
         ;;
     call)

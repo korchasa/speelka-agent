@@ -8,3 +8,4 @@ alwaysApply: false
 - Commit messages must fully comply with the 'Conventional Commits' v1.0.0 specification, including the definition of breaking changes.
 - Package updates and the addition of new ones should be done in a separate commit before the main one.
 - Commit messages must be only in english.
+- Use git commands only with `GIT_PAGER=cat` env variable. For example, `GIT_PAGER=cat git diff`.
