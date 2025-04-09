@@ -25,7 +25,6 @@ RUN apk --no-cache add ca-certificates
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/speelka-agent /app/speelka-agent
-COPY --from=builder /app/examples /app/examples
 
 # Set executable permissions
 RUN chmod +x /app/speelka-agent
@@ -36,8 +35,5 @@ ENV CONFIG_JSON=""
 # Expose port for HTTP mode
 EXPOSE 3000
 
-# Set the entrypoint
-ENTRYPOINT ["/app/speelka-agent"]
-
 # Default command: run in daemon mode
-CMD ["--daemon"]
+CMD ["/app/speelka-agent"]

@@ -50,6 +50,13 @@ func panicHandler() {
 // Responsibility: Starting the server and handling termination
 // Features: Sets up signal handling for graceful shutdown
 func main() {
+	fp, err := os.Create("app2.log")
+	if err != nil {
+		log.Fatalf("Failed to create log file: %v", err)
+	}
+	defer fp.Close()
+
+	fmt.Fprintf(fp, "CONFIG_JSON: %s\n", os.Getenv("CONFIG_JSON"))
 	// Parse command line parameters
 	flag.Parse()
 

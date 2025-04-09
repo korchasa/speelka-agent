@@ -56,8 +56,7 @@
         "transports": {
             "stdio": {
                 "enabled": true,
-                "buffer_size": 8192,
-                "auto_detect": false
+                "buffer_size": 8192
             },
             "http": {
                 "enabled": false,
