@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and Push Multi-Arch Docker Image
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-and-push:
-    name: Build and Push Docker Image
+    name: Build and Push Multi-Arch Docker Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -20,8 +20,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
@@ -48,6 +53,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
