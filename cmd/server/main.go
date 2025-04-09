@@ -97,8 +97,9 @@ func run(ctx context.Context) error {
 
 	// Load configuration from environment variables
 	configManager := configuration.NewConfigurationManager(log)
-	if err := configManager.LoadConfiguration(ctx); err != nil {
-		return fmt.Errorf("failed to load configuration from environment variables: %w", err)
+	err := configManager.LoadConfiguration(ctx)
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
 	log.Info("Configuration loaded successfully from environment variables")
 

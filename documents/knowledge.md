@@ -1,6 +1,6 @@
 # Knowledge References
 
-## Machine Cognition Protocol (MCP)
+## Model Context Protocol (MCP)
 
 - [MCP GitHub Repository](https://github.com/machine-cognition-protocol/machine-cognition-protocol)
 - [MCP-Go Library](https://github.com/mark3labs/mcp-go)

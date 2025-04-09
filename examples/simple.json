@@ -53,7 +53,7 @@
     },
     "runtime": {
         "log": {
-            "level": "info",
+            "level": "debug",
             "output": "./app.log"
         },
         "transports": {

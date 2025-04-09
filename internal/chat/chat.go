@@ -30,13 +30,15 @@ type Chat struct {
 	systemPromptTemplate string
 	history              []llms.MessageContent
 	logger               *log.Logger
+	argumentName         string
 }
 
-func NewChat(systemPromptTemplate string, logger *log.Logger) *Chat {
+func NewChat(systemPromptTemplate string, argumentName string, logger *log.Logger) *Chat {
 	return &Chat{
 		systemPromptTemplate: systemPromptTemplate,
 		history:              make([]llms.MessageContent, 0),
 		logger:               logger,
+		argumentName:         argumentName,
 	}
 }
 
@@ -47,13 +49,16 @@ func (c *Chat) Begin(input string, tools []mcp.Tool) error {
 	}
 	prompt := prompts.PromptTemplate{
 		Template:       c.systemPromptTemplate,
-		InputVariables: []string{"input", "tools"},
+		InputVariables: []string{c.argumentName, "tools"},
 		TemplateFormat: prompts.TemplateFormatJinja2,
 	}
-	result, err := prompt.Format(map[string]any{
-		"input": input,
-		"tools": toolsDescription,
-	})
+
+	values := map[string]any{
+		c.argumentName: input,
+		"tools":        toolsDescription,
+	}
+
+	result, err := prompt.Format(values)
 	if err != nil {
 		return fmt.Errorf("failed to format prompt: %v", err)
 	}

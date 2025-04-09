@@ -14,7 +14,7 @@
             "model": "gpt-4o",
             "max_tokens": 0,
             "temperature": 0.2,
-            "prompt_template": "# ROLE\nYou are a Senior Software Architect with extensive expertise in design\npatterns, system architecture, performance optimization, and security best\npractices.\n\n# GOAL\nAnalyze and enhance the architecture of the system according to the user\nquery below.\n\n# WORKFLOW\n1. First, carefully analyze the current architecture described in the query or existing documentation.\n2. Generate a detailed analysis of strengths and weaknesses.\n3. Propose architectural improvements with clear justifications.\n4. Use diagrams when helpful to illustrate complex concepts.\n5. Provide implementation recommendations with relevant examples.\n\n# User query\n{{query}}\n\n# Available tools\n{{tools}}",
+            "prompt_template": "# ROLE\nYou are a Senior Software Architect with extensive expertise in design\npatterns, system architecture, performance optimization, and security best\npractices.\n\n# GOAL\nAnalyze and enhance the architecture of the system according to the user\nquery below.\n\n# WORKFLOW\n1. First, carefully analyze the current architecture described in the query or existing documentation.\n2. Generate a detailed analysis of strengths and weaknesses.\n3. Analyse current state of project, located in ./\n4. Propose architectural improvements with clear justifications.\n5. Use diagrams when helpful to illustrate complex concepts.\n6. Provide implementation recommendations with relevant examples.\n\n# User query\n{{query}}\n\n# Available tools\nNOTE: Try to minimize call count!\n{{tools}}",
             "retry": {
                 "max_retries": 3,
                 "initial_backoff": 1.0,
@@ -40,7 +40,7 @@
                     "transport": "stdio",
                     "command": "mcp-filesystem-server",
                     "arguments": [
-                        "/Users/korchasa/www/speelka/speelka-agent"
+                        "."
                     ]
                 }
             ],
@@ -54,7 +54,7 @@
     },
     "runtime": {
         "log": {
-            "level": "info",
+            "level": "debug",
             "output": "./architect.log"
         },
         "transports": {

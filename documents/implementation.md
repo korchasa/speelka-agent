@@ -10,6 +10,10 @@
   - Coordinates between components
   - Handles tool execution
   - Manages state and context
+- **Recent Improvements**:
+  - Added robust null checking for interface value handling in `HandleRequest` method to prevent panics
+  - Implemented safer type assertion pattern with descriptive error messages
+  - Enhanced error handling to gracefully handle nil values in tool arguments
 
 ### Chat
 - **Purpose**: Manages conversation history and prompt formatting
@@ -389,3 +393,51 @@ Implementation details:
 2. If not running, starts server using architect.json config
 3. Makes test call using MCP CLI
 4. Reports success/failure status
+
+## Prompt Template Validation
+
+The configuration system includes validation for prompt templates to ensure they contain all required placeholders:
+
+1. Each prompt template must contain at least two required placeholders:
+   - `{{argumentName}}` - Where `argumentName` is the value specified in the tool's `argument_name` configuration
+   - `{{tools}}` - For rendering the available tools description
+
+2. Validation occurs during configuration loading in the `loadFromJSON` method:
+   - The `validatePromptTemplate` function checks for the presence of required placeholders
+   - If any required placeholder is missing, an error is returned and configuration loading fails
+
+3. The validation process:
+   - Extracts all placeholders from the template using regex pattern `{{\s*([a-zA-Z0-9_]+)\s*}}`
+   - Checks that both the tool's argument name and "tools" are present in the extracted placeholders
+   - Supports whitespace within the placeholder syntax, e.g., `{{ placeholder }}`
+
+4. Dynamic placeholder usage:
+   - The Chat component now accepts the argument name from the configuration
+   - In `chat.Begin()`, the placeholder name is dynamically determined from the configuration
+   - This ensures consistency between the configuration validation and runtime usage
+
+5. Example of valid prompt template:
+   ```
+   # User query
+   {{query}}
+
+   # Available tools
+   {{tools}}
+   ```
+
+6. Example of valid prompt template with different argument name:
+   ```
+   # User input
+   {{input}}
+
+   # Available tools
+   {{tools}}
+   ```
+
+7. Example of invalid prompt template (missing the tools placeholder):
+   ```
+   # User query
+   {{query}}
+   ```
+
+This validation ensures that the LLM will always receive a properly formatted prompt with all necessary placeholders, preventing runtime errors when the chat system attempts to format the template.

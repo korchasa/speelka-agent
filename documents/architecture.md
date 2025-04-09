@@ -2,7 +2,7 @@
 
 ## Overview
 
-Speelka Agent is a Go-based implementation of an agent system that integrates with Large Language Models (LLMs) and provides tool execution capabilities through the Machine Cognition Protocol (MCP). The system is designed to be modular, extensible, and follows clean architectural patterns.
+Speelka Agent is a Go-based implementation of an agent system that integrates with Large Language Models (LLMs) and provides tool execution capabilities through the Model Context Protocol (MCP). The system is designed to be modular, extensible, and follows clean architectural patterns.
 
 ## Key Advantages
 
@@ -99,6 +99,37 @@ The system uses a structured error handling approach:
 - Appropriate retry mechanisms for different error types
 - Context-rich error messages with minimal sensitive information
 
+### Handling Nil Interface Values
+
+When working with interface{} values from dynamic sources (such as JSON-decoded data or external APIs), the following practices should be observed:
+
+1. **Always Check for Nil**: Before performing type assertions on interface{} values, check if the value is nil:
+   ```go
+   argValue, exists := someMap[key]
+   if !exists || argValue == nil {
+       // Handle the case where the value doesn't exist or is nil
+   }
+   ```
+
+2. **Use Safe Type Assertions**: When converting interface{} to concrete types, use the two-return form of type assertion:
+   ```go
+   strValue, ok := argValue.(string)
+   if !ok {
+       // Handle type assertion failure
+   }
+   ```
+
+3. **Provide Descriptive Error Messages**: Include the expected type and actual type in error messages:
+   ```go
+   if !ok {
+       logger.Errorf("invalid type: expected string, got %T", argValue)
+   }
+   ```
+
+4. **Return Graceful Errors**: When a type assertion fails, return a clear error to the caller rather than allowing a panic to occur.
+
+This approach was implemented to fix a critical issue in the Agent's HandleRequest method, where a nil interface{} value was causing a panic when attempting a direct type assertion without proper checking.
+
 ## Configuration Structure
 
 The configuration is provided through a single `CONFIG_JSON` environment variable containing a complete JSON structure.
@@ -181,7 +212,7 @@ The JSON configuration structure is hierarchically organized:
 
 ## External Dependencies
 
-- `mcp-go`: Go implementation of the Machine Cognition Protocol
+- `mcp-go`: Go implementation of the Model Context Protocol
 - `langchaingo`: Go client for interacting with Language Models
 - `logrus`: Structured logging library
 - Standard Go libraries

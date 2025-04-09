@@ -64,7 +64,7 @@
 
 | Package | Description | Usage |
 |---------|-------------|-------|
-| `github.com/mark3labs/mcp-go` | Machine Cognition Protocol Go implementation | MCP server and client |
+| `github.com/mark3labs/mcp-go` | Model Context Protocol Go implementation | MCP server and client |
 | `github.com/tmc/langchaingo` | Go client for language models | LLM integration |
 | `github.com/sirupsen/logrus` | Structured logging | Application logging |
 

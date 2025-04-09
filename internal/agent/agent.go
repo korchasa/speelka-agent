@@ -15,7 +15,7 @@ import (
 )
 
 // MaxLLMIterations Maximum number of LLM interaction iterations
-const MaxLLMIterations = 20
+const MaxLLMIterations = 25
 
 var ExitTool = mcp.NewTool("answer",
 	mcp.WithDescription("Send response to the user"),
@@ -105,11 +105,26 @@ func (a *Agent) HandleRequest(ctx context.Context, req mcp.CallToolRequest) (*mc
 		return mcp.NewToolResultError("invalid tool name"), nil
 	}
 
-	userRequest := req.Params.Arguments[toolConfig.ArgumentName].(string)
-	if userRequest == "" {
-		a.logger.Errorf("invalid or empty input variable: %s", userRequest)
-		return mcp.NewToolResultError("invalid or empty input variable"), nil
+	// Check if the argument exists and is not nil before type assertion
+	argValue, exists := req.Params.Arguments[toolConfig.ArgumentName]
+	if !exists || argValue == nil {
+		a.logger.Errorf("missing or nil input argument: %s", toolConfig.ArgumentName)
+		return mcp.NewToolResultError(fmt.Sprintf("missing or nil input argument: %s", toolConfig.ArgumentName)), nil
 	}
+
+	// Safely convert to string
+	userRequest, ok := argValue.(string)
+	if !ok {
+		a.logger.Errorf("invalid input argument type: expected string, got %T", argValue)
+		return mcp.NewToolResultError(fmt.Sprintf("invalid input argument type: expected string, got %T", argValue)), nil
+	}
+
+	if userRequest == "" {
+		a.logger.Errorf("empty input variable")
+		return mcp.NewToolResultError("empty input variable"), nil
+	}
+
+	a.logger.Infof(">> Request from client: %s", userRequest)
 
 	tools, err := a.mcpConnector.GetAllTools(ctx)
 	if err != nil {
@@ -118,7 +133,11 @@ func (a *Agent) HandleRequest(ctx context.Context, req mcp.CallToolRequest) (*mc
 	}
 	tools = append(tools, ExitTool)
 
-	history := chat.NewChat(a.configManager.GetLLMConfig().SystemPromptTemplate, a.logger)
+	history := chat.NewChat(
+		a.configManager.GetLLMConfig().SystemPromptTemplate,
+		toolConfig.ArgumentName,
+		a.logger,
+	)
 	err = history.Begin(userRequest, tools)
 	if err != nil {
 		a.logger.Errorf("failed to begin chat: %v", err)
@@ -174,7 +193,7 @@ func (a *Agent) HandleRequest(ctx context.Context, req mcp.CallToolRequest) (*mc
 			history.AddToolCall(call)
 
 			// Execute the tool
-			a.logger.Infof(">> Execute tool `%s` in connector", call.ToolName())
+			a.logger.Infof(">> Execute tool `%s` in connector with args: %s", call.ToolName(), utils.SDump(call.Params.Arguments))
 			result, err := a.mcpConnector.ExecuteTool(ctx, call)
 			if err != nil {
 				a.logger.Warnf("can't make a call in connector: %v", err)

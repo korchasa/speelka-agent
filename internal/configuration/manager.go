@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	log "github.com/sirupsen/logrus"
@@ -195,6 +197,13 @@ func (cm *Manager) loadFromJSON(jsonConfig string) error {
 		},
 	}
 
+	// Validate prompt template has all required placeholders
+	err = cm.validatePromptTemplate(config.Agent.LLM.PromptTemplate, config.Agent.Tool.ArgumentName)
+	if err != nil {
+		cm.logger.Errorf("PROMPT TEMPLATE VALIDATION ERROR: %v", err)
+		return fmt.Errorf("prompt template validation failed: %w", err)
+	}
+
 	// Check for LLM_API_KEY environment variable and override config if present
 	if envAPIKey := os.Getenv("LLM_API_KEY"); envAPIKey != "" {
 		cm.llmServiceConfig.APIKey = envAPIKey
@@ -229,6 +238,101 @@ func (cm *Manager) loadFromJSON(jsonConfig string) error {
 	return nil
 }
 
+// validatePromptTemplate validates that the prompt template contains all required placeholders.
+// Responsibility: Ensuring prompt templates have required placeholders
+// Features: Checks for argument name and tools placeholders
+func (cm *Manager) validatePromptTemplate(template string, argumentName string) error {
+	// Check if template is empty
+	if strings.TrimSpace(template) == "" {
+		return fmt.Errorf("prompt template cannot be empty")
+	}
+
+	// Extract all placeholders from the template
+	placeholders, err := cm.extractPlaceholders(template)
+	if err != nil {
+		return fmt.Errorf("failed to extract placeholders: %w", err)
+	}
+
+	// Required placeholders
+	requiredPlaceholders := []string{argumentName, "tools"}
+
+	// Check that all required placeholders are present
+	var missingPlaceholders []string
+	for _, required := range requiredPlaceholders {
+		found := false
+		for _, placeholder := range placeholders {
+			if placeholder == required {
+				found = true
+				break
+			}
+		}
+		if !found {
+			missingPlaceholders = append(missingPlaceholders, required)
+		}
+	}
+
+	if len(missingPlaceholders) > 0 {
+		// Create detailed error message with an example
+		errMsg := fmt.Sprintf("prompt template is missing required placeholder(s): %s", strings.Join(missingPlaceholders, ", "))
+
+		// If argumentName is missing, provide specific guidance
+		if contains(missingPlaceholders, argumentName) {
+			errMsg += fmt.Sprintf("\n\nExpected placeholder '{{%s}}' should match the 'argument_name' value in your tool configuration.", argumentName)
+			errMsg += "\nCommon mistake: Using a hardcoded placeholder name like '{{query}}' instead of the configured argument name."
+		}
+
+		// Always provide an example of a valid template
+		errMsg += fmt.Sprintf("\n\nExample of a valid template:\nYou are a helpful assistant.\n\nUser request: {{%s}}\n\nAvailable tools:\n{{tools}}", argumentName)
+
+		return fmt.Errorf(errMsg)
+	}
+
+	return nil
+}
+
+// contains checks if a string is present in a slice
+func contains(slice []string, str string) bool {
+	for _, item := range slice {
+		if item == str {
+			return true
+		}
+	}
+	return false
+}
+
+// extractPlaceholders extracts all placeholders from a template string.
+// Responsibility: Finding all template variables in a string
+// Features: Uses regex to match placeholders with format {{placeholder_name}}
+func (cm *Manager) extractPlaceholders(template string) ([]string, error) {
+	re := regexp.MustCompile(`{{\s*([a-zA-Z0-9_]+)\s*}}`)
+	matches := re.FindAllStringSubmatch(template, -1)
+
+	if matches == nil {
+		return []string{}, nil
+	}
+
+	var placeholders []string
+	for _, match := range matches {
+		if len(match) >= 2 {
+			placeholders = append(placeholders, match[1])
+		}
+	}
+
+	return placeholders, nil
+}
+
+// TestValidatePromptTemplate exposes validatePromptTemplate for testing.
+// This should only be used in tests.
+func (cm *Manager) TestValidatePromptTemplate(template string, argumentName string) error {
+	return cm.validatePromptTemplate(template, argumentName)
+}
+
+// TestExtractPlaceholders exposes extractPlaceholders for testing.
+// This should only be used in tests.
+func (cm *Manager) TestExtractPlaceholders(template string) ([]string, error) {
+	return cm.extractPlaceholders(template)
+}
+
 // GetMCPServerConfig returns the MCP server configuration.
 func (cm *Manager) GetMCPServerConfig() types.MCPServerConfig {
 	return cm.mcpServerConfig
@@ -249,37 +353,32 @@ func (cm *Manager) GetLogConfig() types.LogConfig {
 	return cm.logConfig
 }
 
-// GetString returns a string value from configuration by key.
-// This method is maintained for interface compatibility but always returns false
-// as all configuration is now handled through CONFIG_JSON.
+// GetString returns a string value from the configuration.
 func (cm *Manager) GetString(key string) (string, bool) {
+	// Implementation to be added if needed
 	return "", false
 }
 
-// GetInt returns an integer value from configuration by key.
-// This method is maintained for interface compatibility but always returns false
-// as all configuration is now handled through CONFIG_JSON.
+// GetInt returns an integer value from the configuration.
 func (cm *Manager) GetInt(key string) (int, bool) {
+	// Implementation to be added if needed
 	return 0, false
 }
 
-// GetFloat returns a floating point value from configuration by key.
-// This method is maintained for interface compatibility but always returns false
-// as all configuration is now handled through CONFIG_JSON.
+// GetFloat returns a float value from the configuration.
 func (cm *Manager) GetFloat(key string) (float64, bool) {
+	// Implementation to be added if needed
 	return 0, false
 }
 
-// GetBool returns a boolean value from configuration by key.
-// This method is maintained for interface compatibility but always returns false
-// as all configuration is now handled through CONFIG_JSON.
+// GetBool returns a boolean value from the configuration.
 func (cm *Manager) GetBool(key string) (bool, bool) {
+	// Implementation to be added if needed
 	return false, false
 }
 
-// GetStringMap returns a string-string map from configuration by key.
-// This method is maintained for interface compatibility but always returns false
-// as all configuration is now handled through CONFIG_JSON.
+// GetStringMap returns a string map value from the configuration.
 func (cm *Manager) GetStringMap(key string) (map[string]string, bool) {
+	// Implementation to be added if needed
 	return nil, false
 }
