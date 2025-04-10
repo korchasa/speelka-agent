@@ -265,7 +265,74 @@ function createConfigObjectFromForm() {
         return isNaN(value) ? defaultValue : value;
     };
 
-    // Form validation
+    // Validate required fields
+    const requiredFields = [
+        { id: 'agentName', name: 'Agent Name' },
+        { id: 'toolName', name: 'Tool Name' },
+        { id: 'toolDescription', name: 'Tool Description' },
+        { id: 'llmProvider', name: 'LLM Provider' },
+        { id: 'llmApiKey', name: 'API Key' },
+        { id: 'llmModel', name: 'Model' },
+        { id: 'promptTemplate', name: 'Prompt Template' }
+    ];
+
+    let validationErrors = [];
+
+    for (const field of requiredFields) {
+        const element = document.getElementById(field.id);
+        if (!element || !element.value.trim()) {
+            validationErrors.push(`${field.name} is required`);
+            if (element) {
+                element.classList.add('error');
+
+                // Show error message
+                let errorMsg = element.parentNode.querySelector('.field-error');
+                if (!errorMsg) {
+                    errorMsg = document.createElement('span');
+                    errorMsg.className = 'field-error';
+                    element.parentNode.insertBefore(errorMsg, element.nextSibling);
+                }
+                errorMsg.textContent = `${field.name} is required`;
+            }
+        } else if (element) {
+            element.classList.remove('error');
+
+            // Remove error message if exists
+            const errorMsg = element.parentNode.querySelector('.field-error');
+            if (errorMsg) {
+                errorMsg.remove();
+            }
+        }
+    }
+
+    // Special validation for prompt template
+    const promptTemplate = getValue('promptTemplate', '');
+    if (promptTemplate) {
+        if (!promptTemplate.includes('{{input}}') || !promptTemplate.includes('{{tools}}')) {
+            validationErrors.push('Prompt Template must include {{input}} and {{tools}} placeholders');
+            const element = document.getElementById('promptTemplate');
+            if (element) {
+                element.classList.add('error');
+
+                // Show error message
+                let errorMsg = element.parentNode.querySelector('.field-error');
+                if (!errorMsg) {
+                    errorMsg = document.createElement('span');
+                    errorMsg.className = 'field-error';
+                    element.parentNode.insertBefore(errorMsg, element.nextSibling);
+                }
+                errorMsg.textContent = 'Prompt Template must include {{input}} and {{tools}} placeholders';
+            }
+        }
+    }
+
+    // If there are validation errors, show them and return null
+    if (validationErrors.length > 0) {
+        console.error('Validation errors:', validationErrors);
+        return null;
+    }
+
+    // Form validation for numeric fields
     const numericFields = [
         { id: 'llmMaxTokens', min: 0, name: 'Max Tokens' },
         { id: 'llmTemperature', min: 0, max: 1, name: 'Temperature' },

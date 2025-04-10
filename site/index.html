@@ -202,10 +202,11 @@ flowchart TB
                 </div>
 
                 <div id="agentTab" class="tab-content active">
-                    <div class="form-group">
+                    <div class="form-group required">
                         <label for="agentName">Agent Name:</label>
-                        <input type="text" id="agentName" value="speelka-agent" />
+                        <input type="text" id="agentName" value="" placeholder="speelka-agent" />
                         <span class="field-description">Name of the agent used in logs and identification</span>
+                        <span class="field-required">Required</span>
                     </div>
 
                     <div class="form-group">
@@ -215,16 +216,18 @@ flowchart TB
                     </div>
 
                     <h3>Tool Configuration</h3>
-                    <div class="form-group">
+                    <div class="form-group required">
                         <label for="toolName">Tool Name:</label>
-                        <input type="text" id="toolName" value="process" />
+                        <input type="text" id="toolName" value="" placeholder="process" />
                         <span class="field-description">Name of the tool that processes requests</span>
+                        <span class="field-required">Required</span>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group required">
                         <label for="toolDescription">Tool Description:</label>
-                        <input type="text" id="toolDescription" value="Process tool for handling user queries with LLM" />
+                        <input type="text" id="toolDescription" value="" placeholder="Process tool for handling user queries with LLM" />
                         <span class="field-description">Description of the tool that will be displayed in the interface</span>
+                        <span class="field-required">Required</span>
                     </div>
 
                     <div class="form-group">
@@ -240,25 +243,29 @@ flowchart TB
                     </div>
 
                     <h3>LLM Configuration</h3>
-                    <div class="form-group">
+                    <div class="form-group required">
                         <label for="llmProvider">LLM Provider:</label>
                         <select id="llmProvider">
+                            <option value="" disabled selected>Select a provider</option>
                             <option value="openai">OpenAI</option>
                             <option value="anthropic">Anthropic</option>
                         </select>
                         <span class="field-description">Language model provider</span>
+                        <span class="field-required">Required</span>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group required">
                         <label for="llmApiKey">API Key:</label>
-                        <input type="text" id="llmApiKey" placeholder="Enter your API key here" />
+                        <input type="text" id="llmApiKey" value="" placeholder="Enter your API key here" />
                         <span class="field-description">API key for accessing the language model</span>
+                        <span class="field-required">Required</span>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group required">
                         <label for="llmModel">Model:</label>
-                        <input type="text" id="llmModel" value="gpt-4o" />
+                        <input type="text" id="llmModel" value="" placeholder="gpt-4o" />
                         <span class="field-description">Name of the model to use (e.g., gpt-4o, claude-3-opus)</span>
+                        <span class="field-required">Required</span>
                     </div>
 
                     <div class="advanced-toggle" onclick="toggleAdvanced('llmAdvanced')">
@@ -278,17 +285,18 @@ flowchart TB
                             <span class="field-description">Temperature for generation. Lower - more predictable results, higher - more creative</span>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group required">
                             <label for="promptTemplate">Prompt Template:</label>
-                            <textarea id="promptTemplate">You are a helpful AI assistant. Respond to the following request:
+                            <textarea id="promptTemplate" placeholder="You are a helpful AI assistant. Respond to the following request:
 
 {{input}}
 
 Provide a detailed and helpful response.
 
 Available tools:
-{{tools}}</textarea>
+{{tools}}"></textarea>
                             <span class="field-description">Prompt template for the model. Variables {{input}} and {{tools}} will be replaced with the user request and available tools</span>
+                            <span class="field-required">Required - must include {{input}} and {{tools}} placeholders</span>
                         </div>
                     </div>
 

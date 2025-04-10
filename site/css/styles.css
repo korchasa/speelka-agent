@@ -565,6 +565,19 @@ header nav {
     margin-bottom: 1.5rem;
 }
 
+.form-group.required label::after {
+    content: " *";
+    color: #e53e3e;
+    font-weight: bold;
+}
+
+.field-required {
+    color: #e53e3e;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
 .field-description {
     display: block;
     margin-top: 0.25rem;
@@ -1206,4 +1219,25 @@ a:hover,
 .advanced-section.open {
     max-height: 2000px; /* Large enough to contain content */
     opacity: 1;
+}
+
+.form-group input.error,
+.form-group select.error,
+.form-group textarea.error {
+    border: 1px solid #e53e3e;
+    background-color: #fff5f5;
+}
+
+.field-error {
+    display: block;
+    color: #e53e3e;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.field-required {
+    color: #e53e3e;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    font-style: italic;
 }
