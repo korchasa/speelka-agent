@@ -232,7 +232,7 @@ export RUNTIME_HTTP_PORT=3000
 - `TOOL_ARGUMENT_DESCRIPTION`: Tool argument description
 - `LLM_PROVIDER`: LLM provider ("openai")
 - `LLM_MODEL`: Model name ("gpt-4o")
-- `LLM_PROMPT_TEMPLATE`: System prompt template (must include {{query}} and {{tools}})
+- `LLM_PROMPT_TEMPLATE`: System prompt template (must include placeholder matching the `TOOL_ARGUMENT_NAME` value and `{{tools}}`)
 
 #### MCP Servers Config Format
 ```

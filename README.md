@@ -51,15 +51,15 @@ Configuration is provided through environment variables:
 | **Tool Configuration** | | |
 | `TOOL_NAME` | *Required* | Name of the tool provided by the agent |
 | `TOOL_DESCRIPTION` | *Required* | Description of the tool functionality |
-| `TOOL_ARGUMENT_NAME` | "query" | Name of the argument for the tool |
-| `TOOL_ARGUMENT_DESCRIPTION` | "" | Description of the argument for the tool |
+| `TOOL_ARGUMENT_NAME` | *Required* | Name of the argument for the tool |
+| `TOOL_ARGUMENT_DESCRIPTION` | *Required* | Description of the argument for the tool |
 | **LLM Configuration** | | |
 | `LLM_PROVIDER` | *Required* | Provider of LLM service (e.g., "openai", "anthropic") |
 | `LLM_API_KEY` | *Required* | API key for the LLM provider |
 | `LLM_MODEL` | *Required* | Model name (e.g., "gpt-4o", "claude-3-opus-20240229") |
 | `LLM_MAX_TOKENS` | 0 | Maximum tokens to generate (0 means no limit) |
 | `LLM_TEMPERATURE` | 0.7 | Temperature parameter for randomness in generation |
-| `LLM_PROMPT_TEMPLATE` | *Required* | Template for system prompts (must include `{{input}}` and `{{tools}}` placeholders) |
+| `LLM_PROMPT_TEMPLATE` | *Required* | Template for system prompts (must include placeholder matching the `TOOL_ARGUMENT_NAME` value and `{{tools}}`) |
 | **LLM Retry Configuration** | | |
 | `LLM_RETRY_MAX_RETRIES` | 3 | Maximum number of retry attempts for LLM API calls |
 | `LLM_RETRY_INITIAL_BACKOFF` | 1.0 | Initial backoff time in seconds |
