@@ -444,79 +444,243 @@ function generateAndUpdateConfig() {
 
 // Update examples with the current configuration
 function updateExamplesWithConfig(config) {
+    // Default values for comparison
+    const defaults = {
+        agent: {
+            name: 'speelka-agent',
+            version: '1.0.0',
+            tool: {
+                name: 'process',
+                description: 'Process tool for handling user queries with LLM',
+                argument_name: 'input',
+                argument_description: 'User query to process'
+            },
+            llm: {
+                provider: 'openai',
+                model: 'gpt-4o',
+                max_tokens: 0,
+                temperature: 0.7,
+                retry: {
+                    max_retries: 3,
+                    initial_backoff: 1.0,
+                    max_backoff: 30.0,
+                    backoff_multiplier: 2.0
+                }
+            },
+            connections: {
+                retry: {
+                    max_retries: 3,
+                    initial_backoff: 1.0,
+                    max_backoff: 30.0,
+                    backoff_multiplier: 2.0
+                }
+            }
+        },
+        runtime: {
+            log: {
+                level: 'info',
+                output: 'stdout'
+            },
+            transports: {
+                stdio: {
+                    enabled: true,
+                    buffer_size: 8192
+                },
+                http: {
+                    enabled: false,
+                    host: 'localhost',
+                    port: 3000
+                }
+            }
+        }
+    };
+
+    // Helper function to check if value is default
+    const isDefault = (path, value) => {
+        const parts = path.split('.');
+        let defaultValue = defaults;
+
+        for (const part of parts) {
+            if (defaultValue === undefined || defaultValue[part] === undefined) {
+                return false;
+            }
+            defaultValue = defaultValue[part];
+        }
+
+        return defaultValue === value;
+    };
+
     // Generate environment variables from the configuration
     let envVars = [];
 
     // Agent settings
     envVars.push(`# Agent`);
-    envVars.push(`export AGENT_NAME="${config.agent.name}"`);
-    envVars.push(`export AGENT_VERSION="${config.agent.version}"`);
+    if (!isDefault('agent.name', config.agent.name)) {
+        envVars.push(`export AGENT_NAME="${config.agent.name}"`);
+    }
+    if (!isDefault('agent.version', config.agent.version)) {
+        envVars.push(`export AGENT_VERSION="${config.agent.version}"`);
+    }
 
     // Tool settings
     envVars.push(`\n# Tool`);
-    envVars.push(`export TOOL_NAME="${config.agent.tool.name}"`);
-    envVars.push(`export TOOL_DESCRIPTION="${config.agent.tool.description}"`);
-    envVars.push(`export TOOL_ARGUMENT_NAME="${config.agent.tool.argument_name}"`);
-    envVars.push(`export TOOL_ARGUMENT_DESCRIPTION="${config.agent.tool.argument_description}"`);
+    if (!isDefault('agent.tool.name', config.agent.tool.name)) {
+        envVars.push(`export TOOL_NAME="${config.agent.tool.name}"`);
+    }
+    if (!isDefault('agent.tool.description', config.agent.tool.description)) {
+        envVars.push(`export TOOL_DESCRIPTION="${config.agent.tool.description}"`);
+    }
+    if (!isDefault('agent.tool.argument_name', config.agent.tool.argument_name)) {
+        envVars.push(`export TOOL_ARGUMENT_NAME="${config.agent.tool.argument_name}"`);
+    }
+    if (!isDefault('agent.tool.argument_description', config.agent.tool.argument_description)) {
+        envVars.push(`export TOOL_ARGUMENT_DESCRIPTION="${config.agent.tool.argument_description}"`);
+    }
 
     // LLM settings
     envVars.push(`\n# LLM`);
-    envVars.push(`export LLM_PROVIDER="${config.agent.llm.provider}"`);
+    if (!isDefault('agent.llm.provider', config.agent.llm.provider)) {
+        envVars.push(`export LLM_PROVIDER="${config.agent.llm.provider}"`);
+    }
+    // API key is always required
     envVars.push(`export LLM_API_KEY="..."`);
-    envVars.push(`export LLM_MODEL="${config.agent.llm.model}"`);
-    envVars.push(`export LLM_MAX_TOKENS=${config.agent.llm.max_tokens}`);
-    envVars.push(`export LLM_TEMPERATURE=${config.agent.llm.temperature}`);
-    const promptTemplate = config.agent.llm.prompt_template.replace(/"/g, '\\"');
-    envVars.push(`export LLM_PROMPT_TEMPLATE="${promptTemplate}"`);
+    if (!isDefault('agent.llm.model', config.agent.llm.model)) {
+        envVars.push(`export LLM_MODEL="${config.agent.llm.model}"`);
+    }
+    if (!isDefault('agent.llm.max_tokens', config.agent.llm.max_tokens)) {
+        envVars.push(`export LLM_MAX_TOKENS=${config.agent.llm.max_tokens}`);
+    }
+    if (!isDefault('agent.llm.temperature', config.agent.llm.temperature)) {
+        envVars.push(`export LLM_TEMPERATURE=${config.agent.llm.temperature}`);
+    }
+
+    // Only include prompt template if it's not the default
+    const defaultPrompt = "You are a helpful AI assistant. Respond to the following request:\n\n{{input}}\n\nProvide a detailed and helpful response.\n\nAvailable tools:\n{{tools}}";
+    if (config.agent.llm.prompt_template && config.agent.llm.prompt_template !== defaultPrompt) {
+        const promptTemplate = config.agent.llm.prompt_template.replace(/"/g, '\\"');
+        envVars.push(`export LLM_PROMPT_TEMPLATE="${promptTemplate}"`);
+    }
 
     // LLM Retry settings
-    envVars.push(`\n# LLM Retry`);
-    envVars.push(`export LLM_RETRY_MAX_RETRIES=${config.agent.llm.retry.max_retries}`);
-    envVars.push(`export LLM_RETRY_INITIAL_BACKOFF=${config.agent.llm.retry.initial_backoff}`);
-    envVars.push(`export LLM_RETRY_MAX_BACKOFF=${config.agent.llm.retry.max_backoff}`);
-    envVars.push(`export LLM_RETRY_BACKOFF_MULTIPLIER=${config.agent.llm.retry.backoff_multiplier}`);
+    let hasNonDefaultRetry = false;
+    const retryConfig = [];
+
+    if (!isDefault('agent.llm.retry.max_retries', config.agent.llm.retry.max_retries)) {
+        hasNonDefaultRetry = true;
+        retryConfig.push(`export LLM_RETRY_MAX_RETRIES=${config.agent.llm.retry.max_retries}`);
+    }
+    if (!isDefault('agent.llm.retry.initial_backoff', config.agent.llm.retry.initial_backoff)) {
+        hasNonDefaultRetry = true;
+        retryConfig.push(`export LLM_RETRY_INITIAL_BACKOFF=${config.agent.llm.retry.initial_backoff}`);
+    }
+    if (!isDefault('agent.llm.retry.max_backoff', config.agent.llm.retry.max_backoff)) {
+        hasNonDefaultRetry = true;
+        retryConfig.push(`export LLM_RETRY_MAX_BACKOFF=${config.agent.llm.retry.max_backoff}`);
+    }
+    if (!isDefault('agent.llm.retry.backoff_multiplier', config.agent.llm.retry.backoff_multiplier)) {
+        hasNonDefaultRetry = true;
+        retryConfig.push(`export LLM_RETRY_BACKOFF_MULTIPLIER=${config.agent.llm.retry.backoff_multiplier}`);
+    }
+
+    if (hasNonDefaultRetry) {
+        envVars.push(`\n# LLM Retry`);
+        envVars = envVars.concat(retryConfig);
+    }
 
     // MCP Servers
-    envVars.push(`\n# MCP Servers`);
-    let serverIndex = 0;
-    for (const [serverId, serverConfig] of Object.entries(config.agent.connections.mcpServers)) {
-        envVars.push(`export MCPS_${serverIndex}_ID="${serverId}"`);
-        envVars.push(`export MCPS_${serverIndex}_COMMAND="${serverConfig.command}"`);
-        envVars.push(`export MCPS_${serverIndex}_ARGS="${serverConfig.args.join(' ')}"`);
+    const mcpServers = config.agent.connections.mcpServers;
+    if (Object.keys(mcpServers).length > 0) {
+        envVars.push(`\n# MCP Servers`);
+        let serverIndex = 0;
+        for (const [serverId, serverConfig] of Object.entries(mcpServers)) {
+            envVars.push(`export MCPS_${serverIndex}_ID="${serverId}"`);
+            envVars.push(`export MCPS_${serverIndex}_COMMAND="${serverConfig.command}"`);
 
-        // Environment variables if any
-        if (serverConfig.environment && Object.keys(serverConfig.environment).length > 0) {
-            for (const [envKey, envValue] of Object.entries(serverConfig.environment)) {
-                envVars.push(`export MCPS_${serverIndex}_ENV_${envKey}="${envValue}"`);
+            if (serverConfig.args && serverConfig.args.length > 0) {
+                envVars.push(`export MCPS_${serverIndex}_ARGS="${serverConfig.args.join(' ')}"`);
             }
-        }
 
-        envVars.push(``);
-        serverIndex++;
+            // Environment variables if any
+            if (serverConfig.environment && Object.keys(serverConfig.environment).length > 0) {
+                for (const [envKey, envValue] of Object.entries(serverConfig.environment)) {
+                    envVars.push(`export MCPS_${serverIndex}_ENV_${envKey}="${envValue}"`);
+                }
+            }
+
+            envVars.push(``);
+            serverIndex++;
+        }
     }
 
     // Connection retry settings
-    envVars.push(`# MSPS Retry`);
-    envVars.push(`export MSPS_RETRY_MAX_RETRIES=${config.agent.connections.retry.max_retries}`);
-    envVars.push(`export MSPS_RETRY_INITIAL_BACKOFF=${config.agent.connections.retry.initial_backoff}`);
-    envVars.push(`export MSPS_RETRY_MAX_BACKOFF=${config.agent.connections.retry.max_backoff}`);
-    envVars.push(`export MSPS_RETRY_BACKOFF_MULTIPLIER=${config.agent.connections.retry.backoff_multiplier}`);
+    let hasNonDefaultConnRetry = false;
+    const connRetryConfig = [];
+
+    if (!isDefault('agent.connections.retry.max_retries', config.agent.connections.retry.max_retries)) {
+        hasNonDefaultConnRetry = true;
+        connRetryConfig.push(`export MSPS_RETRY_MAX_RETRIES=${config.agent.connections.retry.max_retries}`);
+    }
+    if (!isDefault('agent.connections.retry.initial_backoff', config.agent.connections.retry.initial_backoff)) {
+        hasNonDefaultConnRetry = true;
+        connRetryConfig.push(`export MSPS_RETRY_INITIAL_BACKOFF=${config.agent.connections.retry.initial_backoff}`);
+    }
+    if (!isDefault('agent.connections.retry.max_backoff', config.agent.connections.retry.max_backoff)) {
+        hasNonDefaultConnRetry = true;
+        connRetryConfig.push(`export MSPS_RETRY_MAX_BACKOFF=${config.agent.connections.retry.max_backoff}`);
+    }
+    if (!isDefault('agent.connections.retry.backoff_multiplier', config.agent.connections.retry.backoff_multiplier)) {
+        hasNonDefaultConnRetry = true;
+        connRetryConfig.push(`export MSPS_RETRY_BACKOFF_MULTIPLIER=${config.agent.connections.retry.backoff_multiplier}`);
+    }
+
+    if (hasNonDefaultConnRetry) {
+        envVars.push(`# MSPS Retry`);
+        envVars = envVars.concat(connRetryConfig);
+    }
 
     // Runtime settings
     envVars.push(`\n# Runtime`);
-    envVars.push(`export RUNTIME_LOG_LEVEL="${config.runtime.log.level}"`);
-    envVars.push(`export RUNTIME_LOG_OUTPUT="${config.runtime.log.output}"`);
+    if (!isDefault('runtime.log.level', config.runtime.log.level)) {
+        envVars.push(`export RUNTIME_LOG_LEVEL="${config.runtime.log.level}"`);
+    }
+    if (!isDefault('runtime.log.output', config.runtime.log.output)) {
+        envVars.push(`export RUNTIME_LOG_OUTPUT="${config.runtime.log.output}"`);
+    }
 
-    // Transport settings
-    envVars.push(`\n# Transport - Stdio`);
-    envVars.push(`export RUNTIME_STDIO_ENABLED=${config.runtime.transports.stdio.enabled}`);
-    envVars.push(`export RUNTIME_STDIO_BUFFER_SIZE=${config.runtime.transports.stdio.buffer_size}`);
+    // Transport settings - only include if non-default
+    let hasStdioSettings = false;
+    const stdioSettings = [];
 
-    if (config.runtime.transports.http) {
+    if (!isDefault('runtime.transports.stdio.enabled', config.runtime.transports.stdio.enabled)) {
+        hasStdioSettings = true;
+        stdioSettings.push(`export RUNTIME_STDIO_ENABLED=${config.runtime.transports.stdio.enabled}`);
+    }
+    if (!isDefault('runtime.transports.stdio.buffer_size', config.runtime.transports.stdio.buffer_size)) {
+        hasStdioSettings = true;
+        stdioSettings.push(`export RUNTIME_STDIO_BUFFER_SIZE=${config.runtime.transports.stdio.buffer_size}`);
+    }
+
+    if (hasStdioSettings) {
+        envVars.push(`\n# Transport - Stdio`);
+        envVars = envVars.concat(stdioSettings);
+    }
+
+    // HTTP settings - only include if enabled or non-default
+    if (config.runtime.transports.http && (
+        config.runtime.transports.http.enabled ||
+        !isDefault('runtime.transports.http.host', config.runtime.transports.http.host) ||
+        !isDefault('runtime.transports.http.port', config.runtime.transports.http.port)
+    )) {
         envVars.push(`\n# Transport - HTTP`);
-        envVars.push(`export RUNTIME_HTTP_ENABLED=${config.runtime.transports.http.enabled}`);
-        envVars.push(`export RUNTIME_HTTP_HOST="${config.runtime.transports.http.host}"`);
-        envVars.push(`export RUNTIME_HTTP_PORT=${config.runtime.transports.http.port}`);
+        if (!isDefault('runtime.transports.http.enabled', config.runtime.transports.http.enabled)) {
+            envVars.push(`export RUNTIME_HTTP_ENABLED=${config.runtime.transports.http.enabled}`);
+        }
+        if (!isDefault('runtime.transports.http.host', config.runtime.transports.http.host)) {
+            envVars.push(`export RUNTIME_HTTP_HOST="${config.runtime.transports.http.host}"`);
+        }
+        if (!isDefault('runtime.transports.http.port', config.runtime.transports.http.port)) {
+            envVars.push(`export RUNTIME_HTTP_PORT=${config.runtime.transports.http.port}`);
+        }
     }
 
     // Join all environment variables
@@ -531,25 +695,31 @@ function updateExamplesWithConfig(config) {
     // Update binary example with environment variables
     const binaryExample = document.querySelector('.instructions pre.code-block:nth-of-type(2) code');
     if (binaryExample) {
+        const binaryEnv = {};
+
+        // Only include non-default values
+        if (!isDefault('agent.name', config.agent.name)) binaryEnv.AGENT_NAME = config.agent.name;
+        if (!isDefault('agent.version', config.agent.version)) binaryEnv.AGENT_VERSION = config.agent.version;
+        if (!isDefault('agent.tool.name', config.agent.tool.name)) binaryEnv.TOOL_NAME = config.agent.tool.name;
+        if (!isDefault('agent.tool.description', config.agent.tool.description)) binaryEnv.TOOL_DESCRIPTION = config.agent.tool.description;
+        if (!isDefault('agent.tool.argument_name', config.agent.tool.argument_name)) binaryEnv.TOOL_ARGUMENT_NAME = config.agent.tool.argument_name;
+        if (!isDefault('agent.tool.argument_description', config.agent.tool.argument_description)) binaryEnv.TOOL_ARGUMENT_DESCRIPTION = config.agent.tool.argument_description;
+
+        // Always include API key placeholder
+        binaryEnv.LLM_API_KEY = "...YOUR_LLM_API_KEY...";
+
+        if (!isDefault('agent.llm.provider', config.agent.llm.provider)) binaryEnv.LLM_PROVIDER = config.agent.llm.provider;
+        if (!isDefault('agent.llm.model', config.agent.llm.model)) binaryEnv.LLM_MODEL = config.agent.llm.model;
+        if (!isDefault('agent.llm.max_tokens', config.agent.llm.max_tokens)) binaryEnv.LLM_MAX_TOKENS = config.agent.llm.max_tokens;
+        if (!isDefault('agent.llm.temperature', config.agent.llm.temperature)) binaryEnv.LLM_TEMPERATURE = config.agent.llm.temperature;
+        if (!isDefault('runtime.log.level', config.runtime.log.level)) binaryEnv.RUNTIME_LOG_LEVEL = config.runtime.log.level;
+
         let binaryJson = JSON.stringify({
             mcpServers: {
                 "speelka-agent": {
                     command: "speelka-agent",
                     args: [],
-                    environment: {
-                        AGENT_NAME: config.agent.name,
-                        AGENT_VERSION: config.agent.version,
-                        TOOL_NAME: config.agent.tool.name,
-                        TOOL_DESCRIPTION: config.agent.tool.description,
-                        TOOL_ARGUMENT_NAME: config.agent.tool.argument_name,
-                        TOOL_ARGUMENT_DESCRIPTION: config.agent.tool.argument_description,
-                        LLM_PROVIDER: config.agent.llm.provider,
-                        LLM_API_KEY: "...YOUR_LLM_API_KEY...",
-                        LLM_MODEL: config.agent.llm.model,
-                        LLM_MAX_TOKENS: config.agent.llm.max_tokens,
-                        LLM_TEMPERATURE: config.agent.llm.temperature,
-                        RUNTIME_LOG_LEVEL: config.runtime.log.level
-                    }
+                    environment: binaryEnv
                 }
             }
         }, null, 4);
@@ -560,20 +730,25 @@ function updateExamplesWithConfig(config) {
     const dockerExample = document.querySelector('.instructions pre.code-block:nth-of-type(3) code');
     if (dockerExample) {
         // Create environment arguments list for Docker
-        const dockerEnvArgs = [
-            "run", "-i", "--rm",
-            "-e", "AGENT_NAME=" + config.agent.name,
-            "-e", "AGENT_VERSION=" + config.agent.version,
-            "-e", "TOOL_NAME=" + config.agent.tool.name,
-            "-e", "TOOL_DESCRIPTION=" + config.agent.tool.description,
-            "-e", "TOOL_ARGUMENT_NAME=" + config.agent.tool.argument_name,
-            "-e", "TOOL_ARGUMENT_DESCRIPTION=" + config.agent.tool.argument_description,
-            "-e", "LLM_PROVIDER=" + config.agent.llm.provider,
-            "-e", "LLM_API_KEY=$LLM_API_KEY",
-            "-e", "LLM_MODEL=" + config.agent.llm.model,
-            "-e", "RUNTIME_LOG_LEVEL=" + config.runtime.log.level,
-            "ghcr.io/korchasa/speelka-agent:latest"
-        ];
+        const dockerEnvArgs = ["run", "-i", "--rm"];
+
+        // Only add non-default env vars
+        if (!isDefault('agent.name', config.agent.name)) dockerEnvArgs.push("-e", `AGENT_NAME=${config.agent.name}`);
+        if (!isDefault('agent.version', config.agent.version)) dockerEnvArgs.push("-e", `AGENT_VERSION=${config.agent.version}`);
+        if (!isDefault('agent.tool.name', config.agent.tool.name)) dockerEnvArgs.push("-e", `TOOL_NAME=${config.agent.tool.name}`);
+        if (!isDefault('agent.tool.description', config.agent.tool.description)) dockerEnvArgs.push("-e", `TOOL_DESCRIPTION=${config.agent.tool.description}`);
+        if (!isDefault('agent.tool.argument_name', config.agent.tool.argument_name)) dockerEnvArgs.push("-e", `TOOL_ARGUMENT_NAME=${config.agent.tool.argument_name}`);
+        if (!isDefault('agent.tool.argument_description', config.agent.tool.argument_description)) dockerEnvArgs.push("-e", `TOOL_ARGUMENT_DESCRIPTION=${config.agent.tool.argument_description}`);
+
+        // Always include LLM API key
+        dockerEnvArgs.push("-e", "LLM_API_KEY=$LLM_API_KEY");
+
+        if (!isDefault('agent.llm.provider', config.agent.llm.provider)) dockerEnvArgs.push("-e", `LLM_PROVIDER=${config.agent.llm.provider}`);
+        if (!isDefault('agent.llm.model', config.agent.llm.model)) dockerEnvArgs.push("-e", `LLM_MODEL=${config.agent.llm.model}`);
+        if (!isDefault('runtime.log.level', config.runtime.log.level)) dockerEnvArgs.push("-e", `RUNTIME_LOG_LEVEL=${config.runtime.log.level}`);
+
+        // Add the image tag
+        dockerEnvArgs.push("ghcr.io/korchasa/speelka-agent:latest");
 
         let dockerJson = JSON.stringify({
             mcpServers: {
