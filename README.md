@@ -41,18 +41,53 @@ go build ./cmd/speelka-agent
 
 ### Configuration
 
-Configuration is provided through a single `CONFIG_JSON` environment variable containing a complete JSON structure:
+Configuration is provided through environment variables:
 
-```bash
-CONFIG_JSON='{"agent":{"name":"speelka-agent","version":"1.0.0","tool":{"name":"process","description":"Process tool for handling user queries with LLM","argument_name":"input","argument_description":"User query to process"},"llm":{"provider":"openai","api_key":"your_api_key_here","model":"gpt-4o","max_tokens":0,"temperature":0.7,"prompt_template":"You are a helpful AI assistant...","retry":{"max_retries":3,"initial_backoff":1.0,"max_backoff":30.0,"backoff_multiplier":2.0}},"connections":{"servers":[{"id":"server-id-1","transport":"stdio","command":"docker","arguments":["run","-i","--rm","mcp/time"],"environment":{"NODE_ENV":"production"}}],"retry":{"max_retries":3,"initial_backoff":1.0,"max_backoff":30.0,"backoff_multiplier":2.0}}},"runtime":{"log":{"level":"info","output":"stdout"},"transports":{"stdio":{"enabled":true,"buffer_size":8192,"auto_detect":false},"http":{"enabled":true,"host":"localhost","port":3000}}}}'
-```
+| Environment Variable | Default Value | Description |
+|---------------------|---------------|-------------|
+| **Agent Configuration** | | |
+| `AGENT_NAME` | *Required* | Name of the agent |
+| `AGENT_VERSION` | "1.0.0" | Version of the agent |
+| **Tool Configuration** | | |
+| `TOOL_NAME` | *Required* | Name of the tool provided by the agent |
+| `TOOL_DESCRIPTION` | *Required* | Description of the tool functionality |
+| `TOOL_ARGUMENT_NAME` | *Required* | Name of the argument for the tool |
+| `TOOL_ARGUMENT_DESCRIPTION` | *Required* | Description of the argument for the tool |
+| **LLM Configuration** | | |
+| `LLM_PROVIDER` | *Required* | Provider of LLM service (e.g., "openai", "anthropic") |
+| `LLM_API_KEY` | *Required* | API key for the LLM provider |
+| `LLM_MODEL` | *Required* | Model name (e.g., "gpt-4o", "claude-3-opus-20240229") |
+| `LLM_MAX_TOKENS` | 0 | Maximum tokens to generate (0 means no limit) |
+| `LLM_TEMPERATURE` | 0.7 | Temperature parameter for randomness in generation |
+| `LLM_PROMPT_TEMPLATE` | *Required* | Template for system prompts (must include placeholder matching the `TOOL_ARGUMENT_NAME` value and `{{tools}}`) |
+| **LLM Retry Configuration** | | |
+| `LLM_RETRY_MAX_RETRIES` | 3 | Maximum number of retry attempts for LLM API calls |
+| `LLM_RETRY_INITIAL_BACKOFF` | 1.0 | Initial backoff time in seconds |
+| `LLM_RETRY_MAX_BACKOFF` | 30.0 | Maximum backoff time in seconds |
+| `LLM_RETRY_BACKOFF_MULTIPLIER` | 2.0 | Multiplier for increasing backoff time |
+| **MCP Servers Configuration** | | |
+| `MCPS_0_ID` | "" | Identifier for the first MCP server |
+| `MCPS_0_COMMAND` | "" | Command to execute for the first server |
+| `MCPS_0_ARGS` | "" | Command arguments as space-separated string |
+| `MCPS_0_ENV_*` | "" | Environment variables for the server (prefix with `MCPS_0_ENV_`) |
+| `MCPS_1_ID`, etc. | "" | Configuration for additional servers (increment index) |
+| **MCP Retry Configuration** | | |
+| `MSPS_RETRY_MAX_RETRIES` | 3 | Maximum number of retry attempts for MCP server connections |
+| `MSPS_RETRY_INITIAL_BACKOFF` | 1.0 | Initial backoff time in seconds |
+| `MSPS_RETRY_MAX_BACKOFF` | 30.0 | Maximum backoff time in seconds |
+| `MSPS_RETRY_BACKOFF_MULTIPLIER` | 2.0 | Multiplier for increasing backoff time |
+| **Runtime Configuration** | | |
+| `RUNTIME_LOG_LEVEL` | "info" | Log level (debug, info, warn, error) |
+| `RUNTIME_LOG_OUTPUT` | "stderr" | Log output destination (stdout, stderr, file path) |
+| `RUNTIME_STDIO_ENABLED` | true | Enable stdin/stdout transport |
+| `RUNTIME_STDIO_BUFFER_SIZE` | 8192 | Buffer size for stdio transport |
+| `RUNTIME_HTTP_ENABLED` | false | Enable HTTP transport |
+| `RUNTIME_HTTP_HOST` | "localhost" | Host for HTTP server |
+| `RUNTIME_HTTP_PORT` | 3000 | Port for HTTP server |
 
-You can also override specific configuration values using environment variables:
-
-```bash
-# Override the LLM API key
-export LLM_API_KEY=your_actual_api_key
-```
+Example configuration files are available in the `examples` directory:
+- `examples/simple.env`: Basic agent configuration
+- `examples/architect.env`: Software architecture analysis agent
 
 ### Running the Agent
 
@@ -89,21 +124,14 @@ curl -X POST http://localhost:3000/message -H "Content-Type: application/json" -
 
 ### Integration with External Tools
 
-The agent can connect to external tools using the MCP protocol:
+The agent can connect to external tools using the MCP protocol by configuring environment variables:
 
-```json
-"connections": {
-  "servers": [
-    {
-      "id": "playwright",
-      "transport": "stdio",
-      "command": "mcp-playwright",
-      "environment": {
-        "NODE_ENV": "production"
-      }
-    }
-  ]
-}
+```bash
+# MCP server for Playwright
+export MCPS_0_ID="playwright"
+export MCPS_0_COMMAND="mcp-playwright"
+export MCPS_0_ARGS=""
+export MCPS_0_ENV_NODE_ENV="production"
 ```
 
 ## Supported LLM Providers
@@ -118,6 +146,8 @@ The agent can connect to external tools using the MCP protocol:
 - `/cmd`: Command-line application entry points
 - `/internal`: Core application code
 - `/docs`: Project documentation
+- `/examples`: Example configuration files
+- `/scripts`: Utility scripts for development and configuration conversion
 
 ### Running Tests
 

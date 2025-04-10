@@ -29,8 +29,12 @@ COPY --from=builder /app/speelka-agent /app/speelka-agent
 # Set executable permissions
 RUN chmod +x /app/speelka-agent
 
-# Set environment variables
-ENV CONFIG_JSON=""
+# Configuration is provided through environment variables
+# Examples:
+# - AGENT_NAME, AGENT_VERSION
+# - TOOL_NAME, TOOL_DESCRIPTION
+# - LLM_PROVIDER, LLM_MODEL, LLM_API_KEY
+# - See examples directory for complete configuration examples
 
 # Expose port for HTTP mode
 EXPOSE 3000

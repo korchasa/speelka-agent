@@ -1,31 +1,28 @@
 # Knowledge References
 
 ## Model Context Protocol (MCP)
-
-- [MCP GitHub Repository](https://github.com/machine-cognition-protocol/machine-cognition-protocol)
+- [MCP GitHub](https://github.com/machine-cognition-protocol/machine-cognition-protocol)
 - [MCP-Go Library](https://github.com/mark3labs/mcp-go)
 
-MCP is a protocol for communication between AI agents and tools. Key concepts:
-- **Tool Definition**: Structured definition of tools with parameters
-- **Request/Response**: Standard format for tool invocation
-- **Transport Agnostic**: Works over HTTP, WebSockets, stdio
+**Key Concepts**:
+- **Tool Definition**: Structured tool def with params
+- **Request/Response**: Standard tool invocation format
+- **Transport Agnostic**: HTTP, WebSockets, stdio
 
 ## LangChain Go
-
 - [LangChainGo GitHub](https://github.com/tmc/langchaingo)
-- [LLM Integration Documentation](https://pkg.go.dev/github.com/tmc/langchaingo/llms)
+- [LLM Integration Docs](https://pkg.go.dev/github.com/tmc/langchaingo/llms)
 
-LangChainGo provides Go bindings for various LLM providers:
+**Features**:
 - Message format standardization
 - Tool/function calling support
-- Provider-specific client implementations
+- Provider-specific clients
 
 ## Code Snippets
 
 ### Tool Definition
-
 ```go
-// Example tool definition
+// Tool definition example
 tool := mcp.NewTool("example_tool",
     mcp.WithDescription("An example tool"),
     mcp.WithString("param1",
@@ -39,9 +36,8 @@ tool := mcp.NewTool("example_tool",
 ```
 
 ### LLM Request
-
 ```go
-// Example LLM request
+// LLM request example
 response, err := s.client.GenerateContent(
     ctx,
     messages,
@@ -51,9 +47,8 @@ response, err := s.client.GenerateContent(
 ```
 
 ### Chat History Management
-
 ```go
-// Adding a tool call to history
+// Adding tool call to history
 c.history = append(c.history, llms.MessageContent{
     Role: llms.ChatMessageTypeAI,
     Parts: []llms.ContentPart{
@@ -72,7 +67,6 @@ c.history = append(c.history, llms.MessageContent{
 ## Configuration Examples
 
 ### LLM Configuration
-
 ```
 LLM_PROVIDER=openai
 LLM_MODEL=gpt-4
@@ -86,7 +80,6 @@ LLM_RETRY_BACKOFF_MULTIPLIER=2
 ```
 
 ### MCP Server Configuration
-
 ```
 MCP_SERVER_NAME=speelka-agent
 MCP_SERVER_VERSION=1.0.0
@@ -100,7 +93,6 @@ MCP_SERVER_STDIO_AUTO_DETECT=true
 ```
 
 ### MCP Connector Configuration
-
 ```
 MCP_CONNECTOR_SERVER_0_ID=playwright
 MCP_CONNECTOR_SERVER_0_TRANSPORT=stdio
@@ -109,9 +101,8 @@ MCP_CONNECTOR_SERVER_0_ENV_NODE_ENV=production
 ```
 
 ## Error Handling Patterns
-
 ```go
-// Retrying with backoff
+// Retry with backoff
 err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{
     MaxRetries:        s.config.RetryConfig.MaxRetries,
     InitialBackoff:    time.Duration(s.config.RetryConfig.InitialBackoff * float64(time.Second)),
@@ -121,17 +112,14 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{
 ```
 
 ## Useful Commands
-
-### Build and Run
-
 ```bash
-# Build the agent
+# Build agent
 ./run build
 
-# Run in daemon mode
+# Run daemon mode
 ./run start
 
-# Run in CLI mode
+# Run CLI mode
 ./run cli
 
 # Run tests
@@ -139,7 +127,6 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{
 ```
 
 ## System Prompt Template Example
-
 ```
 You are a useful AI agent who can use tools to accomplish tasks. Your primary goal is to assist the user with their request.
 

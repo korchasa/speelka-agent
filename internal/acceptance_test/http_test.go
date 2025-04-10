@@ -227,4 +227,7 @@ func TestHTTPRequest(t *testing.T) {
 
 	// // Check that we got a response and not an error
 	// assert.False(t, responseJSON["isError"].(bool), "Response should not be an error")
+
+	// Remove commented out CONFIG_JSON code and replace with a comment about environment variables
+	// Set environment variables for configuration
 }

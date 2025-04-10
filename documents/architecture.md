@@ -1,117 +1,93 @@
 # Speelka Agent Architecture
 
 ## Overview
-
-Speelka Agent is a universal LLM agent based on the Model Context Protocol (MCP). The system is designed to be modular, extensible, and follows clean architectural patterns.
+Speelka Agent = Universal LLM agent using Model Context Protocol (MCP). Modular, extensible system with clean architecture.
 
 ## Key Advantages
-
-Speelka Agent offers significant benefits for LLM system integrations:
-
-1. **Client-Side Context Optimization**: Reduces context size requirements on the client side, resulting in more efficient token usage and cost savings
-2. **LLM Flexibility**: Allows different LLM providers and configurations between client and agent sides, optimizing for performance and cost
-3. **Precise Agent Definition**: Enables detailed agent behavior definition through prompt engineering
-4. **Centralized Tool Management**: Provides a single point of control for all available tools
-5. **Integration Options**: Supports multiple integration methods including MCP stdio, MCP HTTP* and Simple HTTP API* (*planned)
-6. **Reliability**: Includes built-in retry mechanisms for handling transient failures
-7. **Extensibility**: Supports system behavior extensions without requiring client-side changes
+1. **Client-Side Context Optimization**: ↓ context size = ↓ token usage, ↓ costs
+2. **LLM Flexibility**: Different LLMs between client/agent = optimized performance/cost
+3. **Precise Agent Definition**: Detailed behavior via prompt engineering
+4. **Centralized Tool Management**: Single control point for all tools
+5. **Integration Options**: MCP stdio, MCP HTTP*, Simple HTTP API* (*planned)
+6. **Reliability**: Built-in retry mechanisms for transient failures
+7. **Extensibility**: System extensions without client-side changes
 
 ## Core Design Principles
-
-1. **Separation of Concerns**: Each component has a single responsibility
-2. **Dependency Injection**: Components receive their dependencies through constructors
-3. **Interface-Based Design**: Key components implement interfaces for testability
-4. **Error Handling Strategy**: Structured error handling with appropriate categorization
-5. **Configuration Management**: Centralized configuration with specific subsets for components
+1. **Separation of Concerns**: Single responsibility per component
+2. **Dependency Injection**: Dependencies via constructors
+3. **Interface-Based Design**: Components implement interfaces for testability
+4. **Error Handling Strategy**: Structured, categorized error handling
+5. **Configuration Management**: Centralized config with component-specific subsets
 
 ## Key Components
 
 ### Agent
-
-The central orchestrator that coordinates all other components:
-
-- Manages the conversation flow between user, LLM, and tools
-- Processes user requests coming through the MCP server
-- Controls the LLM interaction loop
-- Delegates tool execution to the MCP connector
-- Maintains conversation state through the Chat component
+- Central orchestrator coordinating all components
+- Manages conversation flow: user ↔ LLM ↔ tools
+- Processes user requests via MCP server
+- Controls LLM interaction loop
+- Delegates tool execution to MCP connector
+- Maintains conversation state via Chat component
 
 ### Configuration Manager
-
-Provides centralized access to all configuration settings:
-
-- Loads configuration from environment variables or config files
-- Provides typed access to configuration subsets for different components
-- Implements the `ConfigurationManagerSpec` interface
+- Centralized config access point
+- Loads config from env vars/files
+- Provides typed access to config subsets
+- Implements `ConfigurationManagerSpec` interface
 
 ### LLM Service
-
-Handles communication with Language Model providers:
-
-- Supports multiple LLM providers (OpenAI, Anthropic)
-- Formats and sends requests to LLMs
-- Processes responses and extracts tool calls
+- Handles LLM provider communication
+- Supports multiple providers (OpenAI, Anthropic)
+- Formats/sends requests to LLMs
+- Processes responses, extracts tool calls
 - Implements retry logic for transient errors
 
 ### MCP Server
-
-Exposes the agent functionality to clients:
-
-- Supports HTTP and stdio transport protocols
-- Registers and manages available tools
+- Exposes agent functionality to clients
+- Supports HTTP and stdio protocols
+- Registers/manages available tools
 - Processes incoming requests
 - Returns responses to clients
 
 ### MCP Connector
-
-Connects to external MCP servers to execute tools:
-
+- Connects to external MCP servers for tool execution
 - Manages connections to multiple MCP servers
 - Discovers available tools from connected servers
 - Routes tool calls to appropriate servers
 - Returns tool execution results
 
 ### Chat
-
-Manages the conversation history and formatting:
-
-- Maintains a history of messages between user, assistant, and tools
-- Formats prompts with appropriate templates
-- Provides the conversation context for LLM requests
-- Tracks tool calls and their results
+- Manages conversation history/formatting
+- Maintains message history: user ↔ assistant ↔ tools
+- Formats prompts with templates
+- Provides conversation context for LLM requests
+- Tracks tool calls and results
 
 ## Data Flow
-
-1. User request comes through the MCP Server
-2. Agent processes the request and initializes a Chat session
-3. LLM Service is called with the formatted prompt and available tools
+1. User request → MCP Server
+2. Agent processes request, initializes Chat session
+3. LLM Service called with formatted prompt + available tools
 4. LLM responds with text and/or tool calls
-5. For each tool call, MCP Connector executes the tool on an appropriate server
-6. Tool results are added to the Chat history
-7. The process repeats until LLM issues an "answer" command
-8. Final response is returned to the user through MCP Server
+5. For each tool call, MCP Connector executes tool on appropriate server
+6. Tool results added to Chat history
+7. Process repeats until LLM issues "answer" command
+8. Final response returned to user via MCP Server
 
 ## Error Handling
-
-The system uses a structured error handling approach:
-
-- Errors are categorized (Validation, Transient, Internal, External)
-- Appropriate retry mechanisms for different error types
-- Context-rich error messages with minimal sensitive information
+- **Categories**: Validation, Transient, Internal, External
+- **Retry**: Appropriate mechanisms per error type
+- **Context-rich messages**: Minimal sensitive information
 
 ### Handling Nil Interface Values
-
-When working with interface{} values from dynamic sources (such as JSON-decoded data or external APIs), the following practices should be observed:
-
-1. **Always Check for Nil**: Before performing type assertions on interface{} values, check if the value is nil:
+1. **Always Check for Nil**: Before type assertions on interface{} values
    ```go
    argValue, exists := someMap[key]
    if !exists || argValue == nil {
-       // Handle the case where the value doesn't exist or is nil
+       // Handle nil case
    }
    ```
 
-2. **Use Safe Type Assertions**: When converting interface{} to concrete types, use the two-return form of type assertion:
+2. **Safe Type Assertions**: Use two-return form
    ```go
    strValue, ok := argValue.(string)
    if !ok {
@@ -119,116 +95,54 @@ When working with interface{} values from dynamic sources (such as JSON-decoded 
    }
    ```
 
-3. **Provide Descriptive Error Messages**: Include the expected type and actual type in error messages:
-   ```go
-   if !ok {
-       logger.Errorf("invalid type: expected string, got %T", argValue)
-   }
-   ```
+3. **Descriptive Error Messages**: Include expected vs actual type
+4. **Return Graceful Errors**: Clear errors vs panics
 
-4. **Return Graceful Errors**: When a type assertion fails, return a clear error to the caller rather than allowing a panic to occur.
+## Configuration
+- Env vars for different aspects:
+  - Agent info (name, version)
+  - Tool settings (name, description, arguments)
+  - LLM service settings (provider, model, API key)
+  - MCP connector config
+  - Transport settings (HTTP, stdio)
+  - Logging config
 
-This approach was implemented to fix a critical issue in the Agent's HandleRequest method, where a nil interface{} value was causing a panic when attempting a direct type assertion without proper checking.
+Example:
+```bash
+# Agent settings
+export AGENT_NAME="speelka-agent"
+export AGENT_VERSION="1.0.0"
 
-## Configuration Structure
+# Tool settings
+export TOOL_NAME="process"
+export TOOL_DESCRIPTION="Process tool for handling user queries with LLM"
+export TOOL_ARGUMENT_NAME="query"
+export TOOL_ARGUMENT_DESCRIPTION="The user query to process"
 
-The configuration is provided through a single `CONFIG_JSON` environment variable containing a complete JSON structure.
+# LLM settings
+export LLM_PROVIDER="openai"
+export LLM_MODEL="gpt-4o"
 
-### Environment Variables
-
-The system also supports direct configuration through specific environment variables that override values in the JSON configuration:
-
-- `LLM_API_KEY`: Overrides the API key for the LLM provider specified in the JSON configuration.
-
-### JSON Configuration Structure
-
-The JSON configuration structure is hierarchically organized:
-
-```json
-{
-  "agent": {
-    "name": "speelka-agent",
-    "version": "1.0.0",
-    "tool": {
-      "name": "process",
-      "description": "Process tool for handling user queries with LLM",
-      "argument_name": "input",
-      "argument_description": "User query to process"
-    },
-    "llm": {
-      "provider": "openai",
-      "api_key": "your_api_key_here",
-      "model": "gpt-4o",
-      "max_tokens": 0,
-      "temperature": 0.7,
-      "prompt_template": "You are a helpful AI assistant...",
-      "retry": {
-        "max_retries": 3,
-        "initial_backoff": 1.0,
-        "max_backoff": 30.0,
-        "backoff_multiplier": 2.0
-      }
-    },
-    "connections": {
-      "servers": [
-        {
-          "id": "server-id-1",
-          "transport": "stdio",
-          "command": "docker",
-          "arguments": ["run", "-i", "--rm", "mcp/time"],
-          "environment": {
-            "NODE_ENV": "production"
-          }
-        }
-      ],
-      "retry": {
-        "max_retries": 3,
-        "initial_backoff": 1.0,
-        "max_backoff": 30.0,
-        "backoff_multiplier": 2.0
-      }
-    }
-  },
-  "runtime": {
-    "log": {
-      "level": "info",
-      "output": "stdout"
-    },
-    "transports": {
-      "stdio": {
-        "enabled": true,
-        "buffer_size": 8192,
-        "auto_detect": false
-      },
-      "http": {
-        "enabled": true,
-        "host": "localhost",
-        "port": 3000
-      }
-    }
-  }
-}
+# MCP servers
+export MCPS_0_ID="time"
+export MCPS_0_COMMAND="docker"
+export MCPS_0_ARGS="run -i --rm mcp/time"
 ```
 
 ## External Dependencies
-
-- `mcp-go`: Go implementation of the Model Context Protocol
-- `langchaingo`: Go client for interacting with Language Models
-- `logrus`: Structured logging library
+- `mcp-go`: Go implementation of Model Context Protocol
+- `langchaingo`: Go client for LLM interaction
+- `logrus`: Structured logging
 - Standard Go libraries
 
 ## Security Considerations
-
-- API keys are loaded from environment variables or secure storage
-- Sensitive information is sanitized in error messages and logs
-- Transport security options for HTTP connections
+- API keys from env vars/secure storage
+- Sensitive info sanitized in errors/logs
+- Transport security options for HTTP
 
 ## Multi-Transport Support
-
-The system can operate in different modes:
-
-- Daemon mode: HTTP server for multi-client support
-- CLI mode: Standard input/output for command-line usage
+- **Daemon mode**: HTTP server for multi-client support
+- **CLI mode**: Stdin/stdout for command-line usage
 
 ```mermaid
 graph TD
@@ -267,3 +181,64 @@ graph TD
     F --> R[HTTP Settings]
     F --> S[Stdio Settings]
 ```
+
+## Website Component Structure
+
+### JavaScript Organization
+- **scripts.js**: General utilities and common website functionality
+  - Error handling
+  - Clipboard operations
+  - Form validation
+  - Storage management
+  - DOM manipulation
+  - General page initialization
+
+This modular approach improves maintainability by separating concerns and allowing for easier updates to specific parts of the codebase.
+
+```mermaid
+graph LR
+    A[index.html] --> B[scripts.js]
+```
+
+## Site Directory Architecture
+
+The `site` directory contains the landing page for Speelka Agent, using a modern HTML/CSS/JavaScript stack.
+
+### Component Structure
+
+```
+site/
+├── index.html        # Main HTML file with the landing page
+├── js/               # JavaScript modules
+│   ├── scripts.js    # Core utilities and application initialization
+├── css/              # Stylesheet files
+│   └── styles.css    # Main CSS file with responsive design
+├── img/              # Image assets and icons
+├── sitemap.xml       # Site map for search engines
+└── robots.txt        # Robots instructions for search engines
+```
+
+### Module Dependencies
+
+The JavaScript files are designed with the following dependency structure:
+
+```mermaid
+graph TD
+    A[scripts.js] --> D[DOM Initialization]
+    A --> E[Error Handling]
+    A --> F[Clipboard Utils]
+    A --> G[Storage Utils]
+```
+
+### JavaScript Module Responsibilities
+
+1. **scripts.js**:
+   - Core utility modules (ErrorHandler, ClipboardUtils, StorageUtils, DOMUtils)
+   - Application initialization and DOM setup
+   - Navigation and UI behavior
+   - Event handling for common elements
+
+### Known Technical Debt
+
+1. **External Library Dependencies**:
+   - Dependencies are loaded using unpinned versions (latest tag), which could cause unexpected breaking changes
