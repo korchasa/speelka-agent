@@ -13,12 +13,12 @@ func TestChat_BuildPromptPartForToolsDescription(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
 
-	// Базовый шаблон с bullet points для имени инструмента и контролем отступов
+	// Basic template with bullet points for tool name and indent control
 	basicTemplate := `{% for tool in tools -%}
 - ` + "`{{ tool.Name }}`" + ` - {{ tool.Description }}
 {% endfor %}`
 
-	// Шаблон с параметрами и правильным доступом к свойствам
+	// Template with parameters and proper property access
 	paramsTemplate := `{% for tool in tools -%}
 - ` + "`{{ tool.Name }}`" + ` - {{ tool.Description }}. Arguments:
 {% if tool.InputSchema and tool.InputSchema.Properties -%}

@@ -56,6 +56,9 @@
       }
     }
     </script>
+
+    <!-- Scripts -->
+    <script src="js/scripts.js" defer></script>
 </head>
 <body>
     <!-- Header -->
@@ -86,7 +89,7 @@
             <h2>Universal LLM agent based on the Model Context Protocol (MCP)</h2>
             <p>Universal LLM agent based on the Model Context Protocol (MCP), with the ability to utilize tools from other MCP servers.</p>
             <div class="hero-buttons" role="group" aria-label="Get started options">
-                <a href="#usage" class="btn btn-primary" aria-label="Configure Agent">Configure Agent</a>
+                <a href="#usage" class="btn btn-primary" aria-label="Go to Usage section">Get Started</a>
                 <a href="https://github.com/korchasa/speelka-agent" class="btn btn-secondary" target="_blank" rel="noopener noreferrer" aria-label="View on GitHub"><i class="fab fa-github" aria-hidden="true"></i> View on GitHub</a>
             </div>
         </div>
@@ -192,260 +195,10 @@ flowchart TB
     <section id="usage">
         <div class="container">
             <h2 class="section-title">Usage</h2>
-            <p class="section-subtitle">Customize your Speelka Agent setup</p>
+            <p class="section-subtitle">Start using Speelka Agent with these example configurations</p>
 
-            <div class="config-section">
-                <div class="tab-container">
-                    <div class="tab active" onclick="openTab(event, 'agentTab')">Agent Settings</div>
-                    <div class="tab" onclick="openTab(event, 'connectionsTab')">Connections</div>
-                    <div class="tab" onclick="openTab(event, 'runtimeTab')">Runtime</div>
-                </div>
-
-                <div id="agentTab" class="tab-content active">
-                    <div class="form-group required">
-                        <label for="agentName">Agent Name:</label>
-                        <input type="text" id="agentName" value="" placeholder="speelka-agent" />
-                        <span class="field-description">Name of the agent used in logs and identification</span>
-                        <span class="field-required">Required</span>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="agentVersion">Agent Version:</label>
-                        <input type="text" id="agentVersion" value="1.0.0" />
-                        <span class="field-description">Agent version in SemVer format (e.g., 1.0.0)</span>
-                    </div>
-
-                    <h3>Tool Configuration</h3>
-                    <div class="form-group required">
-                        <label for="toolName">Tool Name:</label>
-                        <input type="text" id="toolName" value="" placeholder="process" />
-                        <span class="field-description">Name of the tool that processes requests</span>
-                        <span class="field-required">Required</span>
-                    </div>
-
-                    <div class="form-group required">
-                        <label for="toolDescription">Tool Description:</label>
-                        <input type="text" id="toolDescription" value="" placeholder="Process tool for handling user queries with LLM" />
-                        <span class="field-description">Description of the tool that will be displayed in the interface</span>
-                        <span class="field-required">Required</span>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="argumentName">Argument Name:</label>
-                        <input type="text" id="argumentName" value="input" />
-                        <span class="field-description">Name of the argument used to pass the user's query</span>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="argumentDescription">Argument Description:</label>
-                        <input type="text" id="argumentDescription" value="User query to process" />
-                        <span class="field-description">Description of the argument for documentation</span>
-                    </div>
-
-                    <h3>LLM Configuration</h3>
-                    <div class="form-group required">
-                        <label for="llmProvider">LLM Provider:</label>
-                        <select id="llmProvider">
-                            <option value="" disabled selected>Select a provider</option>
-                            <option value="openai">OpenAI</option>
-                            <option value="anthropic">Anthropic</option>
-                        </select>
-                        <span class="field-description">Language model provider</span>
-                        <span class="field-required">Required</span>
-                    </div>
-
-                    <div class="form-group required">
-                        <label for="llmApiKey">API Key:</label>
-                        <input type="text" id="llmApiKey" value="" placeholder="Enter your API key here" />
-                        <span class="field-description">API key for accessing the language model</span>
-                        <span class="field-required">Required</span>
-                    </div>
-
-                    <div class="form-group required">
-                        <label for="llmModel">Model:</label>
-                        <input type="text" id="llmModel" value="" placeholder="gpt-4o" />
-                        <span class="field-description">Name of the model to use (e.g., gpt-4o, claude-3-opus)</span>
-                        <span class="field-required">Required</span>
-                    </div>
-
-                    <div class="advanced-toggle" onclick="toggleAdvanced('llmAdvanced')">
-                        <i class="fas fa-caret-right"></i> Advanced LLM Settings
-                    </div>
-
-                    <div id="llmAdvanced" class="advanced-section">
-                        <div class="form-group">
-                            <label for="llmMaxTokens">Max Tokens (0 for default):</label>
-                            <input type="number" id="llmMaxTokens" value="0" min="0" />
-                            <span class="field-description">Maximum number of tokens for the response (0 - use default value)</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="llmTemperature">Temperature (0.0-1.0):</label>
-                            <input type="number" id="llmTemperature" value="0.7" min="0" max="1" step="0.1" />
-                            <span class="field-description">Temperature for generation. Lower - more predictable results, higher - more creative</span>
-                        </div>
-
-                        <div class="form-group required">
-                            <label for="promptTemplate">Prompt Template:</label>
-                            <textarea id="promptTemplate" placeholder="You are a helpful AI assistant. Respond to the following request:
-
-{{input}}
-
-Provide a detailed and helpful response.
-
-Available tools:
-{{tools}}"></textarea>
-                            <span class="field-description">Prompt template for the model. Variables {{input}} and {{tools}} will be replaced with the user request and available tools</span>
-                            <span class="field-required">Required - must include {{input}} and {{tools}} placeholders</span>
-                        </div>
-                    </div>
-
-                    <div class="advanced-toggle" onclick="toggleAdvanced('retryAdvanced')">
-                        <i class="fas fa-caret-right"></i> Retry Configuration
-                    </div>
-
-                    <div id="retryAdvanced" class="advanced-section">
-                        <div class="form-group">
-                            <label for="maxRetries">Max Retries:</label>
-                            <input type="number" id="maxRetries" value="3" min="1" />
-                            <span class="field-description">Maximum number of retry attempts on LLM request failure</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="initialBackoff">Initial Backoff (seconds):</label>
-                            <input type="number" id="initialBackoff" value="1.0" min="0.1" step="0.1" />
-                            <span class="field-description">Initial delay before retry attempt (in seconds)</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="maxBackoff">Max Backoff (seconds):</label>
-                            <input type="number" id="maxBackoff" value="30.0" min="1" step="0.1" />
-                            <span class="field-description">Maximum delay before retry attempt (in seconds)</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="backoffMultiplier">Backoff Multiplier:</label>
-                            <input type="number" id="backoffMultiplier" value="2.0" min="1" step="0.1" />
-                            <span class="field-description">Multiplier for exponential backoff between retry attempts</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="connectionsTab" class="tab-content">
-                    <h3>MCP Server Connections</h3>
-                    <div id="serversContainer">
-                        <!-- Server configurations will be added here -->
-                    </div>
-
-                    <button class="add-server-btn btn btn-secondary" onclick="addServer()">Add Server</button>
-
-                    <div class="advanced-toggle" onclick="toggleAdvanced('connRetryAdvanced')">
-                        <i class="fas fa-caret-right"></i> Connection Retry Configuration
-                    </div>
-
-                    <div id="connRetryAdvanced" class="advanced-section">
-                        <div class="form-group">
-                            <label for="connMaxRetries">Max Retries:</label>
-                            <input type="number" id="connMaxRetries" value="3" min="1" />
-                            <span class="field-description">Maximum number of retry attempts for MCP server connections</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="connInitialBackoff">Initial Backoff (seconds):</label>
-                            <input type="number" id="connInitialBackoff" value="1.0" min="0.1" step="0.1" />
-                            <span class="field-description">Initial delay before connection retry attempt (in seconds)</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="connMaxBackoff">Max Backoff (seconds):</label>
-                            <input type="number" id="connMaxBackoff" value="30.0" min="1" step="0.1" />
-                            <span class="field-description">Maximum delay before connection retry attempt (in seconds)</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="connBackoffMultiplier">Backoff Multiplier:</label>
-                            <input type="number" id="connBackoffMultiplier" value="2.0" min="1" step="0.1" />
-                            <span class="field-description">Multiplier for exponential backoff between connection retry attempts</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="runtimeTab" class="tab-content">
-                    <h3>Log Configuration</h3>
-                    <div class="form-group">
-                        <label for="logLevel">Log Level:</label>
-                        <select id="logLevel">
-                            <option value="debug">Debug</option>
-                            <option value="info" selected>Info</option>
-                            <option value="warn">Warn</option>
-                            <option value="error">Error</option>
-                            <option value="fatal">Fatal</option>
-                            <option value="panic">Panic</option>
-                        </select>
-                        <span class="field-description">Level of detail for log messages</span>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="logOutput">Log Output:</label>
-                        <input type="text" id="logOutput" value="stdout" placeholder="stdout, stderr, or file path" />
-                        <span class="field-description">Where to send log messages (standard output, standard error, or a file)</span>
-                    </div>
-
-                    <h3>Transport Configuration</h3>
-                    <div class="form-group">
-                        <label for="stdioEnabled">Enable STDIO Transport:</label>
-                        <select id="stdioEnabled">
-                            <option value="true" selected>Enabled</option>
-                            <option value="false">Disabled</option>
-                        </select>
-                        <span class="field-description">Enable standard input/output for MCP communications</span>
-                    </div>
-
-                    <div class="advanced-toggle" onclick="toggleAdvanced('stdioAdvanced')">
-                        <i class="fas fa-caret-right"></i> Advanced STDIO Settings
-                    </div>
-
-                    <div id="stdioAdvanced" class="advanced-section">
-                        <div class="form-group">
-                            <label for="stdioBufferSize">STDIO Buffer Size:</label>
-                            <input type="number" id="stdioBufferSize" value="8192" min="1024" />
-                            <span class="field-description">Size of the buffer for standard input/output operations (in bytes)</span>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="httpEnabled">Enable HTTP Transport:</label>
-                        <select id="httpEnabled">
-                            <option value="true">Enabled</option>
-                            <option value="false" selected>Disabled</option>
-                        </select>
-                        <span class="field-description">Enable HTTP transport for API access</span>
-                    </div>
-
-                    <div id="httpSettings" style="display: none;">
-                        <div class="form-group">
-                            <label for="httpHost">HTTP Host:</label>
-                            <input type="text" id="httpHost" value="localhost" />
-                            <span class="field-description">Host address for the HTTP server</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="httpPort">HTTP Port:</label>
-                            <input type="number" id="httpPort" value="3000" min="1" max="65535" />
-                            <span class="field-description">Port number for the HTTP server</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="instructions">
-                <h3>How to Use This Configuration</h3>
-
-                <p>Set the environment variables with your configuration:</p>
-                <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code># Environment variables will be generated here
-</code></pre>
-
-                <h4>MCP stdio</h4>
+            <div class="examples-section">
+                <h3>MCP stdio</h3>
                 <p>Add speelka-agent binary to your MCP client:</p>
 <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>{
     "mcpServers": {
@@ -453,25 +206,48 @@ Available tools:
             "command": "speelka-agent",
             "args": [],
             "environment": {
-                "AGENT_NAME": "your-agent-name",
-                "TOOL_NAME": "your-tool-name",
-                "LLM_API_KEY": "...YOU_LLM_API_KEY..."
-                // Other environment variables will be generated here
+                "AGENT_NAME": "simple-speelka-agent",
+                "TOOL_NAME": "process",
+                "TOOL_DESCRIPTION": "Process tool for handling user queries with LLM",
+                "LLM_PROVIDER": "openai",
+                "LLM_API_KEY": "YOUR_API_KEY_HERE",
+                "LLM_MODEL": "gpt-4o",
+                "LLM_PROMPT_TEMPLATE": "You are a helpful AI assistant. Respond to the following request:\\n\\n{{input}}\\n\\nProvide a detailed and helpful response.\\n\\nAvailable tools:\\n{{tools}}",
+                "MCPS_0_ID": "time",
+                "MCPS_0_COMMAND": "docker",
+                "MCPS_0_ARGS": "run -i --rm mcp/time",
+                "MCPS_1_ID": "mcp-filesystem-server",
+                "MCPS_1_COMMAND": "mcp-filesystem-server",
+                "MCPS_1_ARGS": "/Users/korchasa/www/speelka/speelka-agent"
             }
         }
     }
 }</code></pre>
 
-
+                <h3>Docker Integration</h3>
                 <p>Add speelka-agent to your MCP client with Docker:</p>
                 <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>{
     "mcpServers": {
         "speelka-agent": {
             "command": "docker",
-            "args": ["run", "-i", "--rm", "-e", "AGENT_NAME=your-agent-name", "-e", "LLM_API_KEY=$LLM_API_KEY", "ghcr.io/korchasa/speelka-agent:latest"],
+            "args": ["run", "-i", "--rm",
+                "-e", "AGENT_NAME=simple-speelka-agent",
+                "-e", "TOOL_NAME=process",
+                "-e", "TOOL_DESCRIPTION=Process tool for handling user queries with LLM",
+                "-e", "LLM_PROVIDER=openai",
+                "-e", "LLM_API_KEY=$LLM_API_KEY",
+                "-e", "LLM_MODEL=gpt-4o",
+                "-e", "LLM_PROMPT_TEMPLATE=You are a helpful AI assistant. Respond to the following request:\\n\\n{{input}}\\n\\nProvide a detailed and helpful response.\\n\\nAvailable tools:\\n{{tools}}",
+                "ghcr.io/korchasa/speelka-agent:latest"
+                "-e", "MCPS_0_ID=time",
+                "-e", "MCPS_0_COMMAND=docker",
+                "-e", "MCPS_0_ARGS=run -i --rm mcp/time",
+                "-e", "MCPS_1_ID=mcp-filesystem-server",
+                "-e", "MCPS_1_COMMAND=mcp-filesystem-server",
+                "-e", "MCPS_1_ARGS=/Users/korchasa/www/speelka/speelka-agent"
+            ],
             "environment": {
-                "LLM_API_KEY": "...YOU_LLM_API_KEY..."
-                // Other environment variables will be handled by Docker command args
+                "LLM_API_KEY": "YOUR_API_KEY_HERE"
             }
         }
     }
@@ -530,7 +306,57 @@ Available tools:
         </div>
     </footer>
 
-    <!-- Scripts -->
-    <script src="js/main.js" defer></script>
+    <script>
+        // Add clipboard functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const copyButtons = document.querySelectorAll('.copy-btn');
+            copyButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const codeBlock = this.nextElementSibling;
+                    const textToCopy = codeBlock.textContent;
+
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        // Visual feedback
+                        const originalIcon = this.innerHTML;
+                        this.innerHTML = '<i class="fas fa-check"></i>';
+                        setTimeout(() => {
+                            this.innerHTML = originalIcon;
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy text: ', err);
+                    });
+                });
+            });
+
+            // Initialize Mermaid diagrams
+            if (typeof mermaid !== 'undefined') {
+                mermaid.initialize({
+                    startOnLoad: true,
+                    theme: 'dark',
+                    securityLevel: 'loose',
+                    logLevel: 5,
+                    flowchart: {
+                        useMaxWidth: true,
+                        htmlLabels: true,
+                        curve: 'basis'
+                    }
+                });
+            }
+
+            // Mobile menu toggle
+            const hamburger = document.querySelector('.hamburger');
+            const navLinks = document.querySelector('.nav-links');
+
+            if (hamburger && navLinks) {
+                hamburger.addEventListener('click', () => {
+                    navLinks.classList.toggle('active');
+                    hamburger.classList.toggle('active');
+                    hamburger.setAttribute('aria-expanded',
+                        hamburger.getAttribute('aria-expanded') === 'false' ? 'true' : 'false'
+                    );
+                });
+            }
+        });
+    </script>
 </body>
 </html>
