@@ -236,6 +236,20 @@ function generateAndUpdateConfig() {
 
 // Generate configuration object from form inputs
 function generateConfigObject() {
+    // Helper function to safely get value from an element
+    const getValue = (id, defaultValue) => {
+        const element = document.getElementById(id);
+        return element ? element.value : defaultValue;
+    };
+
+    // Helper function to safely get numeric value from an element
+    const getNumericValue = (id, defaultValue, parser = parseInt) => {
+        const element = document.getElementById(id);
+        if (!element) return defaultValue;
+        const value = parser(element.value);
+        return isNaN(value) ? defaultValue : value;
+    };
+
     // Form validation
     const numericFields = [
         { id: 'llmMaxTokens', min: 0, name: 'Max Tokens' },
@@ -276,34 +290,34 @@ function generateConfigObject() {
     }
 
     // Agent section
-    const agentName = document.getElementById('agentName').value;
-    const agentVersion = document.getElementById('agentVersion').value;
-    const toolName = document.getElementById('toolName').value;
-    const toolDescription = document.getElementById('toolDescription').value;
-    const toolArgumentName = document.getElementById('argumentName').value;
-    const toolArgumentDescription = document.getElementById('argumentDescription').value;
+    const agentName = getValue('agentName', 'speelka-agent');
+    const agentVersion = getValue('agentVersion', '1.0.0');
+    const toolName = getValue('toolName', 'process');
+    const toolDescription = getValue('toolDescription', 'Process tool for handling user queries with LLM');
+    const toolArgumentName = getValue('argumentName', 'input');
+    const toolArgumentDescription = getValue('argumentDescription', 'User query to process');
 
     // LLM section
-    const llmProvider = document.getElementById('llmProvider').value;
-    const llmAPIKey = document.getElementById('llmAPIKey').value;
-    const llmModel = document.getElementById('llmModel').value;
-    const llmMaxTokens = parseInt(document.getElementById('llmMaxTokens').value);
-    const llmTemperature = parseFloat(document.getElementById('llmTemperature').value);
-    const llmPromptTemplate = document.getElementById('promptTemplate').value;
-    const llmRetryMaxRetries = parseInt(document.getElementById('maxRetries').value);
-    const llmRetryInitialBackoff = parseFloat(document.getElementById('initialBackoff').value);
-    const llmRetryMaxBackoff = parseFloat(document.getElementById('maxBackoff').value);
-    const llmRetryBackoffMultiplier = parseFloat(document.getElementById('backoffMultiplier').value);
+    const llmProvider = getValue('llmProvider', 'openai');
+    const llmApiKey = getValue('llmApiKey', '');
+    const llmModel = getValue('llmModel', 'gpt-4o');
+    const llmMaxTokens = getNumericValue('llmMaxTokens', 0);
+    const llmTemperature = getNumericValue('llmTemperature', 0.7, parseFloat);
+    const llmPromptTemplate = getValue('promptTemplate', 'You are a helpful AI assistant...');
+    const llmRetryMaxRetries = getNumericValue('maxRetries', 3);
+    const llmRetryInitialBackoff = getNumericValue('initialBackoff', 1.0, parseFloat);
+    const llmRetryMaxBackoff = getNumericValue('maxBackoff', 30.0, parseFloat);
+    const llmRetryBackoffMultiplier = getNumericValue('backoffMultiplier', 2.0, parseFloat);
 
     // Connections section
     const mcpServers = {};
     const serverDivs = document.querySelectorAll('.server-container');
     serverDivs.forEach(div => {
         const id = div.id;
-        const serverId = document.getElementById(`serverId-${id.split('-')[1]}`).value;
-        const command = document.getElementById(`serverCommand-${id.split('-')[1]}`).value;
-        const argsStr = document.getElementById(`serverArgs-${id.split('-')[1]}`).value;
-        const envStr = document.getElementById(`serverEnv-${id.split('-')[1]}`).value;
+        const serverId = getValue(`serverId-${id.split('-')[1]}`, `server-${id.split('-')[1]}`);
+        const command = getValue(`serverCommand-${id.split('-')[1]}`, 'docker');
+        const argsStr = getValue(`serverArgs-${id.split('-')[1]}`, '');
+        const envStr = getValue(`serverEnv-${id.split('-')[1]}`, '');
 
         // Parse arguments
         const args = argsStr.split(',').map(arg => arg.trim());
@@ -325,19 +339,19 @@ function generateConfigObject() {
         };
     });
 
-    const connRetryMaxRetries = parseInt(document.getElementById('connRetryMaxRetries').value);
-    const connRetryInitialBackoff = parseFloat(document.getElementById('connRetryInitialBackoff').value);
-    const connRetryMaxBackoff = parseFloat(document.getElementById('connRetryMaxBackoff').value);
-    const connRetryBackoffMultiplier = parseFloat(document.getElementById('connRetryBackoffMultiplier').value);
+    const connMaxRetries = getNumericValue('connMaxRetries', 3);
+    const connInitialBackoff = getNumericValue('connInitialBackoff', 1.0, parseFloat);
+    const connMaxBackoff = getNumericValue('connMaxBackoff', 30.0, parseFloat);
+    const connBackoffMultiplier = getNumericValue('connBackoffMultiplier', 2.0, parseFloat);
 
     // Runtime section
-    const logLevel = document.getElementById('logLevel').value;
-    const logOutput = document.getElementById('logOutput').value;
-    const stdioEnabled = document.getElementById('stdioEnabled').value === 'true';
-    const stdioBufferSize = parseInt(document.getElementById('stdioBufferSize').value);
-    const httpEnabled = document.getElementById('httpEnabled').value === 'true';
-    const httpHost = document.getElementById('httpHost').value;
-    const httpPort = parseInt(document.getElementById('httpPort').value);
+    const logLevel = getValue('logLevel', 'info');
+    const logOutput = getValue('logOutput', 'stdout');
+    const stdioEnabled = getValue('stdioEnabled', 'true') === 'true';
+    const stdioBufferSize = getNumericValue('stdioBufferSize', 8192);
+    const httpEnabled = getValue('httpEnabled', 'false') === 'true';
+    const httpHost = getValue('httpHost', 'localhost');
+    const httpPort = getNumericValue('httpPort', 3000);
 
     // Create the configuration object
     return {
@@ -352,7 +366,7 @@ function generateConfigObject() {
             },
             llm: {
                 provider: llmProvider,
-                api_key: llmAPIKey || "YOUR_API_KEY_HERE",
+                api_key: llmApiKey || "YOUR_API_KEY_HERE",
                 model: llmModel,
                 max_tokens: llmMaxTokens,
                 temperature: llmTemperature,
@@ -367,10 +381,10 @@ function generateConfigObject() {
             connections: {
                 mcpServers: mcpServers,
                 retry: {
-                    max_retries: connRetryMaxRetries,
-                    initial_backoff: connRetryInitialBackoff,
-                    max_backoff: connRetryMaxBackoff,
-                    backoff_multiplier: connRetryBackoffMultiplier
+                    max_retries: connMaxRetries,
+                    initial_backoff: connInitialBackoff,
+                    max_backoff: connMaxBackoff,
+                    backoff_multiplier: connBackoffMultiplier
                 }
             }
         },
@@ -724,11 +738,11 @@ function applyConfigToForm(config) {
             // LLM settings
             if (config.agent.llm) {
                 setValue('llmProvider', config.agent.llm.provider);
-                setValue('llmAPIKey', config.agent.llm.api_key);
+                setValue('llmApiKey', config.agent.llm.api_key);
                 setValue('llmModel', config.agent.llm.model);
                 setValue('llmMaxTokens', config.agent.llm.max_tokens);
                 setValue('llmTemperature', config.agent.llm.temperature);
-                setValue('llmPromptTemplate', config.agent.llm.prompt_template);
+                setValue('promptTemplate', config.agent.llm.prompt_template);
 
                 // Retry settings
                 if (config.agent.llm.retry) {
@@ -783,10 +797,10 @@ function applyConfigToForm(config) {
 
                 // Connection retry settings
                 if (config.agent.connections.retry) {
-                    setValue('connRetryMaxRetries', config.agent.connections.retry.max_retries);
-                    setValue('connRetryInitialBackoff', config.agent.connections.retry.initial_backoff);
-                    setValue('connRetryMaxBackoff', config.agent.connections.retry.max_backoff);
-                    setValue('connRetryBackoffMultiplier', config.agent.connections.retry.backoff_multiplier);
+                    setValue('connMaxRetries', config.agent.connections.retry.max_retries);
+                    setValue('connInitialBackoff', config.agent.connections.retry.initial_backoff);
+                    setValue('connMaxBackoff', config.agent.connections.retry.max_backoff);
+                    setValue('connBackoffMultiplier', config.agent.connections.retry.backoff_multiplier);
                 }
             } else {
                 console.log("No connections found in config");
@@ -907,7 +921,10 @@ function addServerFromConfig(id, serverConfig) {
 // Helper function to set form field values
 function setValue(id, value) {
     const element = document.getElementById(id);
-    if (!element) return;
+    if (!element) {
+        console.warn(`Element with ID '${id}' not found, skipping setValue`);
+        return;
+    }
 
     if (element.tagName === 'SELECT' || element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
         element.value = value !== undefined && value !== null ? value : '';
