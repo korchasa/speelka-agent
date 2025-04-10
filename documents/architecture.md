@@ -116,6 +116,8 @@ export AGENT_VERSION="1.0.0"
 # Tool settings
 export TOOL_NAME="process"
 export TOOL_DESCRIPTION="Process tool for handling user queries with LLM"
+export TOOL_ARGUMENT_NAME="query"
+export TOOL_ARGUMENT_DESCRIPTION="The user query to process"
 
 # LLM settings
 export LLM_PROVIDER="openai"

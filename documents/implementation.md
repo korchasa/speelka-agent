@@ -228,6 +228,8 @@ export RUNTIME_HTTP_PORT=3000
 - `AGENT_NAME`: Agent name
 - `TOOL_NAME`: Tool name
 - `TOOL_DESCRIPTION`: Tool description
+- `TOOL_ARGUMENT_NAME`: Tool argument name
+- `TOOL_ARGUMENT_DESCRIPTION`: Tool argument description
 - `LLM_PROVIDER`: LLM provider ("openai")
 - `LLM_MODEL`: Model name ("gpt-4o")
 - `LLM_PROMPT_TEMPLATE`: System prompt template (must include {{query}} and {{tools}})
@@ -386,3 +388,38 @@ Potential areas for improvement include:
 2. Implementing better accessibility features
 3. Adding more interactive examples
 4. Improving documentation with searchable content
+
+## Bug Fixes
+
+### Nil Pointer Dereference in Logger
+A nil pointer dereference bug was fixed in the application startup sequence:
+
+**Problem:** The global `log` variable in `cmd/server/main.go` was being used before initialization, causing a nil pointer dereference when attempting to log an error.
+
+**Root cause:** The logger initialization was happening in the `run()` function, but was needed earlier in the `main()` function.
+
+**Solution:**
+- Moved basic logger initialization to the beginning of the `main()` function
+- Kept the detailed logger configuration in the `run()` function
+- This ensures the logger is always initialized before use
+
+**Implementation:**
+```go
+// In main() function - early initialization
+log = logrus.New()
+log.SetLevel(logrus.InfoLevel)
+log.SetOutput(os.Stderr)
+
+// In run() function - detailed configuration
+if *daemonMode {
+    log.SetLevel(logrus.DebugLevel)
+    log.SetOutput(os.Stdout)
+} else {
+    log.SetLevel(logrus.DebugLevel)
+    log.SetOutput(os.Stderr)
+}
+log.SetReportCaller(true)
+log.SetFormatter(utils.NewCustomLogFormatter())
+```
+
+**Impact:** Prevents application crash on startup when encountering errors early in the initialization process.

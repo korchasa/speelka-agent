@@ -124,7 +124,7 @@ func (cm *Manager) loadFromEnvironment() error {
 		Tool: types.MCPServerToolConfig{
 			Name:                getEnvString("TOOL_NAME", ""),
 			Description:         getEnvString("TOOL_DESCRIPTION", ""),
-			ArgumentName:        getEnvString("TOOL_ARGUMENT_NAME", "query"),
+			ArgumentName:        getEnvString("TOOL_ARGUMENT_NAME", ""),
 			ArgumentDescription: getEnvString("TOOL_ARGUMENT_DESCRIPTION", ""),
 		},
 		HTTP: types.HTTPConfig{
@@ -148,6 +148,12 @@ func (cm *Manager) loadFromEnvironment() error {
 	}
 	if cm.mcpServerConfig.Tool.Description == "" {
 		validationErrors = append(validationErrors, "TOOL_DESCRIPTION environment variable is required")
+	}
+	if cm.mcpServerConfig.Tool.ArgumentName == "" {
+		validationErrors = append(validationErrors, "TOOL_ARGUMENT_NAME environment variable is required")
+	}
+	if cm.mcpServerConfig.Tool.ArgumentDescription == "" {
+		validationErrors = append(validationErrors, "TOOL_ARGUMENT_DESCRIPTION environment variable is required")
 	}
 
 	// MCP Connector Config - Handle MCP Servers

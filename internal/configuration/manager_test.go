@@ -103,13 +103,15 @@ func TestLoadEnvironmentConfiguration(t *testing.T) {
 	t.Run("MCP servers configuration", func(t *testing.T) {
 		env := map[string]string{
 			// Basic required config
-			"AGENT_NAME":          "test-agent",
-			"AGENT_VERSION":       "1.0.0",
-			"TOOL_NAME":           "test-tool",
-			"TOOL_DESCRIPTION":    "Test tool description",
-			"LLM_PROVIDER":        "openai",
-			"LLM_MODEL":           "gpt-4o",
-			"LLM_PROMPT_TEMPLATE": "Template with {{query}} and {{tools}} placeholders",
+			"AGENT_NAME":                "test-agent",
+			"AGENT_VERSION":             "1.0.0",
+			"TOOL_NAME":                 "test-tool",
+			"TOOL_DESCRIPTION":          "Test tool description",
+			"TOOL_ARGUMENT_NAME":        "query",
+			"TOOL_ARGUMENT_DESCRIPTION": "Test query description",
+			"LLM_PROVIDER":              "openai",
+			"LLM_MODEL":                 "gpt-4o",
+			"LLM_PROMPT_TEMPLATE":       "Template with {{query}} and {{tools}} placeholders",
 
 			// MCP Server configs
 			"MCPS_0_ID":      "time-server",
@@ -177,18 +179,22 @@ func TestLoadEnvironmentConfiguration(t *testing.T) {
 			assert.Contains(t, err.Error(), "AGENT_NAME environment variable is required")
 			assert.Contains(t, err.Error(), "TOOL_NAME environment variable is required")
 			assert.Contains(t, err.Error(), "TOOL_DESCRIPTION environment variable is required")
+			assert.Contains(t, err.Error(), "TOOL_ARGUMENT_NAME environment variable is required")
+			assert.Contains(t, err.Error(), "TOOL_ARGUMENT_DESCRIPTION environment variable is required")
 		})
 	})
 
 	t.Run("invalid prompt template", func(t *testing.T) {
 		env := map[string]string{
 			// Basic required config
-			"AGENT_NAME":       "test-agent",
-			"AGENT_VERSION":    "1.0.0",
-			"TOOL_NAME":        "test-tool",
-			"TOOL_DESCRIPTION": "Test tool description",
-			"LLM_PROVIDER":     "openai",
-			"LLM_MODEL":        "gpt-4o",
+			"AGENT_NAME":                "test-agent",
+			"AGENT_VERSION":             "1.0.0",
+			"TOOL_NAME":                 "test-tool",
+			"TOOL_DESCRIPTION":          "Test tool description",
+			"TOOL_ARGUMENT_NAME":        "query",
+			"TOOL_ARGUMENT_DESCRIPTION": "Test query description",
+			"LLM_PROVIDER":              "openai",
+			"LLM_MODEL":                 "gpt-4o",
 			// Missing {{tools}} placeholder
 			"LLM_PROMPT_TEMPLATE": "Template with only {{query}} placeholder",
 		}
