@@ -169,21 +169,25 @@ function addServer() {
         <div class="form-group">
             <label for="serverId-${serverId}">Server ID:</label>
             <input type="text" id="serverId-${serverId}" value="server-${serverId}" />
+            <span class="field-description">Unique identifier for this MCP server connection</span>
         </div>
 
         <div class="form-group">
             <label for="serverCommand-${serverId}">Command:</label>
             <input type="text" id="serverCommand-${serverId}" value="docker" />
+            <span class="field-description">Command to execute for this MCP server</span>
         </div>
 
         <div class="form-group">
             <label for="serverArgs-${serverId}">Arguments:</label>
             <input type="text" id="serverArgs-${serverId}" value="run, -i, --rm, mcp/time" placeholder="Comma-separated list" />
+            <span class="field-description">Command arguments as a comma-separated list</span>
         </div>
 
         <div class="form-group">
             <label for="serverEnv-${serverId}">Environment:</label>
             <input type="text" id="serverEnv-${serverId}" value="NODE_ENV=production" placeholder="KEY=VALUE format, comma-separated" />
+            <span class="field-description">Environment variables in KEY=VALUE format, comma-separated</span>
         </div>
 
         <button class="remove-server-btn" onclick="removeServer('server-${serverId}')">
@@ -221,21 +225,8 @@ function removeServer(serverId) {
     }
 }
 
-// Automatically generate configuration and update examples
-function generateAndUpdateConfig() {
-    // Only proceed if we're on the page with the configuration tool
-    if (!document.getElementById('generatedConfig')) return;
-
-    // Generate the configuration
-    const config = generateConfigObject();
-    if (!config) return; // If validation failed
-
-    // Update all code examples that need the configuration
-    updateExampleConfigurations(config);
-}
-
-// Generate configuration object from form inputs
-function generateConfigObject() {
+// Create a configuration object from form inputs
+function createConfigObjectFromForm() {
     // Helper function to safely get value from an element
     const getValue = (id, defaultValue) => {
         const element = document.getElementById(id);
@@ -408,8 +399,27 @@ function generateConfigObject() {
     };
 }
 
-// Update all code examples in the instructions section
-function updateExampleConfigurations(config) {
+// Generate and update configuration in the output area
+function generateAndUpdateConfig() {
+    const config = createConfigObjectFromForm();
+
+    // Format the JSON with indentation for better readability
+    const formattedJson = JSON.stringify(config, null, 2);
+
+    // Update the displayed configuration
+    const configOutput = document.getElementById('generatedConfig');
+    if (configOutput) {
+        configOutput.textContent = formattedJson;
+    }
+
+    // Also update the examples with the current configuration
+    updateExamplesWithConfig(config);
+
+    return formattedJson;
+}
+
+// Update examples with the current configuration
+function updateExamplesWithConfig(config) {
     // Generate environment variables from the configuration
     let envVars = [];
 
@@ -488,14 +498,6 @@ function updateExampleConfigurations(config) {
     // Join all environment variables
     const envVarsText = envVars.join('\n');
 
-    // Update generated config with environment variables
-    const generatedConfigEl = document.getElementById('generatedConfig');
-    if (generatedConfigEl) {
-        generatedConfigEl.textContent = envVarsText;
-    } else {
-        console.error('Element with ID generatedConfig not found');
-    }
-
     // Update environment variables example
     const envExample = document.querySelector('.instructions pre.code-block:nth-of-type(1) code');
     if (envExample) {
@@ -562,24 +564,6 @@ function updateExampleConfigurations(config) {
         }, null, 4);
         dockerExample.textContent = dockerJson;
     }
-}
-
-// Generate the configuration JSON for manual button click
-function generateConfig() {
-    generateAndUpdateConfig();
-
-    // Scroll to the generated configuration
-    document.getElementById('generatedConfig').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-// Copy configuration to clipboard
-function copyConfig() {
-    const configText = document.getElementById('generatedConfig').textContent;
-
-    // Use the shared copy function
-    copyToClipboard(configText, function() {
-        showCopySuccess();
-    });
 }
 
 // Copy text to clipboard and execute callback on success

@@ -205,32 +205,38 @@ flowchart TB
                     <div class="form-group">
                         <label for="agentName">Agent Name:</label>
                         <input type="text" id="agentName" value="speelka-agent" />
+                        <span class="field-description">Name of the agent used in logs and identification</span>
                     </div>
 
                     <div class="form-group">
                         <label for="agentVersion">Agent Version:</label>
                         <input type="text" id="agentVersion" value="1.0.0" />
+                        <span class="field-description">Agent version in SemVer format (e.g., 1.0.0)</span>
                     </div>
 
                     <h3>Tool Configuration</h3>
                     <div class="form-group">
                         <label for="toolName">Tool Name:</label>
                         <input type="text" id="toolName" value="process" />
+                        <span class="field-description">Name of the tool that processes requests</span>
                     </div>
 
                     <div class="form-group">
                         <label for="toolDescription">Tool Description:</label>
                         <input type="text" id="toolDescription" value="Process tool for handling user queries with LLM" />
+                        <span class="field-description">Description of the tool that will be displayed in the interface</span>
                     </div>
 
                     <div class="form-group">
                         <label for="argumentName">Argument Name:</label>
                         <input type="text" id="argumentName" value="input" />
+                        <span class="field-description">Name of the argument used to pass the user's query</span>
                     </div>
 
                     <div class="form-group">
                         <label for="argumentDescription">Argument Description:</label>
                         <input type="text" id="argumentDescription" value="User query to process" />
+                        <span class="field-description">Description of the argument for documentation</span>
                     </div>
 
                     <h3>LLM Configuration</h3>
@@ -240,26 +246,31 @@ flowchart TB
                             <option value="openai">OpenAI</option>
                             <option value="anthropic">Anthropic</option>
                         </select>
+                        <span class="field-description">Language model provider</span>
                     </div>
 
                     <div class="form-group">
                         <label for="llmApiKey">API Key:</label>
                         <input type="text" id="llmApiKey" placeholder="Enter your API key here" />
+                        <span class="field-description">API key for accessing the language model</span>
                     </div>
 
                     <div class="form-group">
                         <label for="llmModel">Model:</label>
                         <input type="text" id="llmModel" value="gpt-4o" />
+                        <span class="field-description">Name of the model to use (e.g., gpt-4o, claude-3-opus)</span>
                     </div>
 
                     <div class="form-group">
                         <label for="llmMaxTokens">Max Tokens (0 for default):</label>
                         <input type="number" id="llmMaxTokens" value="0" min="0" />
+                        <span class="field-description">Maximum number of tokens for the response (0 - use default value)</span>
                     </div>
 
                     <div class="form-group">
                         <label for="llmTemperature">Temperature (0.0-1.0):</label>
                         <input type="number" id="llmTemperature" value="0.7" min="0" max="1" step="0.1" />
+                        <span class="field-description">Temperature for generation. Lower - more predictable results, higher - more creative</span>
                     </div>
 
                     <div class="form-group">
@@ -272,27 +283,32 @@ Provide a detailed and helpful response.
 
 Available tools:
 {{tools}}</textarea>
+                        <span class="field-description">Prompt template for the model. Variables {{input}} and {{tools}} will be replaced with the user request and available tools</span>
                     </div>
 
                     <h3>Retry Configuration</h3>
                     <div class="form-group">
                         <label for="maxRetries">Max Retries:</label>
                         <input type="number" id="maxRetries" value="3" min="1" />
+                        <span class="field-description">Maximum number of retry attempts on LLM request failure</span>
                     </div>
 
                     <div class="form-group">
                         <label for="initialBackoff">Initial Backoff (seconds):</label>
                         <input type="number" id="initialBackoff" value="1.0" min="0.1" step="0.1" />
+                        <span class="field-description">Initial delay before retry attempt (in seconds)</span>
                     </div>
 
                     <div class="form-group">
                         <label for="maxBackoff">Max Backoff (seconds):</label>
                         <input type="number" id="maxBackoff" value="30.0" min="1" step="0.1" />
+                        <span class="field-description">Maximum delay before retry attempt (in seconds)</span>
                     </div>
 
                     <div class="form-group">
                         <label for="backoffMultiplier">Backoff Multiplier:</label>
                         <input type="number" id="backoffMultiplier" value="2.0" min="1" step="0.1" />
+                        <span class="field-description">Multiplier for exponential backoff between retry attempts</span>
                     </div>
                 </div>
 
@@ -308,21 +324,25 @@ Available tools:
                     <div class="form-group">
                         <label for="connMaxRetries">Max Retries:</label>
                         <input type="number" id="connMaxRetries" value="3" min="1" />
+                        <span class="field-description">Maximum number of retry attempts for MCP server connections</span>
                     </div>
 
                     <div class="form-group">
                         <label for="connInitialBackoff">Initial Backoff (seconds):</label>
                         <input type="number" id="connInitialBackoff" value="1.0" min="0.1" step="0.1" />
+                        <span class="field-description">Initial delay before connection retry attempt (in seconds)</span>
                     </div>
 
                     <div class="form-group">
                         <label for="connMaxBackoff">Max Backoff (seconds):</label>
                         <input type="number" id="connMaxBackoff" value="30.0" min="1" step="0.1" />
+                        <span class="field-description">Maximum delay before connection retry attempt (in seconds)</span>
                     </div>
 
                     <div class="form-group">
                         <label for="connBackoffMultiplier">Backoff Multiplier:</label>
                         <input type="number" id="connBackoffMultiplier" value="2.0" min="1" step="0.1" />
+                        <span class="field-description">Multiplier for exponential backoff between connection retry attempts</span>
                     </div>
                 </div>
 
@@ -338,11 +358,13 @@ Available tools:
                             <option value="fatal">Fatal</option>
                             <option value="panic">Panic</option>
                         </select>
+                        <span class="field-description">Level of detail for log messages</span>
                     </div>
 
                     <div class="form-group">
                         <label for="logOutput">Log Output:</label>
                         <input type="text" id="logOutput" value="stdout" placeholder="stdout, stderr, or file path" />
+                        <span class="field-description">Where to send log messages (standard output, standard error, or a file)</span>
                     </div>
 
                     <h3>Transport Configuration</h3>
@@ -352,11 +374,13 @@ Available tools:
                             <option value="true" selected>Enabled</option>
                             <option value="false">Disabled</option>
                         </select>
+                        <span class="field-description">Enable standard input/output for MCP communications</span>
                     </div>
 
                     <div class="form-group">
                         <label for="stdioBufferSize">STDIO Buffer Size:</label>
                         <input type="number" id="stdioBufferSize" value="8192" min="1024" />
+                        <span class="field-description">Size of the buffer for standard input/output operations (in bytes)</span>
                     </div>
 
                     <div class="form-group">
@@ -365,25 +389,23 @@ Available tools:
                             <option value="true">Enabled</option>
                             <option value="false" selected>Disabled</option>
                         </select>
+                        <span class="field-description">Enable HTTP transport for API access</span>
                     </div>
 
                     <div id="httpSettings" style="display: none;">
                         <div class="form-group">
                             <label for="httpHost">HTTP Host:</label>
                             <input type="text" id="httpHost" value="localhost" />
+                            <span class="field-description">Host address for the HTTP server</span>
                         </div>
 
                         <div class="form-group">
                             <label for="httpPort">HTTP Port:</label>
                             <input type="number" id="httpPort" value="3000" min="1" max="65535" />
+                            <span class="field-description">Port number for the HTTP server</span>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <div class="output-container">
-                <h3>Generated Configuration</h3>
-                <pre id="generatedConfig" class="code-block"><button class="copy-btn" aria-label="Copy code" onclick="copyConfig()"><i class="fas fa-copy"></i></button>// Configuration will appear here</pre>
             </div>
 
             <div class="instructions">
