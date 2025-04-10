@@ -381,19 +381,6 @@ Available tools:
                 </div>
             </div>
 
-            <div class="config-actions">
-                <div class="config-io-buttons">
-                    <label for="uploadConfig" class="btn btn-secondary" title="Upload configuration from JSON file">
-                        <i class="fas fa-upload"></i> Upload
-                    </label>
-                    <input type="file" id="uploadConfig" accept=".json" style="display: none;" onchange="uploadConfig(this)">
-                    <button class="btn btn-secondary" onclick="downloadConfig()" title="Download configuration as JSON file">
-                        <i class="fas fa-download"></i> Download
-                    </button>
-
-                </div>
-            </div>
-
             <div class="output-container">
                 <h3>Generated Configuration</h3>
                 <pre id="generatedConfig" class="code-block"><button class="copy-btn" aria-label="Copy code" onclick="copyConfig()"><i class="fas fa-copy"></i></button>// Configuration will appear here</pre>
