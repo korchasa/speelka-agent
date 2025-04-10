@@ -280,8 +280,8 @@ function generateConfigObject() {
     const agentVersion = document.getElementById('agentVersion').value;
     const toolName = document.getElementById('toolName').value;
     const toolDescription = document.getElementById('toolDescription').value;
-    const toolArgumentName = document.getElementById('toolArgumentName').value;
-    const toolArgumentDescription = document.getElementById('toolArgumentDescription').value;
+    const toolArgumentName = document.getElementById('argumentName').value;
+    const toolArgumentDescription = document.getElementById('argumentDescription').value;
 
     // LLM section
     const llmProvider = document.getElementById('llmProvider').value;
@@ -717,8 +717,8 @@ function applyConfigToForm(config) {
             if (config.agent.tool) {
                 setValue('toolName', config.agent.tool.name);
                 setValue('toolDescription', config.agent.tool.description);
-                setValue('toolArgumentName', config.agent.tool.argument_name);
-                setValue('toolArgumentDescription', config.agent.tool.argument_description);
+                setValue('argumentName', config.agent.tool.argument_name);
+                setValue('argumentDescription', config.agent.tool.argument_description);
             }
 
             // LLM settings
