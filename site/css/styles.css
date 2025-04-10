@@ -562,7 +562,15 @@ header nav {
 }
 
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 1.5rem;
+}
+
+.field-description {
+    display: block;
+    margin-top: 0.25rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
 }
 
 .form-group label {
@@ -1167,4 +1175,35 @@ a:hover,
 
 .btn span {
     vertical-align: middle;
+}
+
+.advanced-toggle {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    margin: 1rem 0;
+    font-weight: 600;
+    color: #8a5cf6;
+    user-select: none;
+}
+
+.advanced-toggle i {
+    margin-right: 0.5rem;
+    transition: transform 0.3s ease;
+}
+
+.advanced-toggle.open i {
+    transform: rotate(90deg);
+}
+
+.advanced-section {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease;
+    opacity: 0;
+}
+
+.advanced-section.open {
+    max-height: 2000px; /* Large enough to contain content */
+    opacity: 1;
 }

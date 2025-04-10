@@ -139,6 +139,20 @@ function openTab(evt, tabName) {
     setTimeout(generateAndUpdateConfig, 50);
 }
 
+// Toggle advanced sections
+function toggleAdvanced(sectionId) {
+    const section = document.getElementById(sectionId);
+    const toggle = section.previousElementSibling;
+
+    if (section.classList.contains('open')) {
+        section.classList.remove('open');
+        toggle.classList.remove('open');
+    } else {
+        section.classList.add('open');
+        toggle.classList.add('open');
+    }
+}
+
 // Initialize the configuration tool
 let serverCounter = 0;
 
@@ -148,6 +162,16 @@ function initConfigTool() {
 
     // Add a default server
     addServer();
+
+    // Initialize all advanced sections to be closed by default
+    const advancedSections = document.querySelectorAll('.advanced-section');
+    advancedSections.forEach(section => {
+        section.classList.remove('open');
+        const toggle = section.previousElementSibling;
+        if (toggle && toggle.classList.contains('advanced-toggle')) {
+            toggle.classList.remove('open');
+        }
+    });
 
     // Generate initial configuration
     // We use setTimeout to ensure DOM is fully ready after adding the server
@@ -178,16 +202,22 @@ function addServer() {
             <span class="field-description">Command to execute for this MCP server</span>
         </div>
 
-        <div class="form-group">
-            <label for="serverArgs-${serverId}">Arguments:</label>
-            <input type="text" id="serverArgs-${serverId}" value="run, -i, --rm, mcp/time" placeholder="Comma-separated list" />
-            <span class="field-description">Command arguments as a comma-separated list</span>
+        <div class="advanced-toggle" onclick="toggleAdvanced('serverAdvanced-${serverId}')">
+            <i class="fas fa-caret-right"></i> Advanced Server Settings
         </div>
+        
+        <div id="serverAdvanced-${serverId}" class="advanced-section">
+            <div class="form-group">
+                <label for="serverArgs-${serverId}">Arguments:</label>
+                <input type="text" id="serverArgs-${serverId}" value="run, -i, --rm, mcp/time" placeholder="Comma-separated list" />
+                <span class="field-description">Command arguments as a comma-separated list</span>
+            </div>
 
-        <div class="form-group">
-            <label for="serverEnv-${serverId}">Environment:</label>
-            <input type="text" id="serverEnv-${serverId}" value="NODE_ENV=production" placeholder="KEY=VALUE format, comma-separated" />
-            <span class="field-description">Environment variables in KEY=VALUE format, comma-separated</span>
+            <div class="form-group">
+                <label for="serverEnv-${serverId}">Environment:</label>
+                <input type="text" id="serverEnv-${serverId}" value="NODE_ENV=production" placeholder="KEY=VALUE format, comma-separated" />
+                <span class="field-description">Environment variables in KEY=VALUE format, comma-separated</span>
+            </div>
         </div>
 
         <button class="remove-server-btn" onclick="removeServer('server-${serverId}')">

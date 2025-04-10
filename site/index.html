@@ -261,21 +261,26 @@ flowchart TB
                         <span class="field-description">Name of the model to use (e.g., gpt-4o, claude-3-opus)</span>
                     </div>
 
-                    <div class="form-group">
-                        <label for="llmMaxTokens">Max Tokens (0 for default):</label>
-                        <input type="number" id="llmMaxTokens" value="0" min="0" />
-                        <span class="field-description">Maximum number of tokens for the response (0 - use default value)</span>
+                    <div class="advanced-toggle" onclick="toggleAdvanced('llmAdvanced')">
+                        <i class="fas fa-caret-right"></i> Advanced LLM Settings
                     </div>
 
-                    <div class="form-group">
-                        <label for="llmTemperature">Temperature (0.0-1.0):</label>
-                        <input type="number" id="llmTemperature" value="0.7" min="0" max="1" step="0.1" />
-                        <span class="field-description">Temperature for generation. Lower - more predictable results, higher - more creative</span>
-                    </div>
+                    <div id="llmAdvanced" class="advanced-section">
+                        <div class="form-group">
+                            <label for="llmMaxTokens">Max Tokens (0 for default):</label>
+                            <input type="number" id="llmMaxTokens" value="0" min="0" />
+                            <span class="field-description">Maximum number of tokens for the response (0 - use default value)</span>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="promptTemplate">Prompt Template:</label>
-                        <textarea id="promptTemplate">You are a helpful AI assistant. Respond to the following request:
+                        <div class="form-group">
+                            <label for="llmTemperature">Temperature (0.0-1.0):</label>
+                            <input type="number" id="llmTemperature" value="0.7" min="0" max="1" step="0.1" />
+                            <span class="field-description">Temperature for generation. Lower - more predictable results, higher - more creative</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="promptTemplate">Prompt Template:</label>
+                            <textarea id="promptTemplate">You are a helpful AI assistant. Respond to the following request:
 
 {{input}}
 
@@ -283,32 +288,38 @@ Provide a detailed and helpful response.
 
 Available tools:
 {{tools}}</textarea>
-                        <span class="field-description">Prompt template for the model. Variables {{input}} and {{tools}} will be replaced with the user request and available tools</span>
+                            <span class="field-description">Prompt template for the model. Variables {{input}} and {{tools}} will be replaced with the user request and available tools</span>
+                        </div>
                     </div>
 
-                    <h3>Retry Configuration</h3>
-                    <div class="form-group">
-                        <label for="maxRetries">Max Retries:</label>
-                        <input type="number" id="maxRetries" value="3" min="1" />
-                        <span class="field-description">Maximum number of retry attempts on LLM request failure</span>
+                    <div class="advanced-toggle" onclick="toggleAdvanced('retryAdvanced')">
+                        <i class="fas fa-caret-right"></i> Retry Configuration
                     </div>
 
-                    <div class="form-group">
-                        <label for="initialBackoff">Initial Backoff (seconds):</label>
-                        <input type="number" id="initialBackoff" value="1.0" min="0.1" step="0.1" />
-                        <span class="field-description">Initial delay before retry attempt (in seconds)</span>
-                    </div>
+                    <div id="retryAdvanced" class="advanced-section">
+                        <div class="form-group">
+                            <label for="maxRetries">Max Retries:</label>
+                            <input type="number" id="maxRetries" value="3" min="1" />
+                            <span class="field-description">Maximum number of retry attempts on LLM request failure</span>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="maxBackoff">Max Backoff (seconds):</label>
-                        <input type="number" id="maxBackoff" value="30.0" min="1" step="0.1" />
-                        <span class="field-description">Maximum delay before retry attempt (in seconds)</span>
-                    </div>
+                        <div class="form-group">
+                            <label for="initialBackoff">Initial Backoff (seconds):</label>
+                            <input type="number" id="initialBackoff" value="1.0" min="0.1" step="0.1" />
+                            <span class="field-description">Initial delay before retry attempt (in seconds)</span>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="backoffMultiplier">Backoff Multiplier:</label>
-                        <input type="number" id="backoffMultiplier" value="2.0" min="1" step="0.1" />
-                        <span class="field-description">Multiplier for exponential backoff between retry attempts</span>
+                        <div class="form-group">
+                            <label for="maxBackoff">Max Backoff (seconds):</label>
+                            <input type="number" id="maxBackoff" value="30.0" min="1" step="0.1" />
+                            <span class="field-description">Maximum delay before retry attempt (in seconds)</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="backoffMultiplier">Backoff Multiplier:</label>
+                            <input type="number" id="backoffMultiplier" value="2.0" min="1" step="0.1" />
+                            <span class="field-description">Multiplier for exponential backoff between retry attempts</span>
+                        </div>
                     </div>
                 </div>
 
@@ -320,29 +331,34 @@ Available tools:
 
                     <button class="add-server-btn btn btn-secondary" onclick="addServer()">Add Server</button>
 
-                    <h3>Connection Retry Configuration</h3>
-                    <div class="form-group">
-                        <label for="connMaxRetries">Max Retries:</label>
-                        <input type="number" id="connMaxRetries" value="3" min="1" />
-                        <span class="field-description">Maximum number of retry attempts for MCP server connections</span>
+                    <div class="advanced-toggle" onclick="toggleAdvanced('connRetryAdvanced')">
+                        <i class="fas fa-caret-right"></i> Connection Retry Configuration
                     </div>
 
-                    <div class="form-group">
-                        <label for="connInitialBackoff">Initial Backoff (seconds):</label>
-                        <input type="number" id="connInitialBackoff" value="1.0" min="0.1" step="0.1" />
-                        <span class="field-description">Initial delay before connection retry attempt (in seconds)</span>
-                    </div>
+                    <div id="connRetryAdvanced" class="advanced-section">
+                        <div class="form-group">
+                            <label for="connMaxRetries">Max Retries:</label>
+                            <input type="number" id="connMaxRetries" value="3" min="1" />
+                            <span class="field-description">Maximum number of retry attempts for MCP server connections</span>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="connMaxBackoff">Max Backoff (seconds):</label>
-                        <input type="number" id="connMaxBackoff" value="30.0" min="1" step="0.1" />
-                        <span class="field-description">Maximum delay before connection retry attempt (in seconds)</span>
-                    </div>
+                        <div class="form-group">
+                            <label for="connInitialBackoff">Initial Backoff (seconds):</label>
+                            <input type="number" id="connInitialBackoff" value="1.0" min="0.1" step="0.1" />
+                            <span class="field-description">Initial delay before connection retry attempt (in seconds)</span>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="connBackoffMultiplier">Backoff Multiplier:</label>
-                        <input type="number" id="connBackoffMultiplier" value="2.0" min="1" step="0.1" />
-                        <span class="field-description">Multiplier for exponential backoff between connection retry attempts</span>
+                        <div class="form-group">
+                            <label for="connMaxBackoff">Max Backoff (seconds):</label>
+                            <input type="number" id="connMaxBackoff" value="30.0" min="1" step="0.1" />
+                            <span class="field-description">Maximum delay before connection retry attempt (in seconds)</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="connBackoffMultiplier">Backoff Multiplier:</label>
+                            <input type="number" id="connBackoffMultiplier" value="2.0" min="1" step="0.1" />
+                            <span class="field-description">Multiplier for exponential backoff between connection retry attempts</span>
+                        </div>
                     </div>
                 </div>
 
@@ -377,10 +393,16 @@ Available tools:
                         <span class="field-description">Enable standard input/output for MCP communications</span>
                     </div>
 
-                    <div class="form-group">
-                        <label for="stdioBufferSize">STDIO Buffer Size:</label>
-                        <input type="number" id="stdioBufferSize" value="8192" min="1024" />
-                        <span class="field-description">Size of the buffer for standard input/output operations (in bytes)</span>
+                    <div class="advanced-toggle" onclick="toggleAdvanced('stdioAdvanced')">
+                        <i class="fas fa-caret-right"></i> Advanced STDIO Settings
+                    </div>
+
+                    <div id="stdioAdvanced" class="advanced-section">
+                        <div class="form-group">
+                            <label for="stdioBufferSize">STDIO Buffer Size:</label>
+                            <input type="number" id="stdioBufferSize" value="8192" min="1024" />
+                            <span class="field-description">Size of the buffer for standard input/output operations (in bytes)</span>
+                        </div>
                     </div>
 
                     <div class="form-group">
