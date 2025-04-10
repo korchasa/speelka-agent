@@ -188,24 +188,111 @@ type RetryConfig struct {
 
 ## Configuration Example
 
-### JSON Configuration
+### Environment Variables Configuration
+
+The Speelka Agent is now configured using environment variables directly instead of a single `CONFIG_JSON` environment variable. This makes the configuration more transparent and easier to manage in container environments.
+
+```bash
+# Agent
+export AGENT_NAME="architect-speelka-agent"
+export AGENT_VERSION="1.0.0"
+
+# Tool
+export TOOL_NAME="architect"
+export TOOL_DESCRIPTION="Architecture design and assessment tool for software systems"
+export TOOL_ARGUMENT_NAME="query"
+export TOOL_ARGUMENT_DESCRIPTION="Architecture query or task to process"
+
+# LLM
+export LLM_PROVIDER="openai"
+export LLM_API_KEY="your_api_key_here"
+export LLM_MODEL="gpt-4o"
+export LLM_MAX_TOKENS=0
+export LLM_TEMPERATURE=0.2
+export LLM_PROMPT_TEMPLATE="# ROLE
+You are a Senior Software Architect with extensive expertise in design
+patterns, system architecture, performance optimization, and security best
+practices.
+
+# GOAL
+Analyze and enhance the architecture of the system according to the user
+query below.
+
+# WORKFLOW
+1. First, carefully analyze the current architecture described in the query or existing documentation.
+2. Generate a detailed analysis of strengths and weaknesses.
+3. Analyse current state of project, located in ./
+4. Propose architectural improvements with clear justifications.
+5. Use diagrams when helpful to illustrate complex concepts.
+6. Provide implementation recommendations with relevant examples.
+
+# User query
+{{query}}
+
+# Available tools
+NOTE: Try to minimize call count!
+{{tools}}"
+export LLM_RETRY_MAX_RETRIES=3
+export LLM_RETRY_INITIAL_BACKOFF=1.0
+export LLM_RETRY_MAX_BACKOFF=30.0
+export LLM_RETRY_BACKOFF_MULTIPLIER=2.0
+
+# MCP Servers are defined using indexed variables (MCPS_0, MCPS_1, etc.)
+export MCPS_0_ID="time"
+export MCPS_0_COMMAND="docker"
+export MCPS_0_ARGS="run -i --rm mcp/time"
+
+export MCPS_1_ID="mcp-filesystem-server"
+export MCPS_1_COMMAND="mcp-filesystem-server"
+export MCPS_1_ARGS="."
+
+# MSPS Retry Configuration
+export MSPS_RETRY_MAX_RETRIES=3
+export MSPS_RETRY_INITIAL_BACKOFF=1.0
+export MSPS_RETRY_MAX_BACKOFF=30.0
+export MSPS_RETRY_BACKOFF_MULTIPLIER=2.0
+
+# Runtime Configuration
+export RUNTIME_LOG_LEVEL="debug"
+export RUNTIME_LOG_OUTPUT="./architect.log"
+
+export RUNTIME_STDIO_ENABLED=true
+export RUNTIME_STDIO_BUFFER_SIZE=8192
+export RUNTIME_HTTP_ENABLED=false
+export RUNTIME_HTTP_HOST="localhost"
+export RUNTIME_HTTP_PORT=3000
+```
+
+#### Required Environment Variables
+
+The following environment variables are required for proper operation:
+
+* `AGENT_NAME`: The name of the agent
+* `TOOL_NAME`: The name of the tool provided by the agent
+* `TOOL_DESCRIPTION`: Description of the tool functionality
+* `LLM_PROVIDER`: The provider of the LLM service (e.g., "openai")
+* `LLM_MODEL`: The specific model to use (e.g., "gpt-4o")
+* `LLM_PROMPT_TEMPLATE`: The template to use for system prompts (must include {{query}} and {{tools}} placeholders)
+
+#### MCP Servers Configuration
+
+MCP servers are configured using indexed environment variables in the format:
+
+```
+MCPS_<index>_ID="server-id"
+MCPS_<index>_COMMAND="command"
+MCPS_<index>_ARGS="arg1 arg2 arg3"
+```
+
+The `<index>` should start from 0 and increment for each server. The `ID` field is used as the key in the map of MCP servers.
+
+### Legacy JSON Configuration (Deprecated)
+
+The previous JSON-based configuration method using the `CONFIG_JSON` environment variable is now deprecated:
 
 ```bash
 # Complete configuration in a single environment variable
-CONFIG_JSON='{"server":{"name":"speelka-agent","version":"1.0.0","tool":{"name":"process","description":"Process tool for handling user queries with LLM","argument_name":"input","argument_description":"User query to process"},"http":{"enabled":true,"host":"localhost","port":3000},"stdio":{"enabled":true,"buffer_size":8192,"auto_detect":false},"debug":false},"mcp_connector":{"servers":[{"id":"server-id-1","transport":"stdio","command":"docker","arguments":["run","-i","--rm","mcp/time"],"environment":{"NODE_ENV":"production"}}],"retry":{"max_retries":3,"initial_backoff":1.0,"max_backoff":30.0,"backoff_multiplier":2.0}},"llm":{"provider":"openai","api_key":"your_api_key_here","model":"gpt-4o","max_tokens":0,"temperature":0.7,"prompt_template":"You are a helpful AI assistant...","retry":{"max_retries":3,"initial_backoff":1.0,"max_backoff":30.0,"backoff_multiplier":2.0}},"log":{"level":"info","format":"text","output":"stdout"}}'
-```
-
-### Environment Variables
-
-In addition to the `CONFIG_JSON` environment variable, specific configuration values can be overridden using dedicated environment variables:
-
-```bash
-# Override the LLM API key
-export LLM_API_KEY=your_actual_api_key
-
-# Run with both configuration settings
-export CONFIG_JSON='...'
-./speelka-agent
+CONFIG_JSON='{"agent":{"name":"speelka-agent","version":"1.0.0","tool":{"name":"process","description":"Process tool for handling user queries with LLM","argument_name":"input","argument_description":"User query to process"},"llm":{"provider":"openai","api_key":"your_api_key_here","model":"gpt-4o","max_tokens":0,"temperature":0.7,"prompt_template":"You are a helpful AI assistant...","retry":{"max_retries":3,"initial_backoff":1.0,"max_backoff":30.0,"backoff_multiplier":2.0}},"connections":{"mcpServers":{"time":{"command":"docker","args":["run","-i","--rm","mcp/time"]}},"retry":{"max_retries":3,"initial_backoff":1.0,"max_backoff":30.0,"backoff_multiplier":2.0}}},"runtime":{"log":{"level":"info","output":"stdout"},"transports":{"stdio":{"enabled":true,"buffer_size":8192},"http":{"enabled":true,"host":"localhost","port":3000}}}}'
 ```
 
 ## Core Agent Loop

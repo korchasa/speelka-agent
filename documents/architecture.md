@@ -130,85 +130,39 @@ When working with interface{} values from dynamic sources (such as JSON-decoded 
 
 This approach was implemented to fix a critical issue in the Agent's HandleRequest method, where a nil interface{} value was causing a panic when attempting a direct type assertion without proper checking.
 
-## Configuration Structure
+## Configuration
 
-The configuration is provided through a single `CONFIG_JSON` environment variable containing a complete JSON structure.
+The configuration is provided through environment variables defining different aspects of the application, including:
 
-### Environment Variables
+- Agent information (name, version)
+- Tool settings (name, description, arguments)
+- LLM service settings (provider, model, API key, etc.)
+- MCP connector configuration
+- Transport settings (HTTP, stdio)
+- Logging configuration
 
-The system also supports direct configuration through specific environment variables that override values in the JSON configuration:
+Example configuration structure using environment variables:
 
-- `LLM_API_KEY`: Overrides the API key for the LLM provider specified in the JSON configuration.
+```bash
+# Agent settings
+export AGENT_NAME="speelka-agent"
+export AGENT_VERSION="1.0.0"
 
-### JSON Configuration Structure
+# Tool settings
+export TOOL_NAME="process"
+export TOOL_DESCRIPTION="Process tool for handling user queries with LLM"
 
-The JSON configuration structure is hierarchically organized:
+# LLM settings
+export LLM_PROVIDER="openai"
+export LLM_MODEL="gpt-4o"
 
-```json
-{
-  "agent": {
-    "name": "speelka-agent",
-    "version": "1.0.0",
-    "tool": {
-      "name": "process",
-      "description": "Process tool for handling user queries with LLM",
-      "argument_name": "input",
-      "argument_description": "User query to process"
-    },
-    "llm": {
-      "provider": "openai",
-      "api_key": "your_api_key_here",
-      "model": "gpt-4o",
-      "max_tokens": 0,
-      "temperature": 0.7,
-      "prompt_template": "You are a helpful AI assistant...",
-      "retry": {
-        "max_retries": 3,
-        "initial_backoff": 1.0,
-        "max_backoff": 30.0,
-        "backoff_multiplier": 2.0
-      }
-    },
-    "connections": {
-      "servers": [
-        {
-          "id": "server-id-1",
-          "transport": "stdio",
-          "command": "docker",
-          "arguments": ["run", "-i", "--rm", "mcp/time"],
-          "environment": {
-            "NODE_ENV": "production"
-          }
-        }
-      ],
-      "retry": {
-        "max_retries": 3,
-        "initial_backoff": 1.0,
-        "max_backoff": 30.0,
-        "backoff_multiplier": 2.0
-      }
-    }
-  },
-  "runtime": {
-    "log": {
-      "level": "info",
-      "output": "stdout"
-    },
-    "transports": {
-      "stdio": {
-        "enabled": true,
-        "buffer_size": 8192,
-        "auto_detect": false
-      },
-      "http": {
-        "enabled": true,
-        "host": "localhost",
-        "port": 3000
-      }
-    }
-  }
-}
+# MCP servers
+export MCPS_0_ID="time"
+export MCPS_0_COMMAND="docker"
+export MCPS_0_ARGS="run -i --rm mcp/time"
 ```
+
+Complete configuration examples can be found in the `examples` directory.
 
 ## External Dependencies
 

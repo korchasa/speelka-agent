@@ -1,12 +1,210 @@
 package configuration_test
 
 import (
+	"context"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/korchasa/speelka-agent-go/internal/configuration"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
+
+// Helper function to set environment variables for tests and clean them up after
+func withEnvironment(t *testing.T, env map[string]string, testFunc func()) {
+	// Save current environment to restore later
+	originalEnv := make(map[string]string)
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		if len(pair) == 2 {
+			originalEnv[pair[0]] = pair[1]
+		}
+	}
+
+	// Set environment variables for test
+	for k, v := range env {
+		os.Setenv(k, v)
+	}
+
+	// Restore environment after test
+	defer func() {
+		// Clear all environment variables that were set in the test
+		for k := range env {
+			os.Unsetenv(k)
+		}
+
+		// Restore original environment
+		for k, v := range originalEnv {
+			if _, present := env[k]; present {
+				os.Setenv(k, v)
+			}
+		}
+	}()
+
+	// Run the test
+	testFunc()
+}
+
+func TestLoadEnvironmentConfiguration(t *testing.T) {
+	// Create a logger for testing
+	logger := log.New()
+	logger.SetLevel(log.DebugLevel)
+
+	t.Run("basic configuration", func(t *testing.T) {
+		env := map[string]string{
+			"AGENT_NAME":                "test-agent",
+			"AGENT_VERSION":             "1.0.0",
+			"TOOL_NAME":                 "test-tool",
+			"TOOL_DESCRIPTION":          "Test tool description",
+			"TOOL_ARGUMENT_NAME":        "query",
+			"TOOL_ARGUMENT_DESCRIPTION": "Test query description",
+			"LLM_PROVIDER":              "openai",
+			"LLM_MODEL":                 "gpt-4o",
+			"LLM_API_KEY":               "test-api-key",
+			"LLM_MAX_TOKENS":            "100",
+			"LLM_TEMPERATURE":           "0.5",
+			"LLM_PROMPT_TEMPLATE":       "Template with {{query}} and {{tools}} placeholders",
+			"RUNTIME_LOG_LEVEL":         "info",
+			"RUNTIME_LOG_OUTPUT":        "stdout",
+			"RUNTIME_STDIO_ENABLED":     "true",
+			"RUNTIME_STDIO_BUFFER_SIZE": "8192",
+		}
+
+		withEnvironment(t, env, func() {
+			// Create a configuration manager
+			cm := configuration.NewConfigurationManager(logger)
+
+			// Load configuration
+			err := cm.LoadConfiguration(context.Background())
+			assert.NoError(t, err)
+
+			// Validate configuration
+			mcpConfig := cm.GetMCPServerConfig()
+			assert.Equal(t, "test-agent", mcpConfig.Name)
+			assert.Equal(t, "1.0.0", mcpConfig.Version)
+			assert.Equal(t, "test-tool", mcpConfig.Tool.Name)
+			assert.Equal(t, "Test tool description", mcpConfig.Tool.Description)
+			assert.Equal(t, "query", mcpConfig.Tool.ArgumentName)
+			assert.Equal(t, "Test query description", mcpConfig.Tool.ArgumentDescription)
+			assert.True(t, mcpConfig.Stdio.Enabled)
+			assert.Equal(t, 8192, mcpConfig.Stdio.BufferSize)
+
+			llmConfig := cm.GetLLMConfig()
+			assert.Equal(t, "openai", llmConfig.Provider)
+			assert.Equal(t, "gpt-4o", llmConfig.Model)
+			assert.Equal(t, "test-api-key", llmConfig.APIKey)
+			assert.Equal(t, 100, llmConfig.MaxTokens)
+			assert.Equal(t, 0.5, llmConfig.Temperature)
+			assert.Equal(t, "Template with {{query}} and {{tools}} placeholders", llmConfig.SystemPromptTemplate)
+		})
+	})
+
+	t.Run("MCP servers configuration", func(t *testing.T) {
+		env := map[string]string{
+			// Basic required config
+			"AGENT_NAME":          "test-agent",
+			"AGENT_VERSION":       "1.0.0",
+			"TOOL_NAME":           "test-tool",
+			"TOOL_DESCRIPTION":    "Test tool description",
+			"LLM_PROVIDER":        "openai",
+			"LLM_MODEL":           "gpt-4o",
+			"LLM_PROMPT_TEMPLATE": "Template with {{query}} and {{tools}} placeholders",
+
+			// MCP Server configs
+			"MCPS_0_ID":      "time-server",
+			"MCPS_0_COMMAND": "docker",
+			"MCPS_0_ARGS":    "run -i --rm mcp/time",
+
+			"MCPS_1_ID":      "filesystem-server",
+			"MCPS_1_COMMAND": "mcp-filesystem-server",
+			"MCPS_1_ARGS":    ".",
+
+			// MCPS retry config
+			"MSPS_RETRY_MAX_RETRIES":        "3",
+			"MSPS_RETRY_INITIAL_BACKOFF":    "1.0",
+			"MSPS_RETRY_MAX_BACKOFF":        "30.0",
+			"MSPS_RETRY_BACKOFF_MULTIPLIER": "2.0",
+		}
+
+		withEnvironment(t, env, func() {
+			// Create a configuration manager
+			cm := configuration.NewConfigurationManager(logger)
+
+			// Load configuration
+			err := cm.LoadConfiguration(context.Background())
+			assert.NoError(t, err)
+
+			// Validate MCP servers configuration
+			mcpConnConfig := cm.GetMCPConnectorConfig()
+
+			// Check servers
+			assert.Len(t, mcpConnConfig.McpServers, 2)
+
+			// Check first server
+			timeServer, exists := mcpConnConfig.McpServers["time-server"]
+			assert.True(t, exists)
+			assert.Equal(t, "docker", timeServer.Command)
+			assert.Equal(t, []string{"run", "-i", "--rm", "mcp/time"}, timeServer.Args)
+
+			// Check second server
+			fsServer, exists := mcpConnConfig.McpServers["filesystem-server"]
+			assert.True(t, exists)
+			assert.Equal(t, "mcp-filesystem-server", fsServer.Command)
+			assert.Equal(t, []string{"."}, fsServer.Args)
+
+			// Check retry config
+			assert.Equal(t, 3, mcpConnConfig.RetryConfig.MaxRetries)
+			assert.Equal(t, 1.0, mcpConnConfig.RetryConfig.InitialBackoff)
+			assert.Equal(t, 30.0, mcpConnConfig.RetryConfig.MaxBackoff)
+			assert.Equal(t, 2.0, mcpConnConfig.RetryConfig.BackoffMultiplier)
+		})
+	})
+
+	t.Run("missing required config", func(t *testing.T) {
+		env := map[string]string{
+			// Missing AGENT_NAME, TOOL_NAME, and other required fields
+			"AGENT_VERSION": "1.0.0",
+		}
+
+		withEnvironment(t, env, func() {
+			// Create a configuration manager
+			cm := configuration.NewConfigurationManager(logger)
+
+			// Load configuration - should fail validation
+			err := cm.LoadConfiguration(context.Background())
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "AGENT_NAME environment variable is required")
+			assert.Contains(t, err.Error(), "TOOL_NAME environment variable is required")
+			assert.Contains(t, err.Error(), "TOOL_DESCRIPTION environment variable is required")
+		})
+	})
+
+	t.Run("invalid prompt template", func(t *testing.T) {
+		env := map[string]string{
+			// Basic required config
+			"AGENT_NAME":       "test-agent",
+			"AGENT_VERSION":    "1.0.0",
+			"TOOL_NAME":        "test-tool",
+			"TOOL_DESCRIPTION": "Test tool description",
+			"LLM_PROVIDER":     "openai",
+			"LLM_MODEL":        "gpt-4o",
+			// Missing {{tools}} placeholder
+			"LLM_PROMPT_TEMPLATE": "Template with only {{query}} placeholder",
+		}
+
+		withEnvironment(t, env, func() {
+			// Create a configuration manager
+			cm := configuration.NewConfigurationManager(logger)
+
+			// Load configuration - should fail validation
+			err := cm.LoadConfiguration(context.Background())
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "prompt template validation failed")
+			assert.Contains(t, err.Error(), "missing required placeholder(s): tools")
+		})
+	})
+}
 
 func TestValidatePromptTemplate(t *testing.T) {
 	// Create a logger for testing

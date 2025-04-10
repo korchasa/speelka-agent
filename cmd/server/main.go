@@ -56,7 +56,6 @@ func main() {
 	}
 	defer fp.Close()
 
-	fmt.Fprintf(fp, "CONFIG_JSON: %s\n", os.Getenv("CONFIG_JSON"))
 	// Parse command line parameters
 	flag.Parse()
 

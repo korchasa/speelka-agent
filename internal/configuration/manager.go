@@ -1,15 +1,15 @@
 // Package configuration provides functionality for managing application configuration.
 // Responsibility: Loading and providing access to application settings
-// Features: Uses JSON-based configuration through environment variable
+// Features: Uses environment variables for configuration
 package configuration
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
@@ -18,7 +18,7 @@ import (
 
 // Manager implements the types.ConfigurationManagerSpec interface.
 // Responsibility: Managing application configuration
-// Features: Reads settings from CONFIG_JSON environment variable
+// Features: Reads settings from environment variables
 type Manager struct {
 	logger             *log.Logger
 	mcpServerConfig    types.MCPServerConfig
@@ -28,6 +28,7 @@ type Manager struct {
 }
 
 // Configuration represents the complete JSON configuration structure
+// Kept for backward compatibility
 type Configuration struct {
 	Agent struct {
 		Name    string `json:"name"`
@@ -96,130 +97,154 @@ func NewConfigurationManager(logger *log.Logger) *Manager {
 	}
 }
 
-// LoadConfiguration loads configuration from CONFIG_JSON environment variable
+// LoadConfiguration loads configuration from environment variables
 // Responsibility: Loading configuration settings
-// Features: Loads and parses configuration from JSON
+// Features: Loads configuration from environment variables
 func (cm *Manager) LoadConfiguration(ctx context.Context) error {
-	jsonConfig := os.Getenv("CONFIG_JSON")
-	if jsonConfig == "" {
-		return fmt.Errorf("CONFIG_JSON environment variable is not set")
-	}
-
-	err := cm.loadFromJSON(jsonConfig)
+	// Try to load from environment variables
+	err := cm.loadFromEnvironment()
 	if err != nil {
-		return fmt.Errorf("failed to load configuration from CONFIG_JSON: %w", err)
+		return fmt.Errorf("failed to load configuration from environment variables: %w", err)
 	}
 
-	cm.logger.Info("Loaded configuration from CONFIG_JSON environment variable")
+	cm.logger.Info("Loaded configuration from environment variables")
 	return nil
 }
 
-// loadFromJSON loads configuration from a JSON string.
-// Responsibility: Parsing JSON configuration
-// Features: Converts JSON to configuration structs
-func (cm *Manager) loadFromJSON(jsonConfig string) error {
-	var config Configuration
-	err := json.Unmarshal([]byte(jsonConfig), &config)
-	if err != nil {
-		return fmt.Errorf("error parsing CONFIG_JSON: %w", err)
-	}
+// loadFromEnvironment loads configuration from environment variables.
+// Responsibility: Parsing environment variable configuration
+// Features: Converts environment variables to configuration structs
+func (cm *Manager) loadFromEnvironment() error {
+	var validationErrors []string
 
-	// Convert the JSON configuration to the internal configuration types
 	// MCP Server Config
 	cm.mcpServerConfig = types.MCPServerConfig{
-		Name:    config.Agent.Name,
-		Version: config.Agent.Version,
+		Name:    getEnvString("AGENT_NAME", ""),
+		Version: getEnvString("AGENT_VERSION", "1.0.0"),
 		Tool: types.MCPServerToolConfig{
-			Name:                config.Agent.Tool.Name,
-			Description:         config.Agent.Tool.Description,
-			ArgumentName:        config.Agent.Tool.ArgumentName,
-			ArgumentDescription: config.Agent.Tool.ArgumentDescription,
+			Name:                getEnvString("TOOL_NAME", ""),
+			Description:         getEnvString("TOOL_DESCRIPTION", ""),
+			ArgumentName:        getEnvString("TOOL_ARGUMENT_NAME", "query"),
+			ArgumentDescription: getEnvString("TOOL_ARGUMENT_DESCRIPTION", ""),
 		},
 		HTTP: types.HTTPConfig{
-			Enabled: config.Runtime.Transports.HTTP.Enabled,
-			Host:    config.Runtime.Transports.HTTP.Host,
-			Port:    config.Runtime.Transports.HTTP.Port,
+			Enabled: getEnvBool("RUNTIME_HTTP_ENABLED", false),
+			Host:    getEnvString("RUNTIME_HTTP_HOST", "localhost"),
+			Port:    getEnvInt("RUNTIME_HTTP_PORT", 3000),
 		},
 		Stdio: types.StdioConfig{
-			Enabled:    config.Runtime.Transports.Stdio.Enabled,
-			BufferSize: config.Runtime.Transports.Stdio.BufferSize,
+			Enabled:    getEnvBool("RUNTIME_STDIO_ENABLED", true),
+			BufferSize: getEnvInt("RUNTIME_STDIO_BUFFER_SIZE", 8192),
 		},
-		Debug: false, // Debug flag is removed in the new structure
+		Debug: false,
 	}
 
-	// MCP Connector Config
+	// Validate required fields for MCP Server Config
+	if cm.mcpServerConfig.Name == "" {
+		validationErrors = append(validationErrors, "AGENT_NAME environment variable is required")
+	}
+	if cm.mcpServerConfig.Tool.Name == "" {
+		validationErrors = append(validationErrors, "TOOL_NAME environment variable is required")
+	}
+	if cm.mcpServerConfig.Tool.Description == "" {
+		validationErrors = append(validationErrors, "TOOL_DESCRIPTION environment variable is required")
+	}
+
+	// MCP Connector Config - Handle MCP Servers
 	mcpServers := make(map[string]types.MCPServerConnection)
-	for serverID, server := range config.Agent.Connections.McpServers {
-		// Convert environment map to slice of "KEY=VALUE" strings
-		var envVars []string
-		for key, value := range server.Environment {
-			envVars = append(envVars, fmt.Sprintf("%s=%s", key, value))
+
+	// Find all MCPS_n_ID environment variables to determine how many servers there are
+	serverIndices := findServerIndices()
+
+	// Process each server
+	for _, idx := range serverIndices {
+		idxStr := strconv.Itoa(idx)
+		serverID := getEnvString(fmt.Sprintf("MCPS_%s_ID", idxStr), "")
+		if serverID == "" {
+			cm.logger.Warnf("MCP Server at index %s has no ID", idxStr)
+			continue
+		}
+
+		// Parse args string into slice (if provided as space-separated string)
+		argsStr := getEnvString(fmt.Sprintf("MCPS_%s_ARGS", idxStr), "")
+		var args []string
+		if argsStr != "" {
+			args = strings.Fields(argsStr)
 		}
 
 		mcpServers[serverID] = types.MCPServerConnection{
-			URL:         server.URL,
-			APIKey:      server.APIKey,
-			Command:     server.Command,
-			Args:        server.Args,
-			Environment: envVars,
+			URL:         getEnvString(fmt.Sprintf("MCPS_%s_URL", idxStr), ""),
+			APIKey:      getEnvString(fmt.Sprintf("MCPS_%s_API_KEY", idxStr), ""),
+			Command:     getEnvString(fmt.Sprintf("MCPS_%s_COMMAND", idxStr), ""),
+			Args:        args,
+			Environment: []string{}, // Environment variables not loaded yet
 		}
 	}
 
+	// Set the MCP Connector Config with the servers and retry settings
 	cm.mcpConnectorConfig = types.MCPConnectorConfig{
 		McpServers: mcpServers,
 		RetryConfig: types.RetryConfig{
-			MaxRetries:        config.Agent.Connections.Retry.MaxRetries,
-			InitialBackoff:    config.Agent.Connections.Retry.InitialBackoff,
-			MaxBackoff:        config.Agent.Connections.Retry.MaxBackoff,
-			BackoffMultiplier: config.Agent.Connections.Retry.BackoffMultiplier,
+			MaxRetries:        getEnvInt("MSPS_RETRY_MAX_RETRIES", 3),
+			InitialBackoff:    getEnvFloat("MSPS_RETRY_INITIAL_BACKOFF", 1.0),
+			MaxBackoff:        getEnvFloat("MSPS_RETRY_MAX_BACKOFF", 30.0),
+			BackoffMultiplier: getEnvFloat("MSPS_RETRY_BACKOFF_MULTIPLIER", 2.0),
 		},
 	}
 
 	// LLM Config
+	promptTemplate := getEnvString("LLM_PROMPT_TEMPLATE", "")
 	cm.llmServiceConfig = types.LLMConfig{
-		Provider:             config.Agent.LLM.Provider,
-		Model:                config.Agent.LLM.Model,
-		APIKey:               config.Agent.LLM.APIKey,
-		MaxTokens:            config.Agent.LLM.MaxTokens,
-		Temperature:          config.Agent.LLM.Temperature,
-		SystemPromptTemplate: config.Agent.LLM.PromptTemplate,
+		Provider:             getEnvString("LLM_PROVIDER", ""),
+		Model:                getEnvString("LLM_MODEL", ""),
+		APIKey:               getEnvString("LLM_API_KEY", ""),
+		MaxTokens:            getEnvInt("LLM_MAX_TOKENS", 0),
+		Temperature:          getEnvFloat("LLM_TEMPERATURE", 0.7),
+		SystemPromptTemplate: promptTemplate,
 		RetryConfig: types.RetryConfig{
-			MaxRetries:        config.Agent.LLM.Retry.MaxRetries,
-			InitialBackoff:    config.Agent.LLM.Retry.InitialBackoff,
-			MaxBackoff:        config.Agent.LLM.Retry.MaxBackoff,
-			BackoffMultiplier: config.Agent.LLM.Retry.BackoffMultiplier,
+			MaxRetries:        getEnvInt("LLM_RETRY_MAX_RETRIES", 3),
+			InitialBackoff:    getEnvFloat("LLM_RETRY_INITIAL_BACKOFF", 1.0),
+			MaxBackoff:        getEnvFloat("LLM_RETRY_MAX_BACKOFF", 30.0),
+			BackoffMultiplier: getEnvFloat("LLM_RETRY_BACKOFF_MULTIPLIER", 2.0),
 		},
 	}
 
-	// Validate prompt template has all required placeholders
-	err = cm.validatePromptTemplate(config.Agent.LLM.PromptTemplate, config.Agent.Tool.ArgumentName)
-	if err != nil {
-		cm.logger.Errorf("PROMPT TEMPLATE VALIDATION ERROR: %v", err)
-		return fmt.Errorf("prompt template validation failed: %w", err)
+	// Validate required fields for LLM Config
+	if cm.llmServiceConfig.Provider == "" {
+		validationErrors = append(validationErrors, "LLM_PROVIDER environment variable is required")
 	}
-
-	// Check for LLM_API_KEY environment variable and override config if present
-	if envAPIKey := os.Getenv("LLM_API_KEY"); envAPIKey != "" {
-		cm.llmServiceConfig.APIKey = envAPIKey
-		cm.logger.Info("Using LLM API key from LLM_API_KEY environment variable")
+	if cm.llmServiceConfig.Model == "" {
+		validationErrors = append(validationErrors, "LLM_MODEL environment variable is required")
+	}
+	if promptTemplate == "" {
+		validationErrors = append(validationErrors, "LLM_PROMPT_TEMPLATE environment variable is required")
+	} else {
+		// Validate prompt template has all required placeholders
+		err := cm.validatePromptTemplate(promptTemplate, cm.mcpServerConfig.Tool.ArgumentName)
+		if err != nil {
+			cm.logger.Errorf("PROMPT TEMPLATE VALIDATION ERROR: %v", err)
+			validationErrors = append(validationErrors, fmt.Sprintf("prompt template validation failed: %v", err))
+		}
 	}
 
 	// Log Config
-	level, err := log.ParseLevel(config.Runtime.Log.Level)
+	logLevel := getEnvString("RUNTIME_LOG_LEVEL", "info")
+	level, err := log.ParseLevel(logLevel)
 	if err != nil {
-		return fmt.Errorf("invalid log level `%s`: %v", config.Runtime.Log.Level, err)
+		return fmt.Errorf("invalid log level `%s`: %v", logLevel, err)
 	}
 
 	var output io.Writer
-	switch config.Runtime.Log.Output {
+	logOutput := getEnvString("RUNTIME_LOG_OUTPUT", "stdout")
+	switch logOutput {
 	case "stdout":
 		output = os.Stdout
 	case "stderr":
 		output = os.Stderr
 	default:
-		outputFile, err := os.OpenFile(config.Runtime.Log.Output, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		outputFile, err := os.OpenFile(logOutput, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
-			return fmt.Errorf("failed to open log file `%s`: %v", config.Runtime.Log.Output, err)
+			return fmt.Errorf("failed to open log file `%s`: %v", logOutput, err)
 		}
 		output = outputFile
 	}
@@ -229,7 +254,105 @@ func (cm *Manager) loadFromJSON(jsonConfig string) error {
 		Output: output,
 	}
 
+	// Return validation errors if any were found
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("configuration validation errors: %s", strings.Join(validationErrors, ", "))
+	}
+
 	return nil
+}
+
+// Helper function to find server indices from environment variables
+func findServerIndices() []int {
+	indices := make(map[int]bool)
+
+	// Look for all environment variables starting with MCPS_
+	for _, envVar := range os.Environ() {
+		parts := strings.SplitN(envVar, "=", 2)
+		if len(parts) < 1 {
+			continue
+		}
+
+		key := parts[0]
+		if !strings.HasPrefix(key, "MCPS_") {
+			continue
+		}
+
+		// Extract the index from the key (e.g., MCPS_0_ID -> 0)
+		parts = strings.Split(key, "_")
+		if len(parts) < 3 {
+			continue
+		}
+
+		idx, err := strconv.Atoi(parts[1])
+		if err != nil {
+			continue
+		}
+
+		indices[idx] = true
+	}
+
+	// Convert to slice
+	var result []int
+	for idx := range indices {
+		result = append(result, idx)
+	}
+
+	return result
+}
+
+// Helper function to get string from environment variable with default
+func getEnvString(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
+// Helper function to get int from environment variable with default
+func getEnvInt(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	intValue, err := strconv.Atoi(value)
+	if err != nil {
+		return defaultValue
+	}
+
+	return intValue
+}
+
+// Helper function to get float from environment variable with default
+func getEnvFloat(key string, defaultValue float64) float64 {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	floatValue, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return defaultValue
+	}
+
+	return floatValue
+}
+
+// Helper function to get bool from environment variable with default
+func getEnvBool(key string, defaultValue bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	boolValue, err := strconv.ParseBool(value)
+	if err != nil {
+		return defaultValue
+	}
+
+	return boolValue
 }
 
 // validatePromptTemplate validates that the prompt template contains all required placeholders.
