@@ -404,14 +404,91 @@ function updateExampleConfigurations(config) {
     const prettyConfigJson = JSON.stringify(config, null, 2);
     document.getElementById('generatedConfig').textContent = prettyConfigJson;
 
-    // Update environment variables example with compact JSON
-    const envExample = document.querySelector('.instructions pre.code-block:nth-of-type(1) code');
-    if (envExample) {
-        envExample.textContent = `export CONFIG_JSON='${escapedCompactConfigJson}'
-export LLM_API_KEY='...'`;
+    // Generate environment variables from the configuration
+    let envVars = [];
+
+    // Agent settings
+    envVars.push(`# Agent`);
+    envVars.push(`export AGENT_NAME="${config.agent.name}"`);
+    envVars.push(`export AGENT_VERSION="${config.agent.version}"`);
+
+    // Tool settings
+    envVars.push(`\n# Tool`);
+    envVars.push(`export TOOL_NAME="${config.agent.tool.name}"`);
+    envVars.push(`export TOOL_DESCRIPTION="${config.agent.tool.description}"`);
+    envVars.push(`export TOOL_ARGUMENT_NAME="${config.agent.tool.argument_name}"`);
+    envVars.push(`export TOOL_ARGUMENT_DESCRIPTION="${config.agent.tool.argument_description}"`);
+
+    // LLM settings
+    envVars.push(`\n# LLM`);
+    envVars.push(`export LLM_PROVIDER="${config.agent.llm.provider}"`);
+    envVars.push(`export LLM_API_KEY="..."`);
+    envVars.push(`export LLM_MODEL="${config.agent.llm.model}"`);
+    envVars.push(`export LLM_MAX_TOKENS=${config.agent.llm.max_tokens}`);
+    envVars.push(`export LLM_TEMPERATURE=${config.agent.llm.temperature}`);
+    const promptTemplate = config.agent.llm.prompt_template.replace(/"/g, '\\"');
+    envVars.push(`export LLM_PROMPT_TEMPLATE="${promptTemplate}"`);
+
+    // LLM Retry settings
+    envVars.push(`\n# LLM Retry`);
+    envVars.push(`export LLM_RETRY_MAX_RETRIES=${config.agent.llm.retry.max_retries}`);
+    envVars.push(`export LLM_RETRY_INITIAL_BACKOFF=${config.agent.llm.retry.initial_backoff}`);
+    envVars.push(`export LLM_RETRY_MAX_BACKOFF=${config.agent.llm.retry.max_backoff}`);
+    envVars.push(`export LLM_RETRY_BACKOFF_MULTIPLIER=${config.agent.llm.retry.backoff_multiplier}`);
+
+    // MCP Servers
+    envVars.push(`\n# MCP Servers`);
+    let serverIndex = 0;
+    for (const [serverId, serverConfig] of Object.entries(config.agent.connections.mcpServers)) {
+        envVars.push(`export MCPS_${serverIndex}_ID="${serverId}"`);
+        envVars.push(`export MCPS_${serverIndex}_COMMAND="${serverConfig.command}"`);
+        envVars.push(`export MCPS_${serverIndex}_ARGS="${serverConfig.args.join(' ')}"`);
+
+        // Environment variables if any
+        if (serverConfig.environment && Object.keys(serverConfig.environment).length > 0) {
+            for (const [envKey, envValue] of Object.entries(serverConfig.environment)) {
+                envVars.push(`export MCPS_${serverIndex}_ENV_${envKey}="${envValue}"`);
+            }
+        }
+
+        envVars.push(``);
+        serverIndex++;
     }
 
-    // Update binary example with compact JSON
+    // Connection retry settings
+    envVars.push(`# MSPS Retry`);
+    envVars.push(`export MSPS_RETRY_MAX_RETRIES=${config.agent.connections.retry.max_retries}`);
+    envVars.push(`export MSPS_RETRY_INITIAL_BACKOFF=${config.agent.connections.retry.initial_backoff}`);
+    envVars.push(`export MSPS_RETRY_MAX_BACKOFF=${config.agent.connections.retry.max_backoff}`);
+    envVars.push(`export MSPS_RETRY_BACKOFF_MULTIPLIER=${config.agent.connections.retry.backoff_multiplier}`);
+
+    // Runtime settings
+    envVars.push(`\n# Runtime`);
+    envVars.push(`export RUNTIME_LOG_LEVEL="${config.runtime.log.level}"`);
+    envVars.push(`export RUNTIME_LOG_OUTPUT="${config.runtime.log.output}"`);
+
+    // Transport settings
+    envVars.push(`\n# Transport - Stdio`);
+    envVars.push(`export RUNTIME_STDIO_ENABLED=${config.runtime.transports.stdio.enabled}`);
+    envVars.push(`export RUNTIME_STDIO_BUFFER_SIZE=${config.runtime.transports.stdio.buffer_size}`);
+
+    if (config.runtime.transports.http) {
+        envVars.push(`\n# Transport - HTTP`);
+        envVars.push(`export RUNTIME_HTTP_ENABLED=${config.runtime.transports.http.enabled}`);
+        envVars.push(`export RUNTIME_HTTP_HOST="${config.runtime.transports.http.host}"`);
+        envVars.push(`export RUNTIME_HTTP_PORT=${config.runtime.transports.http.port}`);
+    }
+
+    // Join all environment variables
+    const envVarsText = envVars.join('\n');
+
+    // Update environment variables example
+    const envExample = document.querySelector('.instructions pre.code-block:nth-of-type(1) code');
+    if (envExample) {
+        envExample.textContent = envVarsText;
+    }
+
+    // Update binary example with environment variables
     const binaryExample = document.querySelector('.instructions pre.code-block:nth-of-type(2) code');
     if (binaryExample) {
         let binaryJson = JSON.stringify({
@@ -420,8 +497,18 @@ export LLM_API_KEY='...'`;
                     command: "speelka-agent",
                     args: [],
                     environment: {
-                        CONFIG_JSON: escapedCompactConfigJson,
-                        LLM_API_KEY: "...YOU_LLM_API_KEY..."
+                        AGENT_NAME: config.agent.name,
+                        AGENT_VERSION: config.agent.version,
+                        TOOL_NAME: config.agent.tool.name,
+                        TOOL_DESCRIPTION: config.agent.tool.description,
+                        TOOL_ARGUMENT_NAME: config.agent.tool.argument_name,
+                        TOOL_ARGUMENT_DESCRIPTION: config.agent.tool.argument_description,
+                        LLM_PROVIDER: config.agent.llm.provider,
+                        LLM_API_KEY: "...YOUR_LLM_API_KEY...",
+                        LLM_MODEL: config.agent.llm.model,
+                        LLM_MAX_TOKENS: config.agent.llm.max_tokens,
+                        LLM_TEMPERATURE: config.agent.llm.temperature,
+                        RUNTIME_LOG_LEVEL: config.runtime.log.level
                     }
                 }
             }
@@ -429,17 +516,32 @@ export LLM_API_KEY='...'`;
         binaryExample.textContent = binaryJson;
     }
 
-    // Update docker example with compact JSON
+    // Update docker example with environment variables
     const dockerExample = document.querySelector('.instructions pre.code-block:nth-of-type(3) code');
     if (dockerExample) {
+        // Create environment arguments list for Docker
+        const dockerEnvArgs = [
+            "run", "-i", "--rm",
+            "-e", "AGENT_NAME=" + config.agent.name,
+            "-e", "AGENT_VERSION=" + config.agent.version,
+            "-e", "TOOL_NAME=" + config.agent.tool.name,
+            "-e", "TOOL_DESCRIPTION=" + config.agent.tool.description,
+            "-e", "TOOL_ARGUMENT_NAME=" + config.agent.tool.argument_name,
+            "-e", "TOOL_ARGUMENT_DESCRIPTION=" + config.agent.tool.argument_description,
+            "-e", "LLM_PROVIDER=" + config.agent.llm.provider,
+            "-e", "LLM_API_KEY=$LLM_API_KEY",
+            "-e", "LLM_MODEL=" + config.agent.llm.model,
+            "-e", "RUNTIME_LOG_LEVEL=" + config.runtime.log.level,
+            "ghcr.io/korchasa/speelka-agent:latest"
+        ];
+
         let dockerJson = JSON.stringify({
             mcpServers: {
                 "speelka-agent": {
                     command: "docker",
-                    args: ["run", "-i", "--rm", "-e", "CONFIG_JSON=$CONFIG_JSON", "-e", "LLM_API_KEY=$LLM_API_KEY", "ghcr.io/korchasa/speelka-agent:latest"],
+                    args: dockerEnvArgs,
                     environment: {
-                        CONFIG_JSON: escapedCompactConfigJson,
-                        LLM_API_KEY: "...YOU_LLM_API_KEY..."
+                        LLM_API_KEY: "...YOUR_LLM_API_KEY..."
                     }
                 }
             }

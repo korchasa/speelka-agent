@@ -402,9 +402,8 @@ Available tools:
             <div class="instructions">
                 <h3>How to Use This Configuration</h3>
 
-                <p>Set the CONFIG_JSON environment variable with your configuration:</p>
-                <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>export CONFIG_JSON='YOUR_CONFIGURATION_JSON'
-export LLM_API_KEY='...'
+                <p>Set the environment variables with your configuration:</p>
+                <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code># Environment variables will be generated here
 </code></pre>
 
                 <h4>MCP stdio</h4>
@@ -415,8 +414,10 @@ export LLM_API_KEY='...'
             "command": "speelka-agent",
             "args": [],
             "environment": {
-                "CONFIG_JSON": "...YOUR_CONFIGURATION_JSON...",
+                "AGENT_NAME": "your-agent-name",
+                "TOOL_NAME": "your-tool-name",
                 "LLM_API_KEY": "...YOU_LLM_API_KEY..."
+                // Other environment variables will be generated here
             }
         }
     }
@@ -428,10 +429,10 @@ export LLM_API_KEY='...'
     "mcpServers": {
         "speelka-agent": {
             "command": "docker",
-            "args": ["run", "-i", "--rm", "-e", "CONFIG_JSON=$CONFIG_JSON", "-e", "LLM_API_KEY=$LLM_API_KEY", "ghcr.io/korchasa/speelka-agent:latest"],
+            "args": ["run", "-i", "--rm", "-e", "AGENT_NAME=your-agent-name", "-e", "LLM_API_KEY=$LLM_API_KEY", "ghcr.io/korchasa/speelka-agent:latest"],
             "environment": {
-                "CONFIG_JSON": "...YOUR_CONFIGURATION_JSON...",
                 "LLM_API_KEY": "...YOU_LLM_API_KEY..."
+                // Other environment variables will be handled by Docker command args
             }
         }
     }
