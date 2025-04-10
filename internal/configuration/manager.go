@@ -77,7 +77,6 @@ type Configuration struct {
 			Stdio struct {
 				Enabled    bool `json:"enabled"`
 				BufferSize int  `json:"buffer_size"`
-				AutoDetect bool `json:"auto_detect"`
 			} `json:"stdio"`
 			HTTP struct {
 				Enabled bool   `json:"enabled"`
@@ -144,7 +143,6 @@ func (cm *Manager) loadFromJSON(jsonConfig string) error {
 		Stdio: types.StdioConfig{
 			Enabled:    config.Runtime.Transports.Stdio.Enabled,
 			BufferSize: config.Runtime.Transports.Stdio.BufferSize,
-			AutoDetect: config.Runtime.Transports.Stdio.AutoDetect,
 		},
 		Debug: false, // Debug flag is removed in the new structure
 	}

@@ -14,6 +14,8 @@
 - `.env`: Environment variables (gitignored)
 - `.env.example`: Example environment variables
 - `README.md`: Project overview and usage instructions
+- `Dockerfile`: Multi-stage Docker build configuration for the application
+- `.github/workflows`: CI/CD workflow configurations
 
 ## Internal Package Structure
 
@@ -136,3 +138,12 @@ Errors are categorized and wrapped using the `error_handling` package:
 - Transient errors (network issues, rate limits)
 - Internal errors (component failures)
 - External errors (tool execution failures)
+
+## CI/CD Workflows
+
+### `.github/workflows/docker-build.yml`
+
+- Builds and pushes multi-architecture Docker images for the application
+- Supports architectures: linux/amd64, linux/arm64, linux/arm/v7
+- Uses Docker Buildx and QEMU for cross-platform builds
+- Pushes images to GitHub Container Registry with appropriate tags
