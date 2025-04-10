@@ -116,6 +116,8 @@ type LLMConfig struct {
     Temperature float64
     PromptTemplate string
     RetryConfig RetryConfig
+    TemperatureIsSet bool
+    MaxTokensIsSet bool
 }
 ```
 
@@ -423,3 +425,54 @@ log.SetFormatter(utils.NewCustomLogFormatter())
 ```
 
 **Impact:** Prevents application crash on startup when encountering errors early in the initialization process.
+
+### Conditional LLM Parameters
+An optimization was made to only include `temperature` and `maxTokens` parameters in LLM requests when explicitly set by the user.
+
+**Problem:** The LLM service was always including `temperature` and `maxTokens` parameters in requests regardless of whether they were explicitly configured, potentially overriding model defaults unnecessarily.
+
+**Root cause:** The LLM service lacked a mechanism to track whether parameters were explicitly set by the user or just using default values.
+
+**Solution:**
+- Added tracking flags in `LLMConfig` to record whether `Temperature` and `MaxTokens` were explicitly set
+- Modified `loadFromEnvironment` in configuration manager to set these flags when environment variables are present
+- Updated the `SendRequest` method to conditionally include parameters in requests only when explicitly configured
+
+**Implementation:**
+```go
+// In internal/types/llm_service_spec.go - Added flags to track explicit settings
+type LLMConfig struct {
+    // ... existing fields ...
+    MaxTokens int
+    Temperature float64
+    TemperatureIsSet bool // New flag
+    MaxTokensIsSet bool   // New flag
+    // ... existing fields ...
+}
+
+// In internal/configuration/manager.go - Check for environment variables
+if maxTokensStr := os.Getenv("LLM_MAX_TOKENS"); maxTokensStr != "" {
+    maxTokens, err := strconv.Atoi(maxTokensStr)
+    if err != nil {
+        return fmt.Errorf("invalid LLM_MAX_TOKENS: %v", err)
+    }
+    config.MaxTokens = maxTokens
+    config.MaxTokensIsSet = true // Set flag when explicitly configured
+}
+
+// In internal/llm_service/llm_service.go - Conditionally include parameters
+if s.config.MaxTokensIsSet {
+    // Include MaxTokens in request only if explicitly set
+    requestBody["max_tokens"] = s.config.MaxTokens
+}
+if s.config.TemperatureIsSet {
+    // Include Temperature in request only if explicitly set
+    requestBody["temperature"] = s.config.Temperature
+}
+```
+
+**Impact:**
+- Ensures model defaults are used when parameters aren't explicitly configured
+- Provides more predictable behavior by respecting user configuration only when intended
+- Reduces chances of unintentionally overriding model behavior
+- Simplifies configuration by requiring fewer explicit settings

@@ -219,12 +219,19 @@ func (cm *Manager) loadFromEnvironment() error {
 
 	// LLM Config
 	promptTemplate := getEnvString("LLM_PROMPT_TEMPLATE", "")
+
+	// Check if temperature and max tokens are explicitly set
+	_, isTemperatureSet := os.LookupEnv("LLM_TEMPERATURE")
+	_, isMaxTokensSet := os.LookupEnv("LLM_MAX_TOKENS")
+
 	cm.llmServiceConfig = types.LLMConfig{
 		Provider:             getEnvString("LLM_PROVIDER", ""),
 		Model:                getEnvString("LLM_MODEL", ""),
 		APIKey:               getEnvString("LLM_API_KEY", ""),
 		MaxTokens:            getEnvInt("LLM_MAX_TOKENS", 0),
+		IsMaxTokensSet:       isMaxTokensSet,
 		Temperature:          getEnvFloat("LLM_TEMPERATURE", 0.7),
+		IsTemperatureSet:     isTemperatureSet,
 		SystemPromptTemplate: promptTemplate,
 		RetryConfig: types.RetryConfig{
 			MaxRetries:        getEnvInt("LLM_RETRY_MAX_RETRIES", 3),

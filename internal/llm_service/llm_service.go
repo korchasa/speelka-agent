@@ -121,7 +121,25 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 		var err error
 		s.logger.Infof("Send request to LLM with %d messages", len(messages))
 		s.logger.Debugf("Details: %s", utils.SDump(map[string]any{"messages": messages, "tools": llmTools}))
-		response, err = s.client.GenerateContent(ctx, messages, llms.WithTools(llmTools), llms.WithToolChoice("required"))
+		// Prepare options for LLM
+		options := []llms.CallOption{
+			llms.WithTools(llmTools),
+			llms.WithToolChoice("required"),
+		}
+
+		// Only add temperature if it was explicitly set in the environment
+		if s.config.IsTemperatureSet {
+			s.logger.Debugf("Using explicitly set temperature: %f", s.config.Temperature)
+			options = append(options, llms.WithTemperature(s.config.Temperature))
+		}
+
+		// Add max tokens if it was explicitly set and is greater than 0
+		if s.config.IsMaxTokensSet && s.config.MaxTokens > 0 {
+			s.logger.Debugf("Using explicitly set max tokens: %d", s.config.MaxTokens)
+			options = append(options, llms.WithMaxTokens(s.config.MaxTokens))
+		}
+
+		response, err = s.client.GenerateContent(ctx, messages, options...)
 		if err != nil {
 			// Wrap the error to categorize it as transient for retry attempts
 			return error_handling.WrapError(

@@ -139,6 +139,7 @@ case $CMD in
         )
         ;;
     call-news)
+        echo -e "${BLUE}Test agent with 'What is the latest news in AI?' request${NC}"
         (
             load_env
             # Source environment variables from the ai-news.env file
@@ -146,6 +147,15 @@ case $CMD in
             check_command "mcp"
             mcp tools go run -race ./cmd/server/main.go
             mcp call make-ai-digest --params "{\"query\": \"What is the latest news in AI?\"}" go run -race ./cmd/server/main.go
+        )
+        ;;
+    inspect)
+        echo -e "${BLUE}Inspecting project...${NC}"
+        (
+            load_env
+            check_command "npx"
+            source examples/simple.env
+            npx @modelcontextprotocol/inspector go run -race ./cmd/server/main.go
         )
         ;;
     check)
