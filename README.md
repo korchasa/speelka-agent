@@ -78,7 +78,7 @@ Configuration is provided through environment variables:
 | `MSPS_RETRY_BACKOFF_MULTIPLIER` | 2.0 | Multiplier for increasing backoff time |
 | **Runtime Configuration** | | |
 | `RUNTIME_LOG_LEVEL` | "info" | Log level (debug, info, warn, error) |
-| `RUNTIME_LOG_OUTPUT` | "stdout" | Log output destination (stdout, file path) |
+| `RUNTIME_LOG_OUTPUT` | "stderr" | Log output destination (stdout, stderr, file path) |
 | `RUNTIME_STDIO_ENABLED` | true | Enable stdin/stdout transport |
 | `RUNTIME_STDIO_BUFFER_SIZE` | 8192 | Buffer size for stdio transport |
 | `RUNTIME_HTTP_ENABLED` | false | Enable HTTP transport |

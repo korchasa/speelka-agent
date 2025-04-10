@@ -163,6 +163,53 @@ func TestLoadEnvironmentConfiguration(t *testing.T) {
 		})
 	})
 
+	t.Run("MCP server environment variables", func(t *testing.T) {
+		env := map[string]string{
+			// Basic required config
+			"AGENT_NAME":                "test-agent",
+			"AGENT_VERSION":             "1.0.0",
+			"TOOL_NAME":                 "test-tool",
+			"TOOL_DESCRIPTION":          "Test tool description",
+			"TOOL_ARGUMENT_NAME":        "query",
+			"TOOL_ARGUMENT_DESCRIPTION": "Test query description",
+			"LLM_PROVIDER":              "openai",
+			"LLM_MODEL":                 "gpt-4o",
+			"LLM_PROMPT_TEMPLATE":       "Template with {{query}} and {{tools}} placeholders",
+
+			// MCP Server config with environment variables
+			"MCPS_0_ID":           "fetcher",
+			"MCPS_0_COMMAND":      "npx",
+			"MCPS_0_ARGS":         "-y fetcher-mcp",
+			"MCPS_0_ENV_NODE_ENV": "production",
+			"MCPS_0_ENV_DEBUG":    "true",
+		}
+
+		withEnvironment(t, env, func() {
+			// Create a configuration manager
+			cm := configuration.NewConfigurationManager(logger)
+
+			// Load configuration
+			err := cm.LoadConfiguration(context.Background())
+			assert.NoError(t, err)
+
+			// Validate MCP servers configuration
+			mcpConnConfig := cm.GetMCPConnectorConfig()
+
+			// Check servers
+			assert.Len(t, mcpConnConfig.McpServers, 1)
+
+			// Check environment variables
+			server, exists := mcpConnConfig.McpServers["fetcher"]
+			assert.True(t, exists)
+			assert.Equal(t, "npx", server.Command)
+			assert.Equal(t, []string{"-y", "fetcher-mcp"}, server.Args)
+
+			// The test should fail because environment variables aren't being loaded
+			assert.Contains(t, server.Environment, "NODE_ENV=production")
+			assert.Contains(t, server.Environment, "DEBUG=true")
+		})
+	})
+
 	t.Run("missing required config", func(t *testing.T) {
 		env := map[string]string{
 			// Missing AGENT_NAME, TOOL_NAME, and other required fields

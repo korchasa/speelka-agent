@@ -81,6 +81,8 @@ func (s *MCPServer) createAndInitMCPServer(handler server.ToolHandlerFunc) error
 		opts...,
 	)
 
+	s.logger.Infof("MCP server initialized with config: %s", utils.SDump(s.config))
+
 	tool := mcp.NewTool(s.config.Tool.Name,
 		mcp.WithDescription(s.config.Tool.Description),
 		mcp.WithString(s.config.Tool.ArgumentName,

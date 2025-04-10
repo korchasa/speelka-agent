@@ -178,12 +178,31 @@ func (cm *Manager) loadFromEnvironment() error {
 			args = strings.Fields(argsStr)
 		}
 
+		// Find and collect environment variables for this server
+		envPrefix := fmt.Sprintf("MCPS_%s_ENV_", idxStr)
+		var envVars []string
+
+		for _, fullEnv := range os.Environ() {
+			parts := strings.SplitN(fullEnv, "=", 2)
+			if len(parts) != 2 {
+				continue
+			}
+
+			key := parts[0]
+			value := parts[1]
+
+			if strings.HasPrefix(key, envPrefix) {
+				envKey := strings.TrimPrefix(key, envPrefix)
+				envVars = append(envVars, fmt.Sprintf("%s=%s", envKey, value))
+			}
+		}
+
 		mcpServers[serverID] = types.MCPServerConnection{
 			URL:         getEnvString(fmt.Sprintf("MCPS_%s_URL", idxStr), ""),
 			APIKey:      getEnvString(fmt.Sprintf("MCPS_%s_API_KEY", idxStr), ""),
 			Command:     getEnvString(fmt.Sprintf("MCPS_%s_COMMAND", idxStr), ""),
 			Args:        args,
-			Environment: []string{}, // Environment variables not loaded yet
+			Environment: envVars,
 		}
 	}
 
@@ -241,7 +260,7 @@ func (cm *Manager) loadFromEnvironment() error {
 	}
 
 	var output io.Writer
-	logOutput := getEnvString("RUNTIME_LOG_OUTPUT", "stdout")
+	logOutput := getEnvString("RUNTIME_LOG_OUTPUT", "stderr")
 	switch logOutput {
 	case "stdout":
 		output = os.Stdout
