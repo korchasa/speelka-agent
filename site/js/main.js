@@ -202,22 +202,16 @@ function addServer() {
             <span class="field-description">Command to execute for this MCP server</span>
         </div>
 
-        <div class="advanced-toggle" onclick="toggleAdvanced('serverAdvanced-${serverId}')">
-            <i class="fas fa-caret-right"></i> Advanced Server Settings
+        <div class="form-group">
+            <label for="serverArgs-${serverId}">Arguments:</label>
+            <input type="text" id="serverArgs-${serverId}" value="run, -i, --rm, mcp/time" placeholder="Comma-separated list" />
+            <span class="field-description">Command arguments as a comma-separated list</span>
         </div>
-        
-        <div id="serverAdvanced-${serverId}" class="advanced-section">
-            <div class="form-group">
-                <label for="serverArgs-${serverId}">Arguments:</label>
-                <input type="text" id="serverArgs-${serverId}" value="run, -i, --rm, mcp/time" placeholder="Comma-separated list" />
-                <span class="field-description">Command arguments as a comma-separated list</span>
-            </div>
 
-            <div class="form-group">
-                <label for="serverEnv-${serverId}">Environment:</label>
-                <input type="text" id="serverEnv-${serverId}" value="NODE_ENV=production" placeholder="KEY=VALUE format, comma-separated" />
-                <span class="field-description">Environment variables in KEY=VALUE format, comma-separated</span>
-            </div>
+        <div class="form-group">
+            <label for="serverEnv-${serverId}">Environment:</label>
+            <input type="text" id="serverEnv-${serverId}" value="NODE_ENV=production" placeholder="KEY=VALUE format, comma-separated" />
+            <span class="field-description">Environment variables in KEY=VALUE format, comma-separated</span>
         </div>
 
         <button class="remove-server-btn" onclick="removeServer('server-${serverId}')">
