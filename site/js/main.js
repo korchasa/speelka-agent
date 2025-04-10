@@ -289,11 +289,11 @@ function generateConfigObject() {
     const llmModel = document.getElementById('llmModel').value;
     const llmMaxTokens = parseInt(document.getElementById('llmMaxTokens').value);
     const llmTemperature = parseFloat(document.getElementById('llmTemperature').value);
-    const llmPromptTemplate = document.getElementById('llmPromptTemplate').value;
-    const llmRetryMaxRetries = parseInt(document.getElementById('llmRetryMaxRetries').value);
-    const llmRetryInitialBackoff = parseFloat(document.getElementById('llmRetryInitialBackoff').value);
-    const llmRetryMaxBackoff = parseFloat(document.getElementById('llmRetryMaxBackoff').value);
-    const llmRetryBackoffMultiplier = parseFloat(document.getElementById('llmRetryBackoffMultiplier').value);
+    const llmPromptTemplate = document.getElementById('promptTemplate').value;
+    const llmRetryMaxRetries = parseInt(document.getElementById('maxRetries').value);
+    const llmRetryInitialBackoff = parseFloat(document.getElementById('initialBackoff').value);
+    const llmRetryMaxBackoff = parseFloat(document.getElementById('maxBackoff').value);
+    const llmRetryBackoffMultiplier = parseFloat(document.getElementById('backoffMultiplier').value);
 
     // Connections section
     const mcpServers = {};
@@ -402,7 +402,12 @@ function updateExampleConfigurations(config) {
 
     // For display in the generated config section, keep the formatted version
     const prettyConfigJson = JSON.stringify(config, null, 2);
-    document.getElementById('generatedConfig').textContent = prettyConfigJson;
+    const generatedConfigEl = document.getElementById('generatedConfig');
+    if (generatedConfigEl) {
+        generatedConfigEl.textContent = prettyConfigJson;
+    } else {
+        console.error('Element with ID generatedConfig not found');
+    }
 
     // Generate environment variables from the configuration
     let envVars = [];
@@ -727,10 +732,10 @@ function applyConfigToForm(config) {
 
                 // Retry settings
                 if (config.agent.llm.retry) {
-                    setValue('llmRetryMaxRetries', config.agent.llm.retry.max_retries);
-                    setValue('llmRetryInitialBackoff', config.agent.llm.retry.initial_backoff);
-                    setValue('llmRetryMaxBackoff', config.agent.llm.retry.max_backoff);
-                    setValue('llmRetryBackoffMultiplier', config.agent.llm.retry.backoff_multiplier);
+                    setValue('maxRetries', config.agent.llm.retry.max_retries);
+                    setValue('initialBackoff', config.agent.llm.retry.initial_backoff);
+                    setValue('maxBackoff', config.agent.llm.retry.max_backoff);
+                    setValue('backoffMultiplier', config.agent.llm.retry.backoff_multiplier);
                 }
             }
 
