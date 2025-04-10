@@ -2,6 +2,17 @@
 
 Speelka Agent is a universal LLM agent based on the Model Context Protocol (MCP), providing tool execution capabilities through a Go-based implementation.
 
+```mermaid
+flowchart TB
+    User["Any MCP Client"] --> |"1. Request"| Agent["Speelka Agent"]
+    Agent --> |"2. Format prompt"| LLM["LLM Service"]
+    LLM --> |"3. Tool calls"| Agent
+    Agent --> |"4. Execute tools"| Tools["External MCP Tools"]
+    Tools --> |"5. Return results"| Agent
+    Agent --> |"6. Process repeat"| LLM
+    Agent --> |"7. Final answer"| User
+```
+
 ## Key Advantages
 
 - **Precise Agent Definition**: Enables detailed agent behavior definition through prompt engineering
@@ -154,6 +165,10 @@ export MCPS_0_ENV_NODE_ENV="production"
 ```bash
 go test ./...
 ```
+
+### Useful links
+
+- [JSON Escape Online Tool](https://www.devtoolsdaily.com/json/escape/)
 
 ## License
 
