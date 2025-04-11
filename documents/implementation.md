@@ -476,3 +476,94 @@ if s.config.TemperatureIsSet {
 - Provides more predictable behavior by respecting user configuration only when intended
 - Reduces chances of unintentionally overriding model behavior
 - Simplifies configuration by requiring fewer explicit settings
+
+## MCPLogger Implementation
+
+The MCPLogger component provides a bridge between the logrus logging library and the MCP (Model Context Protocol) logging capabilities.
+
+### Implementation Details
+
+1. **Package Location:** `internal/mcplogger/`
+2. **Main Files:**
+   - `mcplogger.go` - Core implementation
+   - `mcplogger_test.go` - Test suite
+
+### Core Features
+
+#### Level Mapping
+
+The implementation maps between logrus and MCP logging levels:
+
+| Logrus Level | MCP Level |
+|--------------|-----------|
+| TraceLevel   | debug     |
+| DebugLevel   | debug     |
+| InfoLevel    | info      |
+| WarnLevel    | warning   |
+| ErrorLevel   | error     |
+| FatalLevel   | critical  |
+| PanicLevel   | alert     |
+
+#### MCP Integration
+
+1. **Notification Format:**
+   ```json
+   {
+     "level": "info",
+     "message": "Log message text",
+     "data": {  // Optional field data if present
+       "key1": "value1",
+       "key2": "value2"
+     }
+   }
+   ```
+
+2. **Level Setting Tool:**
+   - Tool Name: `logging/setLevel`
+   - Parameters: `level` (string) - One of: debug, info, notice, warning, error, critical, alert, emergency
+
+### Integration Guide
+
+To integrate MCPLogger into a component:
+
+1. **Import the Package:**
+   ```go
+   import "github.com/korchasa/speelka-agent-go/internal/mcplogger"
+   ```
+
+2. **Create and Configure the Logger:**
+   ```go
+   // Create a standard logrus logger (or use an existing one)
+   logrusLogger := logrus.New()
+
+   // Configure it as needed
+   logrusLogger.SetLevel(logrus.InfoLevel)
+   logrusLogger.SetFormatter(&logrus.TextFormatter{})
+
+   // Wrap it with MCPLogger
+   mcpLogger := mcplogger.NewMCPLogger(logrusLogger, mcpServer)
+   ```
+
+3. **Use in Place of Regular Logrus:**
+   ```go
+   // Instead of logrus.Info()
+   mcpLogger.Info("Application started")
+
+   // Instead of logrus.WithField().Error()
+   mcpLogger.WithField("userId", "123").Error("Authentication failed")
+   ```
+
+### Testing
+
+The MCPLogger implementation includes comprehensive tests covering:
+
+1. Basic logger creation and configuration
+2. Logging at different levels
+3. Structured logging with fields
+4. Level setting and conversion
+5. MCP level mapping
+
+The test suite can be run with:
+```
+go test ./internal/mcplogger
+```

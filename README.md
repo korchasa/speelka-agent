@@ -22,6 +22,7 @@ flowchart TB
 - **Integration Options**: Supports multiple integration methods including MCP stdio, MCP HTTP* and Simple HTTP API* (*planned)
 - **Reliability**: Includes built-in retry mechanisms for handling transient failures
 - **Extensibility**: Supports system behavior extensions without requiring client-side changes
+- **MCP-Aware Logging**: Integrates structured logging with MCP notifications for improved client monitoring
 
 ## Architecture
 
@@ -33,6 +34,7 @@ Speelka Agent uses a clean architecture approach with the following key componen
 - **MCP Server**: Exposes the agent functionality to clients
 - **MCP Connector**: Connects to external MCP servers to execute tools
 - **Chat**: Manages the conversation history and formatting
+- **MCPLogger**: Provides a wrapper around logrus that implements MCP logging protocol while maintaining familiar logging interface
 
 ## Getting Started
 
