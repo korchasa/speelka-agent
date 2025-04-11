@@ -63,6 +63,46 @@ Speelka Agent = Universal LLM agent using Model Context Protocol (MCP). Modular,
 - Provides conversation context for LLM requests
 - Tracks tool calls and results
 
+## MCPLogger Component
+
+The `mcplogger` package provides a wrapper around the logrus logging library that implements MCP (Model Context Protocol) logging capabilities while maintaining the familiar logrus interface.
+
+### Design Goals
+
+1. **Dual Functionality:** The MCPLogger simultaneously supports standard logrus logging and MCP protocol-based logging to clients.
+2. **Minimal Interface:** Implements only the subset of logrus methods actually used in the application.
+3. **Backwards Compatibility:** Provides a drop-in replacement for existing logrus usage.
+4. **Level Mapping:** Maps between logrus logging levels and MCP protocol levels.
+
+### Key Components
+
+1. **MCPLogger Interface:** Defines the core logging methods supported by our wrapper.
+2. **MCPLogrus Struct:** Main implementation that wraps a logrus.Logger instance and adds MCP capabilities.
+3. **MCPLogEntry Struct:** Wrapper around logrus.Entry to support structured logging with MCP notification support.
+
+### Integration with MCP
+
+The logger integrates with MCP in two ways:
+
+1. **Logging Notifications:** Sends "notifications/message" notifications to connected clients with log data.
+2. **Level Setting API:** Provides a "logging/setLevel" tool that clients can use to adjust the minimum log level.
+
+### Usage Example
+
+```go
+// Create a standard logrus logger
+logrusLogger := logrus.New()
+
+// Wrap it with MCPLogger
+mcpLogger := mcplogger.NewMCPLogger(logrusLogger, mcpServer)
+
+// Use it like regular logrus
+mcpLogger.Info("This is an info message")
+mcpLogger.WithField("key", "value").Error("This is an error with context")
+```
+
+This provides all the standard logrus logging capabilities while automatically sending appropriate notifications to MCP clients.
+
 ## Data Flow
 1. User request → MCP Server
 2. Agent processes request, initializes Chat session
@@ -110,23 +150,23 @@ Speelka Agent = Universal LLM agent using Model Context Protocol (MCP). Modular,
 Example:
 ```bash
 # Agent settings
-export AGENT_NAME="speelka-agent"
-export AGENT_VERSION="1.0.0"
+export SPL_AGENT_NAME="speelka-agent"
+export SPL_AGENT_VERSION="1.0.0"
 
 # Tool settings
-export TOOL_NAME="process"
-export TOOL_DESCRIPTION="Process tool for handling user queries with LLM"
-export TOOL_ARGUMENT_NAME="query"
-export TOOL_ARGUMENT_DESCRIPTION="The user query to process"
+export SPL_TOOL_NAME="process"
+export SPL_TOOL_DESCRIPTION="Process tool for handling user queries with LLM"
+export SPL_TOOL_ARGUMENT_NAME="query"
+export SPL_TOOL_ARGUMENT_DESCRIPTION="The user query to process"
 
 # LLM settings
-export LLM_PROVIDER="openai"
-export LLM_MODEL="gpt-4o"
+export SPL_LLM_PROVIDER="openai"
+export SPL_LLM_MODEL="gpt-4o"
 
 # MCP servers
-export MCPS_0_ID="time"
-export MCPS_0_COMMAND="docker"
-export MCPS_0_ARGS="run -i --rm mcp/time"
+export SPL_MCPS_0_ID="time"
+export SPL_MCPS_0_COMMAND="docker"
+export SPL_MCPS_0_ARGS="run -i --rm mcp/time"
 ```
 
 ## External Dependencies

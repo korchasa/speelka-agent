@@ -116,6 +116,8 @@ type LLMConfig struct {
     Temperature float64
     PromptTemplate string
     RetryConfig RetryConfig
+    TemperatureIsSet bool
+    MaxTokensIsSet bool
 }
 ```
 
@@ -171,22 +173,22 @@ type RetryConfig struct {
 
 ```bash
 # Agent
-export AGENT_NAME="architect-speelka-agent"
-export AGENT_VERSION="1.0.0"
+export SPL_AGENT_NAME="architect-speelka-agent"
+export SPL_AGENT_VERSION="1.0.0"
 
 # Tool
-export TOOL_NAME="architect"
-export TOOL_DESCRIPTION="Architecture design and assessment tool"
-export TOOL_ARGUMENT_NAME="query"
-export TOOL_ARGUMENT_DESCRIPTION="Architecture query or task to process"
+export SPL_TOOL_NAME="architect"
+export SPL_TOOL_DESCRIPTION="Architecture design and assessment tool"
+export SPL_TOOL_ARGUMENT_NAME="query"
+export SPL_TOOL_ARGUMENT_DESCRIPTION="Architecture query or task to process"
 
 # LLM
-export LLM_PROVIDER="openai"
-export LLM_API_KEY="your_api_key_here"
-export LLM_MODEL="gpt-4o"
-export LLM_MAX_TOKENS=0
-export LLM_TEMPERATURE=0.2
-export LLM_PROMPT_TEMPLATE="# ROLE
+export SPL_LLM_PROVIDER="openai"
+export SPL_LLM_API_KEY="your_api_key_here"
+export SPL_LLM_MODEL="gpt-4o"
+export SPL_LLM_MAX_TOKENS=0
+export SPL_LLM_TEMPERATURE=0.2
+export SPL_LLM_PROMPT_TEMPLATE="# ROLE
 You are a Senior Software Architect...
 # User query
 {{query}}
@@ -194,51 +196,51 @@ You are a Senior Software Architect...
 {{tools}}"
 
 # LLM Retry Config
-export LLM_RETRY_MAX_RETRIES=3
-export LLM_RETRY_INITIAL_BACKOFF=1.0
-export LLM_RETRY_MAX_BACKOFF=30.0
-export LLM_RETRY_BACKOFF_MULTIPLIER=2.0
+export SPL_LLM_RETRY_MAX_RETRIES=3
+export SPL_LLM_RETRY_INITIAL_BACKOFF=1.0
+export SPL_LLM_RETRY_MAX_BACKOFF=30.0
+export SPL_LLM_RETRY_BACKOFF_MULTIPLIER=2.0
 
 # MCP Servers (indexed: MCPS_0, MCPS_1, etc.)
-export MCPS_0_ID="time"
-export MCPS_0_COMMAND="docker"
-export MCPS_0_ARGS="run -i --rm mcp/time"
+export SPL_MCPS_0_ID="time"
+export SPL_MCPS_0_COMMAND="docker"
+export SPL_MCPS_0_ARGS="run -i --rm mcp/time"
 
-export MCPS_1_ID="mcp-filesystem-server"
-export MCPS_1_COMMAND="mcp-filesystem-server"
-export MCPS_1_ARGS="."
+export SPL_MCPS_1_ID="mcp-filesystem-server"
+export SPL_MCPS_1_COMMAND="mcp-filesystem-server"
+export SPL_MCPS_1_ARGS="."
 
 # MSPS Retry
-export MSPS_RETRY_MAX_RETRIES=3
-export MSPS_RETRY_INITIAL_BACKOFF=1.0
-export MSPS_RETRY_MAX_BACKOFF=30.0
-export MSPS_RETRY_BACKOFF_MULTIPLIER=2.0
+export SPL_MSPS_RETRY_MAX_RETRIES=3
+export SPL_MSPS_RETRY_INITIAL_BACKOFF=1.0
+export SPL_MSPS_RETRY_MAX_BACKOFF=30.0
+export SPL_MSPS_RETRY_BACKOFF_MULTIPLIER=2.0
 
 # Runtime
-export RUNTIME_LOG_LEVEL="debug"
-export RUNTIME_LOG_OUTPUT="./architect.log"
-export RUNTIME_STDIO_ENABLED=true
-export RUNTIME_STDIO_BUFFER_SIZE=8192
-export RUNTIME_HTTP_ENABLED=false
-export RUNTIME_HTTP_HOST="localhost"
-export RUNTIME_HTTP_PORT=3000
+export SPL_RUNTIME_LOG_LEVEL="debug"
+export SPL_RUNTIME_LOG_OUTPUT="./architect.log"
+export SPL_RUNTIME_STDIO_ENABLED=true
+export SPL_RUNTIME_STDIO_BUFFER_SIZE=8192
+export SPL_RUNTIME_HTTP_ENABLED=false
+export SPL_RUNTIME_HTTP_HOST="localhost"
+export SPL_RUNTIME_HTTP_PORT=3000
 ```
 
 #### Required Env Vars
-- `AGENT_NAME`: Agent name
-- `TOOL_NAME`: Tool name
-- `TOOL_DESCRIPTION`: Tool description
-- `TOOL_ARGUMENT_NAME`: Tool argument name
-- `TOOL_ARGUMENT_DESCRIPTION`: Tool argument description
-- `LLM_PROVIDER`: LLM provider ("openai")
-- `LLM_MODEL`: Model name ("gpt-4o")
-- `LLM_PROMPT_TEMPLATE`: System prompt template (must include placeholder matching the `TOOL_ARGUMENT_NAME` value and `{{tools}}`)
+- `SPL_AGENT_NAME`: Agent name
+- `SPL_TOOL_NAME`: Tool name
+- `SPL_TOOL_DESCRIPTION`: Tool description
+- `SPL_TOOL_ARGUMENT_NAME`: Tool argument name
+- `SPL_TOOL_ARGUMENT_DESCRIPTION`: Tool argument description
+- `SPL_LLM_PROVIDER`: LLM provider ("openai")
+- `SPL_LLM_MODEL`: Model name ("gpt-4o")
+- `SPL_LLM_PROMPT_TEMPLATE`: System prompt template (must include placeholder matching the `SPL_TOOL_ARGUMENT_NAME` value and `{{tools}}`)
 
 #### MCP Servers Config Format
 ```
-MCPS_<index>_ID="server-id"
-MCPS_<index>_COMMAND="command"
-MCPS_<index>_ARGS="arg1 arg2 arg3"
+SPL_MCPS_<index>_ID="server-id"
+SPL_MCPS_<index>_COMMAND="command"
+SPL_MCPS_<index>_ARGS="arg1 arg2 arg3"
 ```
 - `<index>`: 0-based index for each server
 - `ID`: Key in MCP servers map
@@ -423,3 +425,171 @@ log.SetFormatter(utils.NewCustomLogFormatter())
 ```
 
 **Impact:** Prevents application crash on startup when encountering errors early in the initialization process.
+
+### Conditional LLM Parameters
+An optimization was made to only include `temperature` and `maxTokens` parameters in LLM requests when explicitly set by the user.
+
+**Problem:** The LLM service was always including `temperature` and `maxTokens` parameters in requests regardless of whether they were explicitly configured, potentially overriding model defaults unnecessarily.
+
+**Root cause:** The LLM service lacked a mechanism to track whether parameters were explicitly set by the user or just using default values.
+
+**Solution:**
+- Added tracking flags in `LLMConfig` to record whether `Temperature` and `MaxTokens` were explicitly set
+- Modified `loadFromEnvironment` in configuration manager to set these flags when environment variables are present
+- Updated the `SendRequest` method to conditionally include parameters in requests only when explicitly configured
+
+**Implementation:**
+```go
+// In internal/types/llm_service_spec.go - Added flags to track explicit settings
+type LLMConfig struct {
+    // ... existing fields ...
+    MaxTokens int
+    Temperature float64
+    TemperatureIsSet bool // New flag
+    MaxTokensIsSet bool   // New flag
+    // ... existing fields ...
+}
+
+// In internal/configuration/manager.go - Check for environment variables
+if maxTokensStr := os.Getenv("LLM_MAX_TOKENS"); maxTokensStr != "" {
+    maxTokens, err := strconv.Atoi(maxTokensStr)
+    if err != nil {
+        return fmt.Errorf("invalid LLM_MAX_TOKENS: %v", err)
+    }
+    config.MaxTokens = maxTokens
+    config.MaxTokensIsSet = true // Set flag when explicitly configured
+}
+
+// In internal/llm_service/llm_service.go - Conditionally include parameters
+if s.config.MaxTokensIsSet {
+    // Include MaxTokens in request only if explicitly set
+    requestBody["max_tokens"] = s.config.MaxTokens
+}
+if s.config.TemperatureIsSet {
+    // Include Temperature in request only if explicitly set
+    requestBody["temperature"] = s.config.Temperature
+}
+```
+
+**Impact:**
+- Ensures model defaults are used when parameters aren't explicitly configured
+- Provides more predictable behavior by respecting user configuration only when intended
+- Reduces chances of unintentionally overriding model behavior
+- Simplifies configuration by requiring fewer explicit settings
+
+## MCPLogger Implementation
+
+The MCPLogger component provides a bridge between the logrus logging library and the MCP (Model Context Protocol) logging capabilities.
+
+### Implementation Details
+
+1. **Package Location:** `internal/mcplogger/`
+2. **Main Files:**
+   - `mcplogger.go` - Core implementation
+   - `mcplogger_test.go` - Test suite
+
+### Core Features
+
+#### Level Mapping
+
+The implementation maps between logrus and MCP logging levels:
+
+| Logrus Level | MCP Level |
+|--------------|-----------|
+| TraceLevel   | debug     |
+| DebugLevel   | debug     |
+| InfoLevel    | info      |
+| WarnLevel    | warning   |
+| ErrorLevel   | error     |
+| FatalLevel   | critical  |
+| PanicLevel   | alert     |
+
+#### MCP Integration
+
+1. **Notification Format:**
+   ```json
+   {
+     "level": "info",
+     "message": "Log message text",
+     "data": {  // Optional field data if present
+       "key1": "value1",
+       "key2": "value2"
+     }
+   }
+   ```
+
+2. **Level Setting Tool:**
+   - Tool Name: `logging/setLevel`
+   - Parameters: `level` (string) - One of: debug, info, notice, warning, error, critical, alert, emergency
+
+### Integration Guide
+
+To integrate MCPLogger into a component:
+
+1. **Import the Package:**
+   ```go
+   import "github.com/korchasa/speelka-agent-go/internal/mcplogger"
+   ```
+
+2. **Create and Configure the Logger:**
+   ```go
+   // Create a standard logrus logger (or use an existing one)
+   logrusLogger := logrus.New()
+
+   // Configure it as needed
+   logrusLogger.SetLevel(logrus.InfoLevel)
+   logrusLogger.SetFormatter(&logrus.TextFormatter{})
+
+   // Wrap it with MCPLogger
+   mcpLogger := mcplogger.NewMCPLogger(logrusLogger, mcpServer)
+   ```
+
+3. **Use in Place of Regular Logrus:**
+   ```go
+   // Instead of logrus.Info()
+   mcpLogger.Info("Application started")
+
+   // Instead of logrus.WithField().Error()
+   mcpLogger.WithField("userId", "123").Error("Authentication failed")
+   ```
+
+### Testing
+
+The MCPLogger implementation includes comprehensive tests covering:
+
+1. Basic logger creation and configuration
+2. Logging at different levels
+3. Structured logging with fields
+4. Level setting and conversion
+5. MCP level mapping
+
+The test suite can be run with:
+```
+go test ./internal/mcplogger
+```
+
+### Run Script Commands
+
+The `run` script provides various commands to build, test, and interact with the Speelka agent:
+
+#### Development Commands
+- `./run dev`: Run the application in development mode
+- `./run build`: Build the project
+- `./run test`: Run all tests with coverage information
+- `./run lint`: Run code linting
+- `./run check`: Run all checks in project (test, lint, build, and acceptance tests)
+
+#### Interaction Commands
+- `./run call`: Test agent with a simple "What time is it now?" request
+- `./run complex-call`: Test agent with a more complex request about finding the oldest file
+- `./run call-news`: Test the AI news agent with "What is the latest news in AI?" request
+- `./run fetch_url <url>`: Fetch a URL using MCP
+
+#### Inspection Command
+- `./run inspect`: Inspect the project using the MCP inspector
+  - Automatically collects all environment variables with the `SPL_` prefix
+  - Uses Bash arrays to properly handle environment variables with special characters
+  - Passes them to the inspector using the `-e KEY=value` format
+  - Example: `npx @modelcontextprotocol/inspector -e SPL_AGENT_NAME=simple-speelka-agent -e SPL_TOOL_NAME=process ... -- go run -race ./cmd/server/main.go`
+  - Implementation uses array expansion with `"${env_vars[@]}"` to maintain argument integrity
+  - This ensures all agent configuration is properly passed to the inspector regardless of special characters
