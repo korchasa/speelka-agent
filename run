@@ -125,6 +125,7 @@ case $CMD in
             # Source environment variables from the simple.env file
             source examples/simple.env
             check_command "mcp"
+            mcp tools go run -race ./cmd/server/main.go
             mcp call process --params '{"input": "What time is it now?"}' go run -race ./cmd/server/main.go
         )
         ;;
@@ -135,6 +136,7 @@ case $CMD in
             # Source environment variables from the simple.env file
             source examples/simple.env
             check_command "mcp"
+            mcp tools go run -race ./cmd/server/main.go
             mcp call process --params '{"input": "What is in the oldest file in the directory, including all nested directories? Show only 10 first lines of the file."}' go run -race ./cmd/server/main.go
         )
         ;;
@@ -155,7 +157,20 @@ case $CMD in
             load_env
             check_command "npx"
             source examples/simple.env
-            npx @modelcontextprotocol/inspector go run -race ./cmd/server/main.go
+
+            # Collect all SPL_ environment variables
+            env_vars=()
+            while IFS='=' read -r key value; do
+                if [[ $key == SPL_* ]]; then
+                    # Replace newlines with a special character sequence that can be passed on command line
+                    escaped_value=$(echo "$value" | tr '\n' '\n')
+                    env_vars+=("-e")
+                    env_vars+=("$key=$escaped_value")
+                fi
+            done < <(env | grep "^SPL_")
+
+            # Run inspector with all SPL_ environment variables
+            npx @modelcontextprotocol/inspector "${env_vars[@]}" -- go run -race ./cmd/server/main.go
         )
         ;;
     check)

@@ -14,6 +14,7 @@ import (
 
 	"github.com/korchasa/speelka-agent-go/internal/agent"
 	"github.com/korchasa/speelka-agent-go/internal/configuration"
+	mcplogger "github.com/korchasa/speelka-agent-go/internal/logger"
 	"github.com/korchasa/speelka-agent-go/internal/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -21,7 +22,7 @@ import (
 // Global logger instance
 // Responsibility: Providing access to the logger from anywhere in the program
 // Features: Initialized at the start and used throughout the application
-var log *logrus.Logger
+var log *mcplogger.Logger
 
 // Command line parameters
 // Responsibility: Determine the server operating mode
@@ -50,13 +51,15 @@ func panicHandler() {
 // Responsibility: Starting the server and handling termination
 // Features: Sets up signal handling for graceful shutdown
 func main() {
-	// Initialize logger with default configuration
-	log = logrus.New()
-	log.SetLevel(logrus.InfoLevel)
-	log.SetOutput(os.Stderr)
-
 	// Parse command line parameters
 	flag.Parse()
+
+	// Create MCPLogger with internal configuration
+	log = mcplogger.NewLogger()
+	log.SetFormatter(utils.NewCustomLogFormatter())
+
+	// Set up panic handler
+	defer panicHandler()
 
 	// Create base context for the application
 	ctx, cancel := context.WithCancel(context.Background())
@@ -73,8 +76,8 @@ func main() {
 
 	// Start the server and handle errors
 	if err := run(ctx); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		_, _ = fmt.Fprintf(os.Stdout, "FATAL ERROR: %v\n", err)
+		log.Fatalf("Main application failed: %v", err)
 	}
 }
 
@@ -83,28 +86,12 @@ func main() {
 // Features: Sequentially initializes all necessary components
 // and launches the server in the required mode
 func run(ctx context.Context) error {
-	// Configure logger based on mode
-	if *daemonMode {
-		log.SetLevel(logrus.DebugLevel)
-		log.SetOutput(os.Stdout)
-	} else {
-		log.SetLevel(logrus.DebugLevel)
-		log.SetOutput(os.Stderr)
-	}
-	log.SetReportCaller(true)
-	log.SetFormatter(utils.NewCustomLogFormatter())
-	log.Info("Logger initialized with default configuration")
-
-	// Set up panic handler
-	defer panicHandler()
-
 	// Load configuration from environment variables
 	configManager := configuration.NewConfigurationManager(log)
 	err := configManager.LoadConfiguration(ctx)
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
-	log.Info("Configuration loaded successfully from environment variables")
 
 	// Reconfigure the logger with parameters from configuration
 	logConfig := configManager.GetLogConfig()
@@ -117,9 +104,17 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create agent: %w", err)
 	}
+
+	// Start the agent
 	err = agentApp.Start(*daemonMode, ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start agent: %w", err)
 	}
+
+	// Get the MCP server from agent and set it in our logger
+	mcpServer := agentApp.GetMCPServer()
+	log.SetMCPServer(mcpServer)
+	log.Info("MCP server attached to logger")
+
 	return nil
 }

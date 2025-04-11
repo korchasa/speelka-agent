@@ -150,23 +150,23 @@ This provides all the standard logrus logging capabilities while automatically s
 Example:
 ```bash
 # Agent settings
-export AGENT_NAME="speelka-agent"
-export AGENT_VERSION="1.0.0"
+export SPL_AGENT_NAME="speelka-agent"
+export SPL_AGENT_VERSION="1.0.0"
 
 # Tool settings
-export TOOL_NAME="process"
-export TOOL_DESCRIPTION="Process tool for handling user queries with LLM"
-export TOOL_ARGUMENT_NAME="query"
-export TOOL_ARGUMENT_DESCRIPTION="The user query to process"
+export SPL_TOOL_NAME="process"
+export SPL_TOOL_DESCRIPTION="Process tool for handling user queries with LLM"
+export SPL_TOOL_ARGUMENT_NAME="query"
+export SPL_TOOL_ARGUMENT_DESCRIPTION="The user query to process"
 
 # LLM settings
-export LLM_PROVIDER="openai"
-export LLM_MODEL="gpt-4o"
+export SPL_LLM_PROVIDER="openai"
+export SPL_LLM_MODEL="gpt-4o"
 
 # MCP servers
-export MCPS_0_ID="time"
-export MCPS_0_COMMAND="docker"
-export MCPS_0_ARGS="run -i --rm mcp/time"
+export SPL_MCPS_0_ID="time"
+export SPL_MCPS_0_COMMAND="docker"
+export SPL_MCPS_0_ARGS="run -i --rm mcp/time"
 ```
 
 ## External Dependencies

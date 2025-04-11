@@ -31,10 +31,11 @@ RUN chmod +x /app/speelka-agent
 
 # Configuration is provided through environment variables
 # Examples:
-# - AGENT_NAME, AGENT_VERSION
-# - TOOL_NAME, TOOL_DESCRIPTION
-# - LLM_PROVIDER, LLM_MODEL, LLM_API_KEY
-# - See examples directory for complete configuration examples
+# - SPL_AGENT_NAME, SPL_AGENT_VERSION
+# - SPL_TOOL_NAME, SPL_TOOL_DESCRIPTION
+# - SPL_LLM_PROVIDER, SPL_LLM_MODEL, SPL_LLM_API_KEY
+# - SPL_RUNTIME_LOG_LEVEL, SPL_RUNTIME_LOG_OUTPUT, SPL_RUNTIME_STDIO_ENABLED, SPL_RUNTIME_STDIO_BUFFER_SIZE
+# - See README.md for complete configuration options
 
 # Expose port for HTTP mode
 EXPOSE 3000

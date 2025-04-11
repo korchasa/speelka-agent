@@ -54,49 +54,51 @@ go build ./cmd/speelka-agent
 
 ### Configuration
 
-Configuration is provided through environment variables:
+Configuration is provided through environment variables. All environment variables are prefixed with `SPL_`:
 
 | Environment Variable | Default Value | Description |
 |---------------------|---------------|-------------|
 | **Agent Configuration** | | |
-| `AGENT_NAME` | *Required* | Name of the agent |
-| `AGENT_VERSION` | "1.0.0" | Version of the agent |
+| `SPL_AGENT_NAME` | *Required* | Name of the agent |
+| `SPL_AGENT_VERSION` | "1.0.0" | Version of the agent |
 | **Tool Configuration** | | |
-| `TOOL_NAME` | *Required* | Name of the tool provided by the agent |
-| `TOOL_DESCRIPTION` | *Required* | Description of the tool functionality |
-| `TOOL_ARGUMENT_NAME` | *Required* | Name of the argument for the tool |
-| `TOOL_ARGUMENT_DESCRIPTION` | *Required* | Description of the argument for the tool |
+| `SPL_TOOL_NAME` | *Required* | Name of the tool provided by the agent |
+| `SPL_TOOL_DESCRIPTION` | *Required* | Description of the tool functionality |
+| `SPL_TOOL_ARGUMENT_NAME` | *Required* | Name of the argument for the tool |
+| `SPL_TOOL_ARGUMENT_DESCRIPTION` | *Required* | Description of the argument for the tool |
 | **LLM Configuration** | | |
-| `LLM_PROVIDER` | *Required* | Provider of LLM service (e.g., "openai", "anthropic") |
-| `LLM_API_KEY` | *Required* | API key for the LLM provider |
-| `LLM_MODEL` | *Required* | Model name (e.g., "gpt-4o", "claude-3-opus-20240229") |
-| `LLM_MAX_TOKENS` | 0 | Maximum tokens to generate (0 means no limit) |
-| `LLM_TEMPERATURE` | 0.7 | Temperature parameter for randomness in generation |
-| `LLM_PROMPT_TEMPLATE` | *Required* | Template for system prompts (must include placeholder matching the `TOOL_ARGUMENT_NAME` value and `{{tools}}`) |
+| `SPL_LLM_PROVIDER` | *Required* | Provider of LLM service (e.g., "openai", "anthropic") |
+| `SPL_LLM_API_KEY` | *Required* | API key for the LLM provider |
+| `SPL_LLM_MODEL` | *Required* | Model name (e.g., "gpt-4o", "claude-3-opus-20240229") |
+| `SPL_LLM_MAX_TOKENS` | 0 | Maximum tokens to generate (0 means no limit) |
+| `SPL_LLM_TEMPERATURE` | 0.7 | Temperature parameter for randomness in generation |
+| `SPL_LLM_PROMPT_TEMPLATE` | *Required* | Template for system prompts (must include placeholder matching the `SPL_TOOL_ARGUMENT_NAME` value and `{{tools}}`) |
 | **LLM Retry Configuration** | | |
-| `LLM_RETRY_MAX_RETRIES` | 3 | Maximum number of retry attempts for LLM API calls |
-| `LLM_RETRY_INITIAL_BACKOFF` | 1.0 | Initial backoff time in seconds |
-| `LLM_RETRY_MAX_BACKOFF` | 30.0 | Maximum backoff time in seconds |
-| `LLM_RETRY_BACKOFF_MULTIPLIER` | 2.0 | Multiplier for increasing backoff time |
+| `SPL_LLM_RETRY_MAX_RETRIES` | 3 | Maximum number of retry attempts for LLM API calls |
+| `SPL_LLM_RETRY_INITIAL_BACKOFF` | 1.0 | Initial backoff time in seconds |
+| `SPL_LLM_RETRY_MAX_BACKOFF` | 30.0 | Maximum backoff time in seconds |
+| `SPL_LLM_RETRY_BACKOFF_MULTIPLIER` | 2.0 | Multiplier for increasing backoff time |
 | **MCP Servers Configuration** | | |
-| `MCPS_0_ID` | "" | Identifier for the first MCP server |
-| `MCPS_0_COMMAND` | "" | Command to execute for the first server |
-| `MCPS_0_ARGS` | "" | Command arguments as space-separated string |
-| `MCPS_0_ENV_*` | "" | Environment variables for the server (prefix with `MCPS_0_ENV_`) |
-| `MCPS_1_ID`, etc. | "" | Configuration for additional servers (increment index) |
+| `SPL_MCPS_0_ID` | "" | Identifier for the first MCP server |
+| `SPL_MCPS_0_COMMAND` | "" | Command to execute for the first server |
+| `SPL_MCPS_0_ARGS` | "" | Command arguments as space-separated string |
+| `SPL_MCPS_0_ENV_*` | "" | Environment variables for the server (prefix with `SPL_MCPS_0_ENV_`) |
+| `SPL_MCPS_1_ID`, etc. | "" | Configuration for additional servers (increment index) |
 | **MCP Retry Configuration** | | |
-| `MSPS_RETRY_MAX_RETRIES` | 3 | Maximum number of retry attempts for MCP server connections |
-| `MSPS_RETRY_INITIAL_BACKOFF` | 1.0 | Initial backoff time in seconds |
-| `MSPS_RETRY_MAX_BACKOFF` | 30.0 | Maximum backoff time in seconds |
-| `MSPS_RETRY_BACKOFF_MULTIPLIER` | 2.0 | Multiplier for increasing backoff time |
+| `SPL_MSPS_RETRY_MAX_RETRIES` | 3 | Maximum number of retry attempts for MCP server connections |
+| `SPL_MSPS_RETRY_INITIAL_BACKOFF` | 1.0 | Initial backoff time in seconds |
+| `SPL_MSPS_RETRY_MAX_BACKOFF` | 30.0 | Maximum backoff time in seconds |
+| `SPL_MSPS_RETRY_BACKOFF_MULTIPLIER` | 2.0 | Multiplier for increasing backoff time |
 | **Runtime Configuration** | | |
-| `RUNTIME_LOG_LEVEL` | "info" | Log level (debug, info, warn, error) |
-| `RUNTIME_LOG_OUTPUT` | "stderr" | Log output destination (stdout, stderr, file path) |
-| `RUNTIME_STDIO_ENABLED` | true | Enable stdin/stdout transport |
-| `RUNTIME_STDIO_BUFFER_SIZE` | 8192 | Buffer size for stdio transport |
-| `RUNTIME_HTTP_ENABLED` | false | Enable HTTP transport |
-| `RUNTIME_HTTP_HOST` | "localhost" | Host for HTTP server |
-| `RUNTIME_HTTP_PORT` | 3000 | Port for HTTP server |
+| `SPL_RUNTIME_LOG_LEVEL` | "info" | Log level (debug, info, warn, error) |
+| `SPL_RUNTIME_LOG_OUTPUT` | "stderr" | Log output destination (stdout, stderr, file path) |
+| `SPL_RUNTIME_STDIO_ENABLED` | true | Enable stdin/stdout transport |
+| `SPL_RUNTIME_STDIO_BUFFER_SIZE` | 8192 | Buffer size for stdio transport |
+| `SPL_RUNTIME_HTTP_ENABLED` | false | Enable HTTP transport |
+| `SPL_RUNTIME_HTTP_HOST` | "localhost" | Host for HTTP server |
+| `SPL_RUNTIME_HTTP_PORT` | 3000 | Port for HTTP server |
+
+> **Note**: For backward compatibility, the system also accepts environment variables without the `SPL_` prefix, but this behavior may be removed in future versions.
 
 Example configuration files are available in the `examples` directory:
 - `examples/simple.env`: Basic agent configuration
@@ -141,10 +143,10 @@ The agent can connect to external tools using the MCP protocol by configuring en
 
 ```bash
 # MCP server for Playwright
-export MCPS_0_ID="playwright"
-export MCPS_0_COMMAND="mcp-playwright"
-export MCPS_0_ARGS=""
-export MCPS_0_ENV_NODE_ENV="production"
+export SPL_MCPS_0_ID="playwright"
+export SPL_MCPS_0_COMMAND="mcp-playwright"
+export SPL_MCPS_0_ARGS=""
+export SPL_MCPS_0_ENV_NODE_ENV="production"
 ```
 
 ## Supported LLM Providers

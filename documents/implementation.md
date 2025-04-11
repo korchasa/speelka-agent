@@ -173,22 +173,22 @@ type RetryConfig struct {
 
 ```bash
 # Agent
-export AGENT_NAME="architect-speelka-agent"
-export AGENT_VERSION="1.0.0"
+export SPL_AGENT_NAME="architect-speelka-agent"
+export SPL_AGENT_VERSION="1.0.0"
 
 # Tool
-export TOOL_NAME="architect"
-export TOOL_DESCRIPTION="Architecture design and assessment tool"
-export TOOL_ARGUMENT_NAME="query"
-export TOOL_ARGUMENT_DESCRIPTION="Architecture query or task to process"
+export SPL_TOOL_NAME="architect"
+export SPL_TOOL_DESCRIPTION="Architecture design and assessment tool"
+export SPL_TOOL_ARGUMENT_NAME="query"
+export SPL_TOOL_ARGUMENT_DESCRIPTION="Architecture query or task to process"
 
 # LLM
-export LLM_PROVIDER="openai"
-export LLM_API_KEY="your_api_key_here"
-export LLM_MODEL="gpt-4o"
-export LLM_MAX_TOKENS=0
-export LLM_TEMPERATURE=0.2
-export LLM_PROMPT_TEMPLATE="# ROLE
+export SPL_LLM_PROVIDER="openai"
+export SPL_LLM_API_KEY="your_api_key_here"
+export SPL_LLM_MODEL="gpt-4o"
+export SPL_LLM_MAX_TOKENS=0
+export SPL_LLM_TEMPERATURE=0.2
+export SPL_LLM_PROMPT_TEMPLATE="# ROLE
 You are a Senior Software Architect...
 # User query
 {{query}}
@@ -196,51 +196,51 @@ You are a Senior Software Architect...
 {{tools}}"
 
 # LLM Retry Config
-export LLM_RETRY_MAX_RETRIES=3
-export LLM_RETRY_INITIAL_BACKOFF=1.0
-export LLM_RETRY_MAX_BACKOFF=30.0
-export LLM_RETRY_BACKOFF_MULTIPLIER=2.0
+export SPL_LLM_RETRY_MAX_RETRIES=3
+export SPL_LLM_RETRY_INITIAL_BACKOFF=1.0
+export SPL_LLM_RETRY_MAX_BACKOFF=30.0
+export SPL_LLM_RETRY_BACKOFF_MULTIPLIER=2.0
 
 # MCP Servers (indexed: MCPS_0, MCPS_1, etc.)
-export MCPS_0_ID="time"
-export MCPS_0_COMMAND="docker"
-export MCPS_0_ARGS="run -i --rm mcp/time"
+export SPL_MCPS_0_ID="time"
+export SPL_MCPS_0_COMMAND="docker"
+export SPL_MCPS_0_ARGS="run -i --rm mcp/time"
 
-export MCPS_1_ID="mcp-filesystem-server"
-export MCPS_1_COMMAND="mcp-filesystem-server"
-export MCPS_1_ARGS="."
+export SPL_MCPS_1_ID="mcp-filesystem-server"
+export SPL_MCPS_1_COMMAND="mcp-filesystem-server"
+export SPL_MCPS_1_ARGS="."
 
 # MSPS Retry
-export MSPS_RETRY_MAX_RETRIES=3
-export MSPS_RETRY_INITIAL_BACKOFF=1.0
-export MSPS_RETRY_MAX_BACKOFF=30.0
-export MSPS_RETRY_BACKOFF_MULTIPLIER=2.0
+export SPL_MSPS_RETRY_MAX_RETRIES=3
+export SPL_MSPS_RETRY_INITIAL_BACKOFF=1.0
+export SPL_MSPS_RETRY_MAX_BACKOFF=30.0
+export SPL_MSPS_RETRY_BACKOFF_MULTIPLIER=2.0
 
 # Runtime
-export RUNTIME_LOG_LEVEL="debug"
-export RUNTIME_LOG_OUTPUT="./architect.log"
-export RUNTIME_STDIO_ENABLED=true
-export RUNTIME_STDIO_BUFFER_SIZE=8192
-export RUNTIME_HTTP_ENABLED=false
-export RUNTIME_HTTP_HOST="localhost"
-export RUNTIME_HTTP_PORT=3000
+export SPL_RUNTIME_LOG_LEVEL="debug"
+export SPL_RUNTIME_LOG_OUTPUT="./architect.log"
+export SPL_RUNTIME_STDIO_ENABLED=true
+export SPL_RUNTIME_STDIO_BUFFER_SIZE=8192
+export SPL_RUNTIME_HTTP_ENABLED=false
+export SPL_RUNTIME_HTTP_HOST="localhost"
+export SPL_RUNTIME_HTTP_PORT=3000
 ```
 
 #### Required Env Vars
-- `AGENT_NAME`: Agent name
-- `TOOL_NAME`: Tool name
-- `TOOL_DESCRIPTION`: Tool description
-- `TOOL_ARGUMENT_NAME`: Tool argument name
-- `TOOL_ARGUMENT_DESCRIPTION`: Tool argument description
-- `LLM_PROVIDER`: LLM provider ("openai")
-- `LLM_MODEL`: Model name ("gpt-4o")
-- `LLM_PROMPT_TEMPLATE`: System prompt template (must include placeholder matching the `TOOL_ARGUMENT_NAME` value and `{{tools}}`)
+- `SPL_AGENT_NAME`: Agent name
+- `SPL_TOOL_NAME`: Tool name
+- `SPL_TOOL_DESCRIPTION`: Tool description
+- `SPL_TOOL_ARGUMENT_NAME`: Tool argument name
+- `SPL_TOOL_ARGUMENT_DESCRIPTION`: Tool argument description
+- `SPL_LLM_PROVIDER`: LLM provider ("openai")
+- `SPL_LLM_MODEL`: Model name ("gpt-4o")
+- `SPL_LLM_PROMPT_TEMPLATE`: System prompt template (must include placeholder matching the `SPL_TOOL_ARGUMENT_NAME` value and `{{tools}}`)
 
 #### MCP Servers Config Format
 ```
-MCPS_<index>_ID="server-id"
-MCPS_<index>_COMMAND="command"
-MCPS_<index>_ARGS="arg1 arg2 arg3"
+SPL_MCPS_<index>_ID="server-id"
+SPL_MCPS_<index>_COMMAND="command"
+SPL_MCPS_<index>_ARGS="arg1 arg2 arg3"
 ```
 - `<index>`: 0-based index for each server
 - `ID`: Key in MCP servers map
@@ -567,3 +567,29 @@ The test suite can be run with:
 ```
 go test ./internal/mcplogger
 ```
+
+### Run Script Commands
+
+The `run` script provides various commands to build, test, and interact with the Speelka agent:
+
+#### Development Commands
+- `./run dev`: Run the application in development mode
+- `./run build`: Build the project
+- `./run test`: Run all tests with coverage information
+- `./run lint`: Run code linting
+- `./run check`: Run all checks in project (test, lint, build, and acceptance tests)
+
+#### Interaction Commands
+- `./run call`: Test agent with a simple "What time is it now?" request
+- `./run complex-call`: Test agent with a more complex request about finding the oldest file
+- `./run call-news`: Test the AI news agent with "What is the latest news in AI?" request
+- `./run fetch_url <url>`: Fetch a URL using MCP
+
+#### Inspection Command
+- `./run inspect`: Inspect the project using the MCP inspector
+  - Automatically collects all environment variables with the `SPL_` prefix
+  - Uses Bash arrays to properly handle environment variables with special characters
+  - Passes them to the inspector using the `-e KEY=value` format
+  - Example: `npx @modelcontextprotocol/inspector -e SPL_AGENT_NAME=simple-speelka-agent -e SPL_TOOL_NAME=process ... -- go run -race ./cmd/server/main.go`
+  - Implementation uses array expansion with `"${env_vars[@]}"` to maintain argument integrity
+  - This ensures all agent configuration is properly passed to the inspector regardless of special characters
