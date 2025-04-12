@@ -48,7 +48,7 @@ You are a Senior Software Developer with extensive expertise in best practices, 
 - `./documents/architecture.md`: System architecture, design patterns, error handling, and testing strategies.
 - `./documents/implementation.md`: Analyzer functionalities, test cases, and environment setup.
 - `./documents/file_structure.md`: Listing of project files(all), dependencies, and structural patterns.
-- `./documents/knowledge.md`: Resources, links (verified via web tool), usage examples, and code snippets.
+- `./documents/remote_resources.md`: Links to external resources, verified using a web tool.
 - `./documents/whiteboard.md`: Temporary notes, ongoing plans, and progress marks.
 
 # Remember

@@ -8,7 +8,7 @@ speelka-agent/
 ├── go.mod, go.sum            # Go module and dependencies
 ├── run                       # Shell script for common commands
 ├── Dockerfile                # Multi-stage Docker build config
-├── .env.example              # Example environment configuration
+├── LICENSE                   # MIT License
 ├── cmd/                      # Command-line entry points
 ├── internal/                 # Core application code
 ├── vendor/                   # Vendored dependencies
@@ -35,20 +35,21 @@ internal/
 │   └── agent.go              # Agent implementation
 ├── chat/
 │   ├── chat.go               # Chat history management
-│   └── chat_test.go          # Chat tests
+│   └── compaction.go         # Token management strategies
 ├── configuration/
 │   └── manager.go            # Configuration manager
 ├── error_handling/
 │   └── *.go                  # Error handling utilities
 ├── llm_service/
 │   └── llm_service.go        # LLM provider communication
+├── logger/
+│   └── logger.go             # MCP-compatible logger (replaces mcplogger)
 ├── mcp_connector/
 │   └── mcp_connector.go      # External MCP server client
 ├── mcp_server/
 │   └── mcp_server.go         # MCP protocol server
-├── mcplogger/
-│   ├── mcplogger.go          # MCP-compatible logger
-│   └── mcplogger_test.go     # Logger tests
+├── acceptance_test/
+│   └── *.go                  # Acceptance tests
 ├── types/
 │   ├── call_tool_request.go  # Tool call request definitions
 │   ├── configuration_spec.go # Configuration interfaces
@@ -57,7 +58,7 @@ internal/
 │   ├── mcp_server_spec.go    # MCP server interfaces
 │   └── metrics_spec.go       # Metrics collection interfaces
 └── utils/
-    └── *.go                  # Shared utility functions
+    └── tokenization.go       # Token counting utilities
 ```
 
 ## Site Directory
@@ -84,7 +85,7 @@ documents/
 ├── file_structure.md         # Project structure (this file)
 ├── implementation.md         # Implementation details
 ├── knowledge.md              # References and code examples
-└── roadmap.md                # Planned features
+└── remote_resources.md       # Links to external resources
 ```
 
 ## Examples Directory
@@ -92,7 +93,8 @@ documents/
 ```
 examples/
 ├── simple.env                # Basic agent configuration
-└── architect.env             # Architecture analysis agent config
+├── architect.env             # Architecture analysis agent config
+└── ai-news.env               # AI news agent configuration
 ```
 
 ## Key External Dependencies
@@ -102,8 +104,9 @@ examples/
 | `github.com/mark3labs/mcp-go` | MCP Go implementation | MCP server/client |
 | `github.com/tmc/langchaingo` | LLM Go client | LLM integration |
 | `github.com/sirupsen/logrus` | Structured logging | Application logging |
+| `github.com/pkoukk/tiktoken-go` | Token counting | Token estimation |
 
-## Package Dependencies
+## Package Dependency Graph
 
 ```mermaid
 flowchart TD
@@ -129,6 +132,9 @@ flowchart TD
     internal/mcp_server-->internal/types
     internal/mcp_server-->internal/utils
 
+    internal/logger-->internal/types
+    internal/logger-->external_mcp
+
     internal/configuration-->internal/types
 
     internal/types-->external_mcp[github.com/mark3labs/mcp-go]
@@ -145,6 +151,6 @@ flowchart TD
 
 `docker-build.yml`:
 - Builds and pushes multi-architecture Docker images
-- Architectures: linux/amd64, linux/arm64, linux/arm/v7
+- Architectures: linux/amd64, linux/arm64
 - Uses Docker Buildx and QEMU for cross-platform builds
 - Pushes to GitHub Container Registry with appropriate tags

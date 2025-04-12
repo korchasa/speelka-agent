@@ -23,6 +23,7 @@ flowchart TB
 - **Built-in Reliability**: Retry mechanisms for handling transient failures
 - **Extensibility**: System behavior extensions without client-side changes
 - **MCP-Aware Logging**: Structured logging with MCP notifications
+- **Token Management**: Automatic token counting and history compaction
 
 ## Getting Started
 
@@ -35,9 +36,9 @@ flowchart TB
 ### Installation
 
 ```bash
-git clone https://github.com/korchasa/speelka-agent.git
-cd speelka-agent
-go build ./cmd/speelka-agent
+git clone https://github.com/korchasa/speelka-agent-go.git
+cd speelka-agent-go
+go build ./cmd/server
 ```
 
 ### Configuration
@@ -61,6 +62,9 @@ Configuration is provided through environment variables. All environment variabl
 | `SPL_LLM_MAX_TOKENS` | 0 | Maximum tokens to generate (0 means no limit) |
 | `SPL_LLM_TEMPERATURE` | 0.7 | Temperature parameter for randomness in generation |
 | `SPL_LLM_PROMPT_TEMPLATE` | *Required* | Template for system prompts (must include placeholder matching the `SPL_TOOL_ARGUMENT_NAME` value and `{{tools}}`) |
+| **Chat Configuration** | | |
+| `SPL_CHAT_MAX_TOKENS` | 0 | Maximum tokens in chat history (0 means based on model) |
+| `SPL_CHAT_COMPACTION_STRATEGY` | "delete-old" | Strategy for compacting chat history ("delete-old", "delete-middle") |
 | **LLM Retry Configuration** | | |
 | `SPL_LLM_RETRY_MAX_RETRIES` | 3 | Maximum number of retry attempts for LLM API calls |
 | `SPL_LLM_RETRY_INITIAL_BACKOFF` | 1.0 | Initial backoff time in seconds |
@@ -91,6 +95,7 @@ Configuration is provided through environment variables. All environment variabl
 Example configuration files are available in the `examples` directory:
 - `examples/simple.env`: Basic agent configuration
 - `examples/architect.env`: Software architecture analysis agent
+- `examples/ai-news.env`: AI news digest agent
 
 #### Basic Configuration Example
 
@@ -171,7 +176,7 @@ For more detailed information, see:
 - [Implementation Details](documents/implementation.md)
 - [Project File Structure](documents/file_structure.md)
 - [Reference Materials](documents/knowledge.md)
-- [Future Development](documents/roadmap.md)
+- [External Resources](documents/remote_resources.md)
 
 ## Development
 
@@ -190,10 +195,16 @@ The `run` script provides commands for common operations:
 ./run build        # Build the project
 ./run test         # Run tests with coverage
 ./run check        # Run all checks
+./run lint         # Run linter
 
 # Interaction
 ./run call         # Test with simple query
 ./run complex-call # Test with complex query
+./run call-news    # Test news agent
+./run fetch_url    # Fetch a URL using MCP
+
+# Inspection
+./run inspect      # Run with MCP inspector
 ```
 
 See [Command Reference](documents/knowledge.md#command-reference) for more options.
