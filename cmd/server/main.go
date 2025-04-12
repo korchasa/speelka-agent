@@ -4,19 +4,18 @@
 package main
 
 import (
-	"context"
-	"flag"
-	"fmt"
-	"os"
-	"os/signal"
-	"runtime/debug"
-	"syscall"
+    "context"
+    "flag"
+    "fmt"
+    "os"
+    "os/signal"
+    "runtime/debug"
+    "syscall"
 
-	"github.com/korchasa/speelka-agent-go/internal/agent"
-	"github.com/korchasa/speelka-agent-go/internal/configuration"
-	mcplogger "github.com/korchasa/speelka-agent-go/internal/logger"
-	"github.com/korchasa/speelka-agent-go/internal/utils"
-	"github.com/sirupsen/logrus"
+    "github.com/korchasa/speelka-agent-go/internal/agent"
+    "github.com/korchasa/speelka-agent-go/internal/configuration"
+    mcplogger "github.com/korchasa/speelka-agent-go/internal/logger"
+    "github.com/sirupsen/logrus"
 )
 
 // Global logger instance
@@ -28,58 +27,58 @@ var log *mcplogger.Logger
 // Responsibility: Determine the server operating mode
 // Features: When true, the server runs as an HTTP daemon; otherwise, as a stdio server
 var (
-	daemonMode = flag.Bool("daemon", false, "Run as a daemon with HTTP SSE MCP server (default: false, runs as stdio MCP server)")
+    daemonMode = flag.Bool("daemon", false, "Run as a daemon with HTTP SSE MCP server (default: false, runs as stdio MCP server)")
 )
 
 // panicHandler intercepts panics and logs them with a full call stack
 // Responsibility: Providing panic information for debugging
 // Features: Captures the panic, logs it, and then continues the panic
 func panicHandler() {
-	if r := recover(); r != nil {
-		stackTrace := debug.Stack()
-		log.WithFields(logrus.Fields{
-			"panic": r,
-			"stack": string(stackTrace),
-		}).Error("PANIC OCCURRED")
+    if r := recover(); r != nil {
+        stackTrace := debug.Stack()
+        log.WithFields(logrus.Fields{
+            "panic": r,
+            "stack": string(stackTrace),
+        }).Error("PANIC OCCURRED")
 
-		// Continue the panic after logging
-		panic(r)
-	}
+        // Continue the panic after logging
+        panic(r)
+    }
 }
 
 // main - application entry point
 // Responsibility: Starting the server and handling termination
 // Features: Sets up signal handling for graceful shutdown
 func main() {
-	// Parse command line parameters
-	flag.Parse()
+    // Parse command line parameters
+    flag.Parse()
 
-	// Create MCPLogger with internal configuration
-	log = mcplogger.NewLogger()
-	log.SetFormatter(utils.NewCustomLogFormatter())
-	log.Info("Logger initialized")
+    // Create MCPLogger with internal configuration
+    log = mcplogger.NewLogger()
+    log.SetFormatter(mcplogger.NewCustomLogFormatter())
+    log.Info("Logger initialized")
 
-	// Set up panic handler
-	defer panicHandler()
+    // Set up panic handler
+    defer panicHandler()
 
-	// Create base context for the application
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+    // Create base context for the application
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
 
-	// Set up signal handling for graceful shutdown
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		sig := <-signalCh
-		fmt.Printf("Received signal: %s. Starting graceful shutdown...\n", sig)
-		cancel()
-	}()
+    // Set up signal handling for graceful shutdown
+    signalCh := make(chan os.Signal, 1)
+    signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
+    go func() {
+        sig := <-signalCh
+        fmt.Printf("Received signal: %s. Starting graceful shutdown...\n", sig)
+        cancel()
+    }()
 
-	// Start the server and handle errors
-	if err := run(ctx); err != nil {
-		_, _ = fmt.Fprintf(os.Stdout, "FATAL ERROR: %v\n", err)
-		log.Fatalf("Main application failed: %v", err)
-	}
+    // Start the server and handle errors
+    if err := run(ctx); err != nil {
+        _, _ = fmt.Fprintf(os.Stdout, "FATAL ERROR: %v\n", err)
+        log.Fatalf("Main application failed: %v", err)
+    }
 }
 
 // run contains the main application logic
@@ -87,35 +86,35 @@ func main() {
 // Features: Sequentially initializes all necessary components
 // and launches the server in the required mode
 func run(ctx context.Context) error {
-	// Load configuration from environment variables
-	configManager := configuration.NewConfigurationManager(log)
-	err := configManager.LoadConfiguration(ctx)
-	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
-	}
+    // Load configuration from environment variables
+    configManager := configuration.NewConfigurationManager(log)
+    err := configManager.LoadConfiguration(ctx)
+    if err != nil {
+        log.Fatalf("Failed to load configuration: %v", err)
+    }
 
-	// Reconfigure the logger with parameters from configuration
-	logConfig := configManager.GetLogConfig()
-	log.SetLevel(logConfig.Level)
-	log.SetOutput(logConfig.Output)
-	log.Info("Logger reconfigured with settings from configuration")
+    // Reconfigure the logger with parameters from configuration
+    logConfig := configManager.GetLogConfig()
+    log.SetLevel(logConfig.Level)
+    log.SetOutput(logConfig.Output)
+    log.Info("Logger reconfigured with settings from configuration")
 
-	// Initialize system components
-	agentApp, err := agent.NewAgent(configManager, log)
-	if err != nil {
-		return fmt.Errorf("failed to create agent: %w", err)
-	}
+    // Initialize system components
+    agentApp, err := agent.NewAgent(configManager, log)
+    if err != nil {
+        return fmt.Errorf("failed to create agent: %w", err)
+    }
 
-	// Start the agent
-	err = agentApp.Start(*daemonMode, ctx)
-	if err != nil {
-		return fmt.Errorf("failed to start agent: %w", err)
-	}
+    // Start the agent
+    err = agentApp.Start(*daemonMode, ctx)
+    if err != nil {
+        return fmt.Errorf("failed to start agent: %w", err)
+    }
 
-	// Get the MCP server from agent and set it in our logger
-	mcpServer := agentApp.GetMCPServer()
-	log.SetMCPServer(mcpServer)
-	log.Info("MCP server attached to logger")
+    // Get the MCP server from agent and set it in our logger
+    mcpServer := agentApp.GetMCPServer()
+    log.SetMCPServer(mcpServer)
+    log.Info("MCP server attached to logger")
 
-	return nil
+    return nil
 }

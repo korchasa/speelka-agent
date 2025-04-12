@@ -66,6 +66,44 @@ c.history = append(c.history, llms.MessageContent{
 })
 ```
 
+### Token Counting
+```go
+// Creating a token counter
+tokenCounter := utils.NewTokenCounter(logger, "")
+
+// Estimating tokens for a message
+message := llms.TextParts(llms.ChatMessageTypeAI, "Hello, how can I help you?")
+tokens := tokenCounter.EstimateTokenCount(message)
+
+// Checking token limit before adding messages
+if currentTokens + newMessageTokens > maxTokens {
+    // Apply compaction
+    compactedMessages, newTotalTokens := compactionStrategy.Compact(messages, currentTokens, maxTokens-newMessageTokens)
+    // Continue with compacted history
+}
+```
+
+### Chat Compaction
+```go
+// Creating a specific compaction strategy
+deleteOldStrategy := &DeleteOldStrategy{}
+
+// Getting a strategy by name
+strategy, err := GetCompactionStrategy("delete-middle")
+if err != nil {
+    // Handle unknown strategy error
+}
+
+// Compacting messages
+compactedMessages, err := strategy.Compact(messages, currentTokens, targetTokens)
+if err != nil {
+    // Handle compaction error
+}
+
+// Setting compaction strategy on chat
+chat.SetCompactionStrategy("delete-old")
+```
+
 ### Error Handling Patterns
 ```go
 // Retry with backoff
@@ -93,53 +131,10 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{
 | | `SPL_LLM_MAX_TOKENS` | Max output tokens | 0 (no limit) |
 | | `SPL_LLM_TEMPERATURE` | Temperature for sampling | 0.7 |
 | | `SPL_LLM_PROMPT_TEMPLATE` | System prompt template | *Required* |
+| **Agent** | `SPL_CHAT_MAX_TOKENS` | Max history tokens | 0 (based on model) |
+| | `SPL_CHAT_COMPACTION_STRATEGY` | Compaction strategy | "delete-old" |
 | **Retry** | `SPL_LLM_RETRY_MAX_RETRIES` | Max retry attempts | 3 |
 | | `SPL_LLM_RETRY_INITIAL_BACKOFF` | Initial backoff (seconds) | 1.0 |
 | | `SPL_LLM_RETRY_MAX_BACKOFF` | Max backoff (seconds) | 30.0 |
 | | `SPL_LLM_RETRY_BACKOFF_MULTIPLIER` | Backoff multiplier | 2.0 |
 | **Runtime** | `SPL_LOG_LEVEL` | Log level | "info" |
-| | `SPL_LOG_OUTPUT` | Log destination | "stderr" |
-| | `SPL_RUNTIME_STDIO_ENABLED` | Enable stdio transport | true |
-| | `SPL_RUNTIME_HTTP_ENABLED` | Enable HTTP transport | false |
-| | `SPL_RUNTIME_HTTP_HOST` | HTTP host | "localhost" |
-| | `SPL_RUNTIME_HTTP_PORT` | HTTP port | 3000 |
-
-## Command Reference
-
-```bash
-# Build agent
-./run build
-
-# Run daemon mode
-./run start
-
-# Run CLI mode
-./run cli
-
-# Run tests
-./run test
-
-# Development commands
-./run dev         # Run in development mode
-./run lint        # Run code linting
-./run check       # Run all checks (test, lint, build)
-
-# Test commands
-./run call                # Test with simple query
-./run complex-call        # Test with complex query
-./run call-news           # Test news agent
-./run fetch_url <url>     # Fetch URL using MCP
-
-# Inspection
-./run inspect     # Inspect project with MCP inspector
-```
-
-## System Prompt Template Example
-```
-You are a useful AI agent who can use tools to accomplish tasks. Your primary goal is to assist the user with their request.
-
-Available tools:
-{{ tools }}
-
-User request: {{ input }}
-```

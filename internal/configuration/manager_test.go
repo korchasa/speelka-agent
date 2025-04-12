@@ -23,6 +23,14 @@ func withEnvironment(t *testing.T, env map[string]string, testFunc func()) {
 		}
 	}
 
+	// Clear any existing SPL_ environment variables to prevent interference between tests
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		if len(pair) == 2 && strings.HasPrefix(pair[0], "SPL_") {
+			_ = os.Unsetenv(pair[0])
+		}
+	}
+
 	// Set environment variables for test
 	for k, v := range env {
 		_ = os.Setenv(k, v)
@@ -33,6 +41,14 @@ func withEnvironment(t *testing.T, env map[string]string, testFunc func()) {
 		// Clear all environment variables that were set in the test
 		for k := range env {
 			_ = os.Unsetenv(k)
+		}
+
+		// Clear any remaining SPL_ environment variables
+		for _, e := range os.Environ() {
+			pair := strings.SplitN(e, "=", 2)
+			if len(pair) == 2 && strings.HasPrefix(pair[0], "SPL_") {
+				_ = os.Unsetenv(pair[0])
+			}
 		}
 
 		// Restore original environment
@@ -69,6 +85,7 @@ func TestLoadEnvironmentConfiguration(t *testing.T) {
 			"SPL_LOG_OUTPUT":                "stdout",
 			"SPL_RUNTIME_STDIO_ENABLED":     "true",
 			"SPL_RUNTIME_STDIO_BUFFER_SIZE": "8192",
+			"SPL_CHAT_MAX_TOKENS":           "1000",
 		}
 
 		withEnvironment(t, env, func() {
@@ -97,6 +114,41 @@ func TestLoadEnvironmentConfiguration(t *testing.T) {
 			assert.Equal(t, 100, llmConfig.MaxTokens)
 			assert.Equal(t, 0.5, llmConfig.Temperature)
 			assert.Equal(t, "Template with {{query}} and {{tools}} placeholders", llmConfig.SystemPromptTemplate)
+
+			// Verify chat configuration
+			chatConfig := cm.GetChatConfig()
+			assert.Equal(t, 1000, chatConfig.MaxTokens)
+			assert.Equal(t, "delete-old", chatConfig.CompactionStrategy)
+		})
+	})
+
+	t.Run("default chat configuration", func(t *testing.T) {
+		env := map[string]string{
+			"SPL_AGENT_NAME":                "test-agent",
+			"SPL_AGENT_VERSION":             "1.0.0",
+			"SPL_TOOL_NAME":                 "test-tool",
+			"SPL_TOOL_DESCRIPTION":          "Test tool description",
+			"SPL_TOOL_ARGUMENT_NAME":        "query",
+			"SPL_TOOL_ARGUMENT_DESCRIPTION": "Test query description",
+			"SPL_LLM_PROVIDER":              "openai",
+			"SPL_LLM_MODEL":                 "gpt-4o",
+			"SPL_LLM_API_KEY":               "test-api-key",
+			"SPL_LLM_PROMPT_TEMPLATE":       "Template with {{query}} and {{tools}} placeholders",
+			// Deliberately not setting SPL_CHAT_MAX_TOKENS to test default value
+		}
+
+		withEnvironment(t, env, func() {
+			// Create a configuration manager
+			cm := configuration.NewConfigurationManager(log)
+
+			// Load configuration
+			err := cm.LoadConfiguration(context.Background())
+			assert.NoError(t, err)
+
+			// Verify chat configuration default values
+			chatConfig := cm.GetChatConfig()
+			assert.Equal(t, 0, chatConfig.MaxTokens, "Default value for SPL_CHAT_MAX_TOKENS should be 0")
+			assert.Equal(t, "delete-old", chatConfig.CompactionStrategy)
 		})
 	})
 
@@ -111,6 +163,7 @@ func TestLoadEnvironmentConfiguration(t *testing.T) {
 			"SPL_TOOL_ARGUMENT_DESCRIPTION": "Test query description",
 			"SPL_LLM_PROVIDER":              "openai",
 			"SPL_LLM_MODEL":                 "gpt-4o",
+			"SPL_LLM_API_KEY":               "test-api-key",
 			"SPL_LLM_PROMPT_TEMPLATE":       "Template with {{query}} and {{tools}} placeholders",
 
 			// MCP Server configs
@@ -174,6 +227,7 @@ func TestLoadEnvironmentConfiguration(t *testing.T) {
 			"SPL_TOOL_ARGUMENT_DESCRIPTION": "Test query description",
 			"SPL_LLM_PROVIDER":              "openai",
 			"SPL_LLM_MODEL":                 "gpt-4o",
+			"SPL_LLM_API_KEY":               "test-api-key",
 			"SPL_LLM_PROMPT_TEMPLATE":       "Template with {{query}} and {{tools}} placeholders",
 
 			// MCP Server config with environment variables
@@ -223,11 +277,19 @@ func TestLoadEnvironmentConfiguration(t *testing.T) {
 			// Load configuration - should fail validation
 			err := cm.LoadConfiguration(context.Background())
 			assert.Error(t, err)
+
+			// Check for MCP Server Config validation errors
 			assert.Contains(t, err.Error(), "SPL_AGENT_NAME environment variable is required")
 			assert.Contains(t, err.Error(), "SPL_TOOL_NAME environment variable is required")
 			assert.Contains(t, err.Error(), "SPL_TOOL_DESCRIPTION environment variable is required")
 			assert.Contains(t, err.Error(), "SPL_TOOL_ARGUMENT_NAME environment variable is required")
 			assert.Contains(t, err.Error(), "SPL_TOOL_ARGUMENT_DESCRIPTION environment variable is required")
+
+			// Check for LLM Service Config validation errors
+			assert.Contains(t, err.Error(), "SPL_LLM_API_KEY environment variable is required")
+			assert.Contains(t, err.Error(), "SPL_LLM_PROVIDER environment variable is required")
+			assert.Contains(t, err.Error(), "SPL_LLM_MODEL environment variable is required")
+			assert.Contains(t, err.Error(), "SPL_LLM_PROMPT_TEMPLATE environment variable is required")
 		})
 	})
 
@@ -242,6 +304,7 @@ func TestLoadEnvironmentConfiguration(t *testing.T) {
 			"SPL_TOOL_ARGUMENT_DESCRIPTION": "Test query description",
 			"SPL_LLM_PROVIDER":              "openai",
 			"SPL_LLM_MODEL":                 "gpt-4o",
+			"SPL_LLM_API_KEY":               "test-api-key",
 			// Missing {{tools}} placeholder
 			"SPL_LLM_PROMPT_TEMPLATE": "Template with only {{query}} placeholder",
 		}
@@ -250,11 +313,11 @@ func TestLoadEnvironmentConfiguration(t *testing.T) {
 			// Create a configuration manager
 			cm := configuration.NewConfigurationManager(log)
 
-			// Load configuration - should fail validation
+			// Load configuration - should fail prompt template validation
 			err := cm.LoadConfiguration(context.Background())
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "prompt template validation failed")
-			assert.Contains(t, err.Error(), "missing required placeholder(s): tools")
+			assert.Contains(t, err.Error(), "Invalid prompt template")
+			assert.Contains(t, err.Error(), "missing required placeholder")
 		})
 	})
 }

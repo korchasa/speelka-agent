@@ -23,6 +23,30 @@
   - System prompt formatting
   - Tool description building
   - Jinja2-style template support
+  - Token counting and context size management
+  - Chat history compaction with multiple strategies
+  - Automatic compaction when token limits are exceeded
+
+### TokenCounter
+- **Purpose**: Token counting for LLM messages
+- **File**: `internal/utils/tokenization.go`
+- **Implementation Features**:
+  - Accurate token counting approximation for different message types
+  - Type-specific token estimations for text, tool calls, and tool responses
+  - Message format overhead accounting
+  - Fallback estimation for unknown content types
+  - Simple character-to-token ratio approximation (4 chars ≈ 1 token for English)
+
+### Compaction Strategies
+- **Purpose**: Reduce chat history size to fit within token limits
+- **File**: `internal/chat/compaction.go`
+- **Implementation Features**:
+  - Interface for pluggable compaction strategies
+  - Current implementation:
+    - **DeleteOld**: Removes oldest messages first (preserving system prompt)
+  - Preserves system prompts and critical conversation context
+  - Integration with TokenCounter for accurate token estimation
+  - Detailed logging of compaction operations
 
 ### Configuration Manager
 - **Purpose**: Configuration management
@@ -200,6 +224,66 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{
     MaxBackoff:        time.Duration(s.config.RetryConfig.MaxBackoff * float64(time.Second)),
 })
 ```
+
+## Chat History Compaction
+
+### Overview
+The chat history compaction system manages token usage and ensures conversations remain within LLM context limits.
+
+### Configuration
+```bash
+# Chat compaction configuration (now part of the Agent configuration)
+export SPL_CHAT_MAX_TOKENS=0                    # Default value 0 means token limit will be based on the selected model
+export SPL_CHAT_COMPACTION_STRATEGY="delete-old" # Default compaction strategy
+```
+
+### Compaction Strategies
+
+#### DeleteOld Strategy
+- **Implementation**: Removes oldest messages first while preserving system prompt
+- **Use Case**: General purpose, preserves recent context
+- **Behavior**:
+  1. Always keeps system prompt (first message)
+  2. Adds messages from most recent to oldest until token limit is reached
+  3. Discards older messages that would exceed token limit
+
+#### DeleteMiddle Strategy
+- **Implementation**: Preserves earliest and most recent messages, removes middle content
+- **Use Case**: When early and recent context are both important
+- **Behavior**:
+  1. Keeps system prompt
+  2. Preserves first 1-2 messages after system prompt
+  3. Preserves last 2-3 messages
+  4. Selectively keeps middle messages based on token availability
+  5. Uses skip pattern to distribute preserved messages
+
+#### PartialSummary Strategy
+- **Implementation**: Replaces middle messages with a placeholder summary
+- **Use Case**: Prototype for future LLM-generated summaries
+- **Behavior**:
+  1. Keeps system prompt
+  2. Replaces middle messages with a single system message placeholder
+  3. Preserves most recent messages
+  4. Note: Currently uses placeholders; future implementation will use LLM to generate summaries
+
+#### NoCompaction Strategy
+- **Implementation**: Preserves all messages without modification
+- **Use Case**: When context preservation is critical and within token limits
+- **Behavior**: No compaction performed, returns original messages
+
+### TokenCounter Implementation
+- Uses approximation based on common tokenization patterns
+- Type-specific handling for different message formats
+- Accounts for message structure overhead
+- Simple ratio for text (4 characters ≈ 1 token for English)
+
+### Integration
+The Chat component automatically:
+1. Tracks token count of all added messages
+2. Checks if adding a new message would exceed token limit
+3. Triggers compaction when needed using configured strategy
+4. Applies compaction before adding new messages
+5. Preserves essential context according to strategy
 
 ## Request Processing Implementation
 
