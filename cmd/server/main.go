@@ -13,14 +13,14 @@ import (
     "syscall"
 
     "github.com/korchasa/speelka-agent-go/internal/agent"
-    mcplogger "github.com/korchasa/speelka-agent-go/internal/logger"
+    "github.com/korchasa/speelka-agent-go/internal/logger"
     "github.com/sirupsen/logrus"
 )
 
 // Global logger instance
 // Responsibility: Providing access to the logger from anywhere in the program
 // Features: Initialized at the start and used throughout the application
-var log *mcplogger.Logger
+var log *logger.Logger
 
 // Command line parameters
 // Responsibility: Determine the server operating mode
@@ -53,8 +53,8 @@ func main() {
     flag.Parse()
 
     // Create MCPLogger with internal configuration
-    log = mcplogger.NewLogger()
-    log.SetFormatter(mcplogger.NewCustomLogFormatter())
+    log = logger.NewLogger()
+    log.SetFormatter(logger.NewCustomLogFormatter())
     log.Info("Logger initialized")
 
     // Set up panic handler
@@ -75,7 +75,6 @@ func main() {
 
     // Start the server and handle errors
     if err := run(ctx); err != nil {
-        _, _ = fmt.Fprintf(os.Stdout, "FATAL ERROR: %v\n", err)
         log.Fatalf("Main application failed: %v", err)
     }
 }

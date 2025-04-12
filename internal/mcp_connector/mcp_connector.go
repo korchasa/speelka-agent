@@ -4,6 +4,7 @@
 package mcp_connector
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"sync"
@@ -105,6 +106,21 @@ func (mc *MCPConnector) ConnectServer(ctx context.Context, serverID string, serv
 					"failed to create stdio MCP client",
 					error_handling.ErrorCategoryExternal,
 				)
+			}
+
+			// Capture stderr output and log it with warning level
+			if stdioClient, ok := mcpClient.(*client.StdioMCPClient); ok {
+				stderrReader := stdioClient.Stderr()
+				go func() {
+					reader := bufio.NewReader(stderrReader)
+					for {
+						line, err := reader.ReadString('\n')
+						if err != nil {
+							return
+						}
+						mc.logger.Warnf("MCP server %s stderr: %s", serverID, line)
+					}
+				}()
 			}
 		} else if serverConfig.URL != "" {
 			// Use HTTP client with SSE
