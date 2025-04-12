@@ -15,6 +15,7 @@ import (
 type App struct {
 	configManager types.ConfigurationManagerSpec
 	agent         types.AgentSpec
+	mcpServer     *mcp_server.MCPServer
 	logger        types.LoggerSpec
 }
 
@@ -38,7 +39,7 @@ func (a *App) LoadConfiguration(ctx context.Context) error {
 }
 
 // Initialize creates and initializes all components needed by the Agent
-func (a *App) Initialize() error {
+func (a *App) Initialize(ctx context.Context) error {
 	// Create LLM service
 	llmService, err := llm_service.NewLLMService(a.configManager.GetLLMConfig(), a.logger)
 	if err != nil {
@@ -47,13 +48,20 @@ func (a *App) Initialize() error {
 	a.logger.Info("LLM service instance created")
 
 	// Create MCP server
-	mcpServer := mcp_server.NewMCPServer(a.configManager.GetMCPServerConfig(), a.logger)
-	a.logger.SetMCPServer(mcpServer)
+	a.mcpServer = mcp_server.NewMCPServer(a.configManager.GetMCPServerConfig(), a.logger)
+	a.logger.SetMCPServer(a.mcpServer)
 	a.logger.Info("MCP server instance created")
 
 	// Create MCP connector
 	mcpConnector := mcp_connector.NewMCPConnector(a.configManager.GetMCPConnectorConfig(), a.logger)
 	a.logger.Info("MCP connector instance created")
+
+	// First, initialize and connect to MCPs
+	err = mcpConnector.InitAndConnectToMCPs(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to init MCP connector: %w", err)
+	}
+	a.logger.Info("MCP connector connected successfully")
 
 	// Create Agent configuration
 	agentConfig := types.AgentConfig{
@@ -68,7 +76,7 @@ func (a *App) Initialize() error {
 	agent := NewAgent(
 		agentConfig,
 		llmService,
-		mcpServer,
+		a.mcpServer,
 		mcpConnector,
 		a.logger,
 	)
@@ -83,16 +91,17 @@ func (a *App) Initialize() error {
 
 // Start starts the Agent in daemon or stdio mode
 func (a *App) Start(daemonMode bool, ctx context.Context) error {
-	if a.agent == nil {
-		return fmt.Errorf("agent not initialized, call Initialize() first")
+	if err := a.mcpServer.Serve(ctx, daemonMode, a.agent.HandleRequest); err != nil {
+		return fmt.Errorf("failed to serve mcp server: %w", err)
 	}
-	return a.agent.Start(daemonMode, ctx)
+	return nil
 }
 
 // Stop stops the Agent
 func (a *App) Stop(shutdownCtx context.Context) error {
-	if a.agent == nil {
-		return fmt.Errorf("agent not initialized, nothing to stop")
+	if err := a.mcpServer.Stop(shutdownCtx); err != nil {
+		return fmt.Errorf("failed to stop HTTP MCP server: %w", err)
 	}
-	return a.agent.Stop(shutdownCtx)
+	a.logger.Info("Server shutdown complete")
+	return nil
 }

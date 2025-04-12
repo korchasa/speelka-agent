@@ -12,23 +12,12 @@ import (
 // Responsibility: Defining the contract for the Agent component
 // Features: Defines methods for starting, stopping, and handling requests
 type AgentSpec interface {
-	// Start initializes and starts the Agent.
-	// It returns an error if the agent fails to start.
-	Start(daemonMode bool, ctx context.Context) error
-
-	// Stop gracefully shuts down the Agent.
-	// It returns an error if the agent fails to stop.
-	Stop(shutdownCtx context.Context) error
-
 	// HandleRequest processes a request to the Agent.
 	// It returns the response from the Agent and an error if the request fails.
 	HandleRequest(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error)
 
 	// RegisterTools registers all tools with the MCP server.
 	RegisterTools()
-
-	// GetMCPServer returns the MCP server instance.
-	GetMCPServer() MCPServerSpec
 }
 
 // AgentConfig represents the configuration for the Agent.

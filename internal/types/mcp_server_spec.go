@@ -13,13 +13,9 @@ import (
 // Responsibility: Defining the contract for the MCP server
 // Features: Defines methods for starting, stopping, and managing tools
 type MCPServerSpec interface {
-	// ServeDaemon initializes and starts the HTTP MCP server.
+	// Serve initializes and starts the MCP server.
 	// It returns an error if the server fails to start.
-	ServeDaemon(handler server.ToolHandlerFunc) error
-
-	// ServeStdio initializes and starts the stdio MCP server.
-	// It returns an error if the server fails to start.
-	ServeStdio(handler server.ToolHandlerFunc) error
+	Serve(ctx context.Context, daemonMode bool, handler server.ToolHandlerFunc) error
 
 	// Stop gracefully shuts down the MCP server.
 	// It returns an error if the server fails to stop.

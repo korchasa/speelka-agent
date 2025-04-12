@@ -5,78 +5,9 @@ import (
 	"fmt"
 
 	"github.com/korchasa/speelka-agent-go/internal/chat"
-	"github.com/korchasa/speelka-agent-go/internal/logger"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/sirupsen/logrus"
 )
-
-// LoggerAdapter adapts a types.LoggerSpec to a logger.Spec
-type LoggerAdapter struct {
-	logger types.LoggerSpec
-}
-
-func NewLoggerAdapter(logger types.LoggerSpec) types.LoggerSpec {
-	return &LoggerAdapter{logger: logger}
-}
-
-func (a *LoggerAdapter) SetLevel(level logrus.Level) {
-	a.logger.SetLevel(level)
-}
-
-func (a *LoggerAdapter) Debug(args ...interface{}) {
-	a.logger.Debug(args...)
-}
-
-func (a *LoggerAdapter) Debugf(format string, args ...interface{}) {
-	a.logger.Debugf(format, args...)
-}
-
-func (a *LoggerAdapter) Info(args ...interface{}) {
-	a.logger.Info(args...)
-}
-
-func (a *LoggerAdapter) Infof(format string, args ...interface{}) {
-	a.logger.Infof(format, args...)
-}
-
-func (a *LoggerAdapter) Warn(args ...interface{}) {
-	a.logger.Warn(args...)
-}
-
-func (a *LoggerAdapter) Warnf(format string, args ...interface{}) {
-	a.logger.Warnf(format, args...)
-}
-
-func (a *LoggerAdapter) Error(args ...interface{}) {
-	a.logger.Error(args...)
-}
-
-func (a *LoggerAdapter) Errorf(format string, args ...interface{}) {
-	a.logger.Errorf(format, args...)
-}
-
-func (a *LoggerAdapter) Fatal(args ...interface{}) {
-	a.logger.Fatal(args...)
-}
-
-func (a *LoggerAdapter) Fatalf(format string, args ...interface{}) {
-	a.logger.Fatalf(format, args...)
-}
-
-func (a *LoggerAdapter) WithField(key string, value interface{}) types.LogEntrySpec {
-	// Create a new Entry with the field
-	return &logger.Entry{}
-}
-
-func (a *LoggerAdapter) WithFields(fields logrus.Fields) types.LogEntrySpec {
-	// Create a new Entry with the fields
-	return &logger.Entry{}
-}
-
-func (a *LoggerAdapter) SetMCPServer(mcpServer interface{}) {
-	a.logger.SetMCPServer(mcpServer)
-}
 
 // MaxLLMIterations Maximum number of LLM interaction iterations
 const MaxLLMIterations = 25
@@ -117,38 +48,6 @@ func NewAgent(
 		mcpConnector: mcpConnector,
 		logger:       logger,
 	}
-}
-
-// Start starts the MCP server in daemon or stdio mode
-func (a *Agent) Start(daemonMode bool, ctx context.Context) error {
-	// First, initialize and connect to MCPs
-	err := a.mcpConnector.InitAndConnectToMCPs(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to init MCP connector: %w", err)
-	}
-	a.logger.Info("MCP connector connected successfully")
-
-	if daemonMode {
-		a.logger.Info("Running in daemon mode with HTTP SSE MCP server")
-		if err := a.mcpServer.ServeDaemon(a.HandleRequest); err != nil {
-			return fmt.Errorf("failed to start HTTP MCP server: %w", err)
-		}
-	} else {
-		a.logger.Info("Running in script mode with stdio MCP server")
-		if err := a.mcpServer.ServeStdio(a.HandleRequest); err != nil {
-			return fmt.Errorf("failed to start Stdio MCP Server: %w", err)
-		}
-	}
-	return nil
-}
-
-// Stop stops the MCP server
-func (a *Agent) Stop(shutdownCtx context.Context) error {
-	if err := a.mcpServer.Stop(shutdownCtx); err != nil {
-		return fmt.Errorf("failed to stop HTTP MCP server: %w", err)
-	}
-	a.logger.Info("Server shutdown complete")
-	return nil
 }
 
 // RegisterTools registers all tools for the agent
@@ -233,15 +132,11 @@ func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolR
 		return mcp.NewToolResultError(fmt.Sprintf("failed to get tools: %s", err)), nil
 	}
 
-	toolConfig := a.config.Tool
-
-	// Create and initialize chat history with compaction settings
-	loggerAdapter := NewLoggerAdapter(a.logger)
 	history := chat.NewChat(
 		a.config.Model,
 		a.config.SystemPromptTemplate,
-		toolConfig.ArgumentName,
-		loggerAdapter,
+		a.config.Tool.ArgumentName,
+		a.logger,
 	)
 
 	// Configure chat compaction settings from configuration

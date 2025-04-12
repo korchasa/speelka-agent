@@ -98,7 +98,7 @@ func run(ctx context.Context) error {
     }
 
     // Initialize the app (creates the Agent and its dependencies)
-    err = app.Initialize()
+    err = app.Initialize(ctx)
     if err != nil {
         return fmt.Errorf("failed to initialize agent app: %w", err)
     }
