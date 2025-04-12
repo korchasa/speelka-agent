@@ -1,15 +1,17 @@
-# Knowledge References
+# Reference Materials
 
-## Model Context Protocol (MCP)
+## Protocols & Libraries
+
+### Model Context Protocol (MCP)
 - [MCP GitHub](https://github.com/machine-cognition-protocol/machine-cognition-protocol)
 - [MCP-Go Library](https://github.com/mark3labs/mcp-go)
 
 **Key Concepts**:
-- **Tool Definition**: Structured tool def with params
+- **Tool Definition**: Structured tool definitions with typed parameters
 - **Request/Response**: Standard tool invocation format
-- **Transport Agnostic**: HTTP, WebSockets, stdio
+- **Transport Agnostic**: Supports HTTP, WebSockets, stdio
 
-## LangChain Go
+### LangChain Go
 - [LangChainGo GitHub](https://github.com/tmc/langchaingo)
 - [LLM Integration Docs](https://pkg.go.dev/github.com/tmc/langchaingo/llms)
 
@@ -18,7 +20,7 @@
 - Tool/function calling support
 - Provider-specific clients
 
-## Code Snippets
+## Code Examples
 
 ### Tool Definition
 ```go
@@ -64,43 +66,7 @@ c.history = append(c.history, llms.MessageContent{
 })
 ```
 
-## Configuration Examples
-
-### LLM Configuration
-```
-LLM_PROVIDER=openai
-LLM_MODEL=gpt-4
-LLM_API_KEY=<your-api-key>
-LLM_MAX_TOKENS=4096
-LLM_TEMPERATURE=0.7
-LLM_RETRY_MAX=3
-LLM_RETRY_INITIAL_BACKOFF=1
-LLM_RETRY_MAX_BACKOFF=60
-LLM_RETRY_BACKOFF_MULTIPLIER=2
-```
-
-### MCP Server Configuration
-```
-MCP_SERVER_NAME=speelka-agent
-MCP_SERVER_VERSION=1.0.0
-MCP_SERVER_DEBUG=true
-MCP_SERVER_HTTP_ENABLED=true
-MCP_SERVER_HTTP_HOST=localhost
-MCP_SERVER_HTTP_PORT=3000
-MCP_SERVER_STDIO_ENABLED=true
-MCP_SERVER_STDIO_BUFFER_SIZE=4096
-MCP_SERVER_STDIO_AUTO_DETECT=true
-```
-
-### MCP Connector Configuration
-```
-MCP_CONNECTOR_SERVER_0_ID=playwright
-MCP_CONNECTOR_SERVER_0_TRANSPORT=stdio
-MCP_CONNECTOR_SERVER_0_COMMAND=mcp-playwright
-MCP_CONNECTOR_SERVER_0_ENV_NODE_ENV=production
-```
-
-## Error Handling Patterns
+### Error Handling Patterns
 ```go
 // Retry with backoff
 err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{
@@ -111,7 +77,35 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{
 })
 ```
 
-## Useful Commands
+## Environment Variables Reference
+
+| Category | Variable | Description | Default |
+|----------|----------|-------------|---------|
+| **Agent** | `SPL_AGENT_NAME` | Name of the agent | *Required* |
+| | `SPL_AGENT_VERSION` | Version of the agent | "1.0.0" |
+| **Tool** | `SPL_TOOL_NAME` | Name of the tool | *Required* |
+| | `SPL_TOOL_DESCRIPTION` | Description of the tool | *Required* |
+| | `SPL_TOOL_ARGUMENT_NAME` | Argument name | *Required* |
+| | `SPL_TOOL_ARGUMENT_DESCRIPTION` | Argument description | *Required* |
+| **LLM** | `SPL_LLM_PROVIDER` | Provider (openai, anthropic) | *Required* |
+| | `SPL_LLM_API_KEY` | API key | *Required* |
+| | `SPL_LLM_MODEL` | Model name | *Required* |
+| | `SPL_LLM_MAX_TOKENS` | Max output tokens | 0 (no limit) |
+| | `SPL_LLM_TEMPERATURE` | Temperature for sampling | 0.7 |
+| | `SPL_LLM_PROMPT_TEMPLATE` | System prompt template | *Required* |
+| **Retry** | `SPL_LLM_RETRY_MAX_RETRIES` | Max retry attempts | 3 |
+| | `SPL_LLM_RETRY_INITIAL_BACKOFF` | Initial backoff (seconds) | 1.0 |
+| | `SPL_LLM_RETRY_MAX_BACKOFF` | Max backoff (seconds) | 30.0 |
+| | `SPL_LLM_RETRY_BACKOFF_MULTIPLIER` | Backoff multiplier | 2.0 |
+| **Runtime** | `SPL_LOG_LEVEL` | Log level | "info" |
+| | `SPL_LOG_OUTPUT` | Log destination | "stderr" |
+| | `SPL_RUNTIME_STDIO_ENABLED` | Enable stdio transport | true |
+| | `SPL_RUNTIME_HTTP_ENABLED` | Enable HTTP transport | false |
+| | `SPL_RUNTIME_HTTP_HOST` | HTTP host | "localhost" |
+| | `SPL_RUNTIME_HTTP_PORT` | HTTP port | 3000 |
+
+## Command Reference
+
 ```bash
 # Build agent
 ./run build
@@ -124,6 +118,20 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{
 
 # Run tests
 ./run test
+
+# Development commands
+./run dev         # Run in development mode
+./run lint        # Run code linting
+./run check       # Run all checks (test, lint, build)
+
+# Test commands
+./run call                # Test with simple query
+./run complex-call        # Test with complex query
+./run call-news           # Test news agent
+./run fetch_url <url>     # Fetch URL using MCP
+
+# Inspection
+./run inspect     # Inspect project with MCP inspector
 ```
 
 ## System Prompt Template Example

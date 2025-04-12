@@ -12,15 +12,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/korchasa/speelka-agent-go/internal/logger"
 	"github.com/korchasa/speelka-agent-go/internal/types"
-	log "github.com/sirupsen/logrus"
+	"github.com/korchasa/speelka-agent-go/internal/utils"
+	"github.com/sirupsen/logrus"
 )
 
 // Manager implements the types.ConfigurationManagerSpec interface.
 // Responsibility: Managing application configuration
 // Features: Reads settings from environment variables
 type Manager struct {
-	logger             *log.Logger
+	logger             logger.Spec
 	mcpServerConfig    types.MCPServerConfig
 	mcpConnectorConfig types.MCPConnectorConfig
 	llmServiceConfig   types.LLMConfig
@@ -91,7 +93,7 @@ type Configuration struct {
 // NewConfigurationManager creates a new instance of ConfigurationManagerSpec.
 // Responsibility: Factory method for creating a configuration manager
 // Features: Returns a simple instance without initialization
-func NewConfigurationManager(logger *log.Logger) *Manager {
+func NewConfigurationManager(logger logger.Spec) *Manager {
 	return &Manager{
 		logger: logger,
 	}
@@ -106,8 +108,6 @@ func (cm *Manager) LoadConfiguration(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to load configuration from environment variables: %w", err)
 	}
-
-	cm.logger.Info("Loaded configuration from environment variables")
 	return nil
 }
 
@@ -119,41 +119,41 @@ func (cm *Manager) loadFromEnvironment() error {
 
 	// MCP Server Config
 	cm.mcpServerConfig = types.MCPServerConfig{
-		Name:    getEnvString("AGENT_NAME", ""),
-		Version: getEnvString("AGENT_VERSION", "1.0.0"),
+		Name:    getEnvString("SPL_AGENT_NAME", ""),
+		Version: getEnvString("SPL_AGENT_VERSION", "1.0.0"),
 		Tool: types.MCPServerToolConfig{
-			Name:                getEnvString("TOOL_NAME", ""),
-			Description:         getEnvString("TOOL_DESCRIPTION", ""),
-			ArgumentName:        getEnvString("TOOL_ARGUMENT_NAME", ""),
-			ArgumentDescription: getEnvString("TOOL_ARGUMENT_DESCRIPTION", ""),
+			Name:                getEnvString("SPL_TOOL_NAME", ""),
+			Description:         getEnvString("SPL_TOOL_DESCRIPTION", ""),
+			ArgumentName:        getEnvString("SPL_TOOL_ARGUMENT_NAME", ""),
+			ArgumentDescription: getEnvString("SPL_TOOL_ARGUMENT_DESCRIPTION", ""),
 		},
 		HTTP: types.HTTPConfig{
-			Enabled: getEnvBool("RUNTIME_HTTP_ENABLED", false),
-			Host:    getEnvString("RUNTIME_HTTP_HOST", "localhost"),
-			Port:    getEnvInt("RUNTIME_HTTP_PORT", 3000),
+			Enabled: getEnvBool("SPL_RUNTIME_HTTP_ENABLED", false),
+			Host:    getEnvString("SPL_RUNTIME_HTTP_HOST", "localhost"),
+			Port:    getEnvInt("SPL_RUNTIME_HTTP_PORT", 3000),
 		},
 		Stdio: types.StdioConfig{
-			Enabled:    getEnvBool("RUNTIME_STDIO_ENABLED", true),
-			BufferSize: getEnvInt("RUNTIME_STDIO_BUFFER_SIZE", 8192),
+			Enabled:    getEnvBool("SPL_RUNTIME_STDIO_ENABLED", true),
+			BufferSize: getEnvInt("SPL_RUNTIME_STDIO_BUFFER_SIZE", 8192),
 		},
 		Debug: false,
 	}
 
 	// Validate required fields for MCP Server Config
 	if cm.mcpServerConfig.Name == "" {
-		validationErrors = append(validationErrors, "AGENT_NAME environment variable is required")
+		validationErrors = append(validationErrors, "SPL_AGENT_NAME environment variable is required")
 	}
 	if cm.mcpServerConfig.Tool.Name == "" {
-		validationErrors = append(validationErrors, "TOOL_NAME environment variable is required")
+		validationErrors = append(validationErrors, "SPL_TOOL_NAME environment variable is required")
 	}
 	if cm.mcpServerConfig.Tool.Description == "" {
-		validationErrors = append(validationErrors, "TOOL_DESCRIPTION environment variable is required")
+		validationErrors = append(validationErrors, "SPL_TOOL_DESCRIPTION environment variable is required")
 	}
 	if cm.mcpServerConfig.Tool.ArgumentName == "" {
-		validationErrors = append(validationErrors, "TOOL_ARGUMENT_NAME environment variable is required")
+		validationErrors = append(validationErrors, "SPL_TOOL_ARGUMENT_NAME environment variable is required")
 	}
 	if cm.mcpServerConfig.Tool.ArgumentDescription == "" {
-		validationErrors = append(validationErrors, "TOOL_ARGUMENT_DESCRIPTION environment variable is required")
+		validationErrors = append(validationErrors, "SPL_TOOL_ARGUMENT_DESCRIPTION environment variable is required")
 	}
 
 	// MCP Connector Config - Handle MCP Servers
@@ -165,21 +165,24 @@ func (cm *Manager) loadFromEnvironment() error {
 	// Process each server
 	for _, idx := range serverIndices {
 		idxStr := strconv.Itoa(idx)
-		serverID := getEnvString(fmt.Sprintf("MCPS_%s_ID", idxStr), "")
+
+		// Only use SPL_ prefixed variables
+		serverID := getEnvString(fmt.Sprintf("SPL_MCPS_%s_ID", idxStr), "")
 		if serverID == "" {
 			cm.logger.Warnf("MCP Server at index %s has no ID", idxStr)
 			continue
 		}
 
 		// Parse args string into slice (if provided as space-separated string)
-		argsStr := getEnvString(fmt.Sprintf("MCPS_%s_ARGS", idxStr), "")
+		argsStr := getEnvString(fmt.Sprintf("SPL_MCPS_%s_ARGS", idxStr), "")
 		var args []string
 		if argsStr != "" {
 			args = strings.Fields(argsStr)
 		}
 
 		// Find and collect environment variables for this server
-		envPrefix := fmt.Sprintf("MCPS_%s_ENV_", idxStr)
+		// Only check with SPL_ prefixed variables
+		splEnvPrefix := fmt.Sprintf("SPL_MCPS_%s_ENV_", idxStr)
 		var envVars []string
 
 		for _, fullEnv := range os.Environ() {
@@ -191,16 +194,16 @@ func (cm *Manager) loadFromEnvironment() error {
 			key := parts[0]
 			value := parts[1]
 
-			if strings.HasPrefix(key, envPrefix) {
-				envKey := strings.TrimPrefix(key, envPrefix)
+			if strings.HasPrefix(key, splEnvPrefix) {
+				envKey := strings.TrimPrefix(key, splEnvPrefix)
 				envVars = append(envVars, fmt.Sprintf("%s=%s", envKey, value))
 			}
 		}
 
 		mcpServers[serverID] = types.MCPServerConnection{
-			URL:         getEnvString(fmt.Sprintf("MCPS_%s_URL", idxStr), ""),
-			APIKey:      getEnvString(fmt.Sprintf("MCPS_%s_API_KEY", idxStr), ""),
-			Command:     getEnvString(fmt.Sprintf("MCPS_%s_COMMAND", idxStr), ""),
+			URL:         getEnvString(fmt.Sprintf("SPL_MCPS_%s_URL", idxStr), ""),
+			APIKey:      getEnvString(fmt.Sprintf("SPL_MCPS_%s_API_KEY", idxStr), ""),
+			Command:     getEnvString(fmt.Sprintf("SPL_MCPS_%s_COMMAND", idxStr), ""),
 			Args:        args,
 			Environment: envVars,
 		}
@@ -210,39 +213,45 @@ func (cm *Manager) loadFromEnvironment() error {
 	cm.mcpConnectorConfig = types.MCPConnectorConfig{
 		McpServers: mcpServers,
 		RetryConfig: types.RetryConfig{
-			MaxRetries:        getEnvInt("MSPS_RETRY_MAX_RETRIES", 3),
-			InitialBackoff:    getEnvFloat("MSPS_RETRY_INITIAL_BACKOFF", 1.0),
-			MaxBackoff:        getEnvFloat("MSPS_RETRY_MAX_BACKOFF", 30.0),
-			BackoffMultiplier: getEnvFloat("MSPS_RETRY_BACKOFF_MULTIPLIER", 2.0),
+			MaxRetries:        getEnvInt("SPL_MSPS_RETRY_MAX_RETRIES", 3),
+			InitialBackoff:    getEnvFloat("SPL_MSPS_RETRY_INITIAL_BACKOFF", 1.0),
+			MaxBackoff:        getEnvFloat("SPL_MSPS_RETRY_MAX_BACKOFF", 30.0),
+			BackoffMultiplier: getEnvFloat("SPL_MSPS_RETRY_BACKOFF_MULTIPLIER", 2.0),
 		},
 	}
 
-	// LLM Config
-	promptTemplate := getEnvString("LLM_PROMPT_TEMPLATE", "")
+	// LLM Config - Using complete environment variable names
+	promptTemplate := getEnvString("SPL_LLM_PROMPT_TEMPLATE", "")
+
+	// Check if temperature and max tokens are explicitly set
+	_, isTemperatureSet := os.LookupEnv("SPL_LLM_TEMPERATURE")
+	_, isMaxTokensSet := os.LookupEnv("SPL_LLM_MAX_TOKENS")
+
 	cm.llmServiceConfig = types.LLMConfig{
-		Provider:             getEnvString("LLM_PROVIDER", ""),
-		Model:                getEnvString("LLM_MODEL", ""),
-		APIKey:               getEnvString("LLM_API_KEY", ""),
-		MaxTokens:            getEnvInt("LLM_MAX_TOKENS", 0),
-		Temperature:          getEnvFloat("LLM_TEMPERATURE", 0.7),
+		Provider:             getEnvString("SPL_LLM_PROVIDER", ""),
+		Model:                getEnvString("SPL_LLM_MODEL", ""),
+		APIKey:               getEnvString("SPL_LLM_API_KEY", ""),
+		MaxTokens:            getEnvInt("SPL_LLM_MAX_TOKENS", 0),
+		IsMaxTokensSet:       isMaxTokensSet,
+		Temperature:          getEnvFloat("SPL_LLM_TEMPERATURE", 0.7),
+		IsTemperatureSet:     isTemperatureSet,
 		SystemPromptTemplate: promptTemplate,
 		RetryConfig: types.RetryConfig{
-			MaxRetries:        getEnvInt("LLM_RETRY_MAX_RETRIES", 3),
-			InitialBackoff:    getEnvFloat("LLM_RETRY_INITIAL_BACKOFF", 1.0),
-			MaxBackoff:        getEnvFloat("LLM_RETRY_MAX_BACKOFF", 30.0),
-			BackoffMultiplier: getEnvFloat("LLM_RETRY_BACKOFF_MULTIPLIER", 2.0),
+			MaxRetries:        getEnvInt("SPL_LLM_RETRY_MAX_RETRIES", 3),
+			InitialBackoff:    getEnvFloat("SPL_LLM_RETRY_INITIAL_BACKOFF", 1.0),
+			MaxBackoff:        getEnvFloat("SPL_LLM_RETRY_MAX_BACKOFF", 30.0),
+			BackoffMultiplier: getEnvFloat("SPL_LLM_RETRY_BACKOFF_MULTIPLIER", 2.0),
 		},
 	}
-
 	// Validate required fields for LLM Config
 	if cm.llmServiceConfig.Provider == "" {
-		validationErrors = append(validationErrors, "LLM_PROVIDER environment variable is required")
+		validationErrors = append(validationErrors, "SPL_LLM_PROVIDER environment variable is required")
 	}
 	if cm.llmServiceConfig.Model == "" {
-		validationErrors = append(validationErrors, "LLM_MODEL environment variable is required")
+		validationErrors = append(validationErrors, "SPL_LLM_MODEL environment variable is required")
 	}
 	if promptTemplate == "" {
-		validationErrors = append(validationErrors, "LLM_PROMPT_TEMPLATE environment variable is required")
+		validationErrors = append(validationErrors, "SPL_LLM_PROMPT_TEMPLATE environment variable is required")
 	} else {
 		// Validate prompt template has all required placeholders
 		err := cm.validatePromptTemplate(promptTemplate, cm.mcpServerConfig.Tool.ArgumentName)
@@ -252,37 +261,36 @@ func (cm *Manager) loadFromEnvironment() error {
 		}
 	}
 
-	// Log Config
-	logLevel := getEnvString("RUNTIME_LOG_LEVEL", "info")
-	level, err := log.ParseLevel(logLevel)
-	if err != nil {
-		return fmt.Errorf("invalid log level `%s`: %v", logLevel, err)
-	}
-
-	var output io.Writer
-	logOutput := getEnvString("RUNTIME_LOG_OUTPUT", "stderr")
-	switch logOutput {
-	case "stdout":
-		output = os.Stdout
-	case "stderr":
-		output = os.Stderr
-	default:
-		outputFile, err := os.OpenFile(logOutput, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-		if err != nil {
-			return fmt.Errorf("failed to open log file `%s`: %v", logOutput, err)
-		}
-		output = outputFile
-	}
-
+	// Load log configuration
 	cm.logConfig = types.LogConfig{
-		Level:  level,
-		Output: output,
+		Level:  logrus.InfoLevel,
+		Output: os.Stderr,
+	}
+
+	// Parse log level from environment variables
+	if logLevel := os.Getenv("SPL_LOG_LEVEL"); logLevel != "" {
+		level := cm.loadLevelFromName(logLevel)
+		cm.logConfig.Level = level
+	}
+
+	// Parse log output from environment variables
+	if logOutput := os.Getenv("SPL_LOG_OUTPUT"); logOutput != "" {
+		cm.logConfig.Output = cm.loadOutputFromName(logOutput)
 	}
 
 	// Return validation errors if any were found
 	if len(validationErrors) > 0 {
 		return fmt.Errorf("configuration validation errors: %s", strings.Join(validationErrors, ", "))
 	}
+
+	llmCopy := cm.llmServiceConfig
+	llmCopy.APIKey = "<hidden>"
+	cm.logger.Infof("Full Config: %s", utils.SDump(map[string]interface{}{
+		"mcp-server":      cm.mcpServerConfig,
+		"mcp-connections": cm.mcpConnectorConfig,
+		"llm":             llmCopy,
+		"log":             cm.logConfig,
+	}))
 
 	return nil
 }
@@ -291,7 +299,7 @@ func (cm *Manager) loadFromEnvironment() error {
 func findServerIndices() []int {
 	indices := make(map[int]bool)
 
-	// Look for all environment variables starting with MCPS_
+	// Look for all environment variables starting with SPL_MCPS_
 	for _, envVar := range os.Environ() {
 		parts := strings.SplitN(envVar, "=", 2)
 		if len(parts) < 1 {
@@ -299,22 +307,22 @@ func findServerIndices() []int {
 		}
 
 		key := parts[0]
-		if !strings.HasPrefix(key, "MCPS_") {
-			continue
-		}
 
-		// Extract the index from the key (e.g., MCPS_0_ID -> 0)
-		parts = strings.Split(key, "_")
-		if len(parts) < 3 {
-			continue
-		}
+		// Only check for SPL_ prefixed variables
+		if strings.HasPrefix(key, "SPL_MCPS_") {
+			// Extract the index from the key (e.g., SPL_MCPS_0_ID -> 0)
+			parts = strings.Split(key, "_")
+			if len(parts) < 4 {
+				continue
+			}
 
-		idx, err := strconv.Atoi(parts[1])
-		if err != nil {
-			continue
-		}
+			idx, err := strconv.Atoi(parts[2])
+			if err != nil {
+				continue
+			}
 
-		indices[idx] = true
+			indices[idx] = true
+		}
 	}
 
 	// Convert to slice
@@ -329,6 +337,7 @@ func findServerIndices() []int {
 // Helper function to get string from environment variable with default
 func getEnvString(key, defaultValue string) string {
 	value := os.Getenv(key)
+
 	if value == "" {
 		return defaultValue
 	}
@@ -338,6 +347,7 @@ func getEnvString(key, defaultValue string) string {
 // Helper function to get int from environment variable with default
 func getEnvInt(key string, defaultValue int) int {
 	value := os.Getenv(key)
+
 	if value == "" {
 		return defaultValue
 	}
@@ -353,6 +363,7 @@ func getEnvInt(key string, defaultValue int) int {
 // Helper function to get float from environment variable with default
 func getEnvFloat(key string, defaultValue float64) float64 {
 	value := os.Getenv(key)
+
 	if value == "" {
 		return defaultValue
 	}
@@ -368,6 +379,7 @@ func getEnvFloat(key string, defaultValue float64) float64 {
 // Helper function to get bool from environment variable with default
 func getEnvBool(key string, defaultValue bool) bool {
 	value := os.Getenv(key)
+
 	if value == "" {
 		return defaultValue
 	}
@@ -523,4 +535,40 @@ func (cm *Manager) GetBool(key string) (bool, bool) {
 func (cm *Manager) GetStringMap(key string) (map[string]string, bool) {
 	// Implementation to be added if needed
 	return nil, false
+}
+
+// loadOutputFromName loads an io.Writer based on the output name
+func (cm *Manager) loadOutputFromName(name string) io.Writer {
+	switch strings.ToLower(name) {
+	case "stdout":
+		return os.Stdout
+	case "stderr":
+		return os.Stderr
+	default:
+		// Treat anything else as a file path and try to open for appending
+		file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			cm.logger.Warnf("Failed to open log file %s: %v, defaulting to stderr", name, err)
+			return os.Stderr
+		}
+		cm.logger.Infof("Logging to file: %s", name)
+		return file
+	}
+}
+
+// loadLevelFromName loads a logrus.Level from a string level name
+func (cm *Manager) loadLevelFromName(name string) logrus.Level {
+	switch strings.ToLower(name) {
+	case "debug":
+		return logrus.DebugLevel
+	case "info":
+		return logrus.InfoLevel
+	case "warn", "warning":
+		return logrus.WarnLevel
+	case "error":
+		return logrus.ErrorLevel
+	default:
+		cm.logger.Warnf("Invalid log level specified: %s, defaulting to info", name)
+		return logrus.InfoLevel
+	}
 }

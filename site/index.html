@@ -206,19 +206,19 @@ flowchart TB
             "command": "speelka-agent",
             "args": [],
             "environment": {
-                "AGENT_NAME": "simple-speelka-agent",
-                "TOOL_NAME": "process",
-                "TOOL_DESCRIPTION": "Process tool for handling user queries with LLM",
-                "LLM_PROVIDER": "openai",
-                "LLM_API_KEY": "YOUR_API_KEY_HERE",
-                "LLM_MODEL": "gpt-4o",
-                "LLM_PROMPT_TEMPLATE": "You are a helpful AI assistant. Respond to the following request:\\n\\n{{input}}\\n\\nProvide a detailed and helpful response.\\n\\nAvailable tools:\\n{{tools}}",
-                "MCPS_0_ID": "time",
-                "MCPS_0_COMMAND": "docker",
-                "MCPS_0_ARGS": "run -i --rm mcp/time",
-                "MCPS_1_ID": "mcp-filesystem-server",
-                "MCPS_1_COMMAND": "mcp-filesystem-server",
-                "MCPS_1_ARGS": "/Users/korchasa/www/speelka/speelka-agent"
+                "SPL_AGENT_NAME": "simple-speelka-agent",
+                "SPL_TOOL_NAME": "process",
+                "SPL_TOOL_DESCRIPTION": "Process tool for handling user queries with LLM",
+                "SPL_LLM_PROVIDER": "openai",
+                "SPL_LLM_API_KEY": "YOUR_API_KEY_HERE",
+                "SPL_LLM_MODEL": "gpt-4o",
+                "SPL_LLM_PROMPT_TEMPLATE": "You are a helpful AI assistant. Respond to the following request:\\n\\n{{input}}\\n\\nProvide a detailed and helpful response.\\n\\nAvailable tools:\\n{{tools}}",
+                "SPL_MCPS_0_ID": "time",
+                "SPL_MCPS_0_COMMAND": "docker",
+                "SPL_MCPS_0_ARGS": "run -i --rm mcp/time",
+                "SPL_MCPS_1_ID": "mcp-filesystem-server",
+                "SPL_MCPS_1_COMMAND": "mcp-filesystem-server",
+                "SPL_MCPS_1_ARGS": "/Users/korchasa/www/speelka/speelka-agent"
             }
         }
     }
@@ -231,23 +231,23 @@ flowchart TB
         "speelka-agent": {
             "command": "docker",
             "args": ["run", "-i", "--rm",
-                "-e", "AGENT_NAME=simple-speelka-agent",
-                "-e", "TOOL_NAME=process",
-                "-e", "TOOL_DESCRIPTION=Process tool for handling user queries with LLM",
-                "-e", "LLM_PROVIDER=openai",
-                "-e", "LLM_API_KEY=$LLM_API_KEY",
-                "-e", "LLM_MODEL=gpt-4o",
-                "-e", "LLM_PROMPT_TEMPLATE=You are a helpful AI assistant. Respond to the following request:\\n\\n{{input}}\\n\\nProvide a detailed and helpful response.\\n\\nAvailable tools:\\n{{tools}}",
+                "-e", "SPL_AGENT_NAME=simple-speelka-agent",
+                "-e", "SPL_TOOL_NAME=process",
+                "-e", "SPL_TOOL_DESCRIPTION=Process tool for handling user queries with LLM",
+                "-e", "SPL_LLM_PROVIDER=openai",
+                "-e", "SPL_LLM_API_KEY=$SPL_LLM_API_KEY",
+                "-e", "SPL_LLM_MODEL=gpt-4o",
+                "-e", "SPL_LLM_PROMPT_TEMPLATE=You are a helpful AI assistant. Respond to the following request:\\n\\n{{input}}\\n\\nProvide a detailed and helpful response.\\n\\nAvailable tools:\\n{{tools}}",
                 "ghcr.io/korchasa/speelka-agent:latest",
-                "-e", "MCPS_0_ID=time",
-                "-e", "MCPS_0_COMMAND=docker",
-                "-e", "MCPS_0_ARGS=run -i --rm mcp/time",
-                "-e", "MCPS_1_ID=mcp-filesystem-server",
-                "-e", "MCPS_1_COMMAND=mcp-filesystem-server",
-                "-e", "MCPS_1_ARGS=/Users/korchasa/www/speelka/speelka-agent"
+                "-e", "SPL_MCPS_0_ID=time",
+                "-e", "SPL_MCPS_0_COMMAND=docker",
+                "-e", "SPL_MCPS_0_ARGS=run -i --rm mcp/time",
+                "-e", "SPL_MCPS_1_ID=mcp-filesystem-server",
+                "-e", "SPL_MCPS_1_COMMAND=mcp-filesystem-server",
+                "-e", "SPL_MCPS_1_ARGS=/Users/korchasa/www/speelka/speelka-agent"
             ],
             "environment": {
-                "LLM_API_KEY": "YOUR_API_KEY_HERE"
+                "SPL_LLM_API_KEY": "YOUR_API_KEY_HERE"
             }
         }
     }
@@ -270,16 +270,16 @@ flowchart TB
             "command": "speelka-agent",
             "args": [],
             "environment": {
-                "AGENT_NAME": "browser-automation-agent",
-                "TOOL_NAME": "web-navigation",
-                "TOOL_DESCRIPTION": "Tool for web browsing and interaction",
-                "LLM_PROVIDER": "openai",
-                "LLM_API_KEY": "YOUR_API_KEY_HERE",
-                "LLM_MODEL": "gpt-4o",
-                "LLM_PROMPT_TEMPLATE": "You are a web browsing assistant. Help the user navigate websites and perform tasks.\\n\\nUser request: {{input}}\\n\\nAvailable tools:\\n{{tools}}",
-                "MCPS_0_ID": "playwright",
-                "MCPS_0_COMMAND": "npx",
-                "MCPS_0_ARGS": "@playwright/mcp@latest"
+                "SPL_AGENT_NAME": "browser-automation-agent",
+                "SPL_TOOL_NAME": "web-navigation",
+                "SPL_TOOL_DESCRIPTION": "Tool for web browsing and interaction",
+                "SPL_LLM_PROVIDER": "openai",
+                "SPL_LLM_API_KEY": "YOUR_API_KEY_HERE",
+                "SPL_LLM_MODEL": "gpt-4o",
+                "SPL_LLM_PROMPT_TEMPLATE": "You are a web browsing assistant. Help the user navigate websites and perform tasks.\\n\\nUser request: {{input}}\\n\\nAvailable tools:\\n{{tools}}",
+                "SPL_MCPS_0_ID": "playwright",
+                "SPL_MCPS_0_COMMAND": "npx",
+                "SPL_MCPS_0_ARGS": "@playwright/mcp@latest"
             }
         }
     }
@@ -293,18 +293,18 @@ flowchart TB
             "command": "speelka-agent",
             "args": [],
             "env": {
-                "AGENT_NAME": "ci/cd agent",
-                "TOOL_NAME": "change-ci-cd",
-                "TOOL_DESCRIPTION": "Tool for managing CI/CD pipelines",
-                "TOOL_ARGUMENT_NAME": "query",
-                "TOOL_ARGUMENT_DESCRIPTION": "CI/CD related issue or improvement query",
-                "LLM_PROVIDER": "openai",
-                "LLM_API_KEY": "YOUR_API_KEY_HERE",
-                "LLM_MODEL": "gpt-4o",
-                "LLM_PROMPT_TEMPLATE": "<system_prompt>\nYOU ARE A WORLD-CLASS CI/CD PIPELINES SPECIALIST, RECOGNIZED FOR DESIGNING, MAINTAINING, AND OPTIMIZING HIGHLY RELIABLE, SECURE, AND SCALABLE CONTINUOUS INTEGRATION AND CONTINUOUS DELIVERY PIPELINES.\n\n### USER REQUEST ###\nTHE USER REQUEST IS AS FOLLOWS:  \n**{{query}}**\n\n### OBJECTIVE ###\nYOU MUST DESIGN, IMPLEMENT, MONITOR, AND CONTINUOUSLY IMPROVE THE CI/CD PIPELINES THAT AUTOMATE CODE BUILDING, TESTING, SECURITY SCANNING, DEPLOYMENT, AND ROLLBACK OPERATIONS.\n\n### AVAILABLE TOOLS ###\n{{tools}}\n</system_prompt>",
-                "MCPS_0_ID": "mcp-filesystem-server",
-                "MCPS_0_COMMAND": "mcp-filesystem-server",
-                "MCPS_0_ARGS": "./project-root"
+                "SPL_AGENT_NAME": "ci/cd agent",
+                "SPL_TOOL_NAME": "change-ci-cd",
+                "SPL_TOOL_DESCRIPTION": "Tool for managing CI/CD pipelines",
+                "SPL_TOOL_ARGUMENT_NAME": "query",
+                "SPL_TOOL_ARGUMENT_DESCRIPTION": "CI/CD related issue or improvement query",
+                "SPL_LLM_PROVIDER": "openai",
+                "SPL_LLM_API_KEY": "YOUR_API_KEY_HERE",
+                "SPL_LLM_MODEL": "gpt-4o",
+                "SPL_LLM_PROMPT_TEMPLATE": "<system_prompt>\nYOU ARE A WORLD-CLASS CI/CD PIPELINES SPECIALIST, RECOGNIZED FOR DESIGNING, MAINTAINING, AND OPTIMIZING HIGHLY RELIABLE, SECURE, AND SCALABLE CONTINUOUS INTEGRATION AND CONTINUOUS DELIVERY PIPELINES.\n\n### USER REQUEST ###\nTHE USER REQUEST IS AS FOLLOWS:  \n**{{query}}**\n\n### OBJECTIVE ###\nYOU MUST DESIGN, IMPLEMENT, MONITOR, AND CONTINUOUSLY IMPROVE THE CI/CD PIPELINES THAT AUTOMATE CODE BUILDING, TESTING, SECURITY SCANNING, DEPLOYMENT, AND ROLLBACK OPERATIONS.\n\n### AVAILABLE TOOLS ###\n{{tools}}\n</system_prompt>",
+                "SPL_MCPS_0_ID": "mcp-filesystem-server",
+                "SPL_MCPS_0_COMMAND": "mcp-filesystem-server",
+                "SPL_MCPS_0_ARGS": "./project-root"
             }
         }
     }
@@ -324,23 +324,23 @@ flowchart TB
             "command": "speelka-agent",
             "args": [],
             "environment": {
-                "AGENT_NAME": "development-assistant",
-                "TOOL_NAME": "dev-tools",
-                "TOOL_DESCRIPTION": "Development assistant with browser automation and CI/CD capabilities",
-                "LLM_PROVIDER": "openai",
-                "LLM_API_KEY": "YOUR_API_KEY_HERE",
-                "LLM_MODEL": "gpt-4o",
-                "LLM_PROMPT_TEMPLATE": "You are a full-stack developer assistant with expertise in both web automation and CI/CD pipelines.\\n\\nUser request: {{input}}\\n\\nUse the appropriate tools to help the user with their development and automation needs.\\n\\nAvailable tools:\\n{{tools}}",
-                "MCPS_0_ID": "playwright",
-                "MCPS_0_COMMAND": "npx",
-                "MCPS_0_ARGS": "@playwright/mcp@latest",
-                "MCPS_1_ID": "ci-cd-tools",
-                "MCPS_1_COMMAND": "speelka-agent",
-                "MCPS_1_ARGS": "--mode=ci-cd",
-                "MCPS_2_ID": "mcp-filesystem-server",
-                "MCPS_2_COMMAND": "mcp-filesystem-server",
-                "MCPS_2_ARGS": "./project-root",
-                "RUNTIME_STDIO_ENABLED": "true"
+                "SPL_AGENT_NAME": "development-assistant",
+                "SPL_TOOL_NAME": "dev-tools",
+                "SPL_TOOL_DESCRIPTION": "Development assistant with browser automation and CI/CD capabilities",
+                "SPL_LLM_PROVIDER": "openai",
+                "SPL_LLM_API_KEY": "YOUR_API_KEY_HERE",
+                "SPL_LLM_MODEL": "gpt-4o",
+                "SPL_LLM_PROMPT_TEMPLATE": "You are a full-stack developer assistant with expertise in both web automation and CI/CD pipelines.\\n\\nUser request: {{input}}\\n\\nUse the appropriate tools to help the user with their development and automation needs.\\n\\nAvailable tools:\\n{{tools}}",
+                "SPL_MCPS_0_ID": "playwright",
+                "SPL_MCPS_0_COMMAND": "npx",
+                "SPL_MCPS_0_ARGS": "@playwright/mcp@latest",
+                "SPL_MCPS_1_ID": "ci-cd-tools",
+                "SPL_MCPS_1_COMMAND": "speelka-agent",
+                "SPL_MCPS_1_ARGS": "--mode=ci-cd",
+                "SPL_MCPS_2_ID": "mcp-filesystem-server",
+                "SPL_MCPS_2_COMMAND": "mcp-filesystem-server",
+                "SPL_MCPS_2_ARGS": "./project-root",
+                "SPL_RUNTIME_STDIO_ENABLED": "true"
             }
         }
     }
@@ -354,16 +354,16 @@ flowchart TB
             "command": "speelka-agent",
             "args": ["--minimal-mode"],
             "env": {
-                "AGENT_NAME": "minimal-agent",
-                "TOOL_NAME": "basic-processing",
-                "TOOL_DESCRIPTION": "Basic processing tool with minimal configuration",
-                "LLM_PROVIDER": "openai",
-                "LLM_API_KEY": "YOUR_API_KEY_HERE",
-                "LLM_MODEL": "gpt-3.5-turbo",
-                "LLM_PROMPT_TEMPLATE": "You are a helpful assistant. Reply to: {{input}}",
-                "MCPS_0_ID": "mcp-filesystem-server",
-                "MCPS_0_COMMAND": "mcp-filesystem-server",
-                "MCPS_0_ARGS": "."
+                "SPL_AGENT_NAME": "minimal-agent",
+                "SPL_TOOL_NAME": "basic-processing",
+                "SPL_TOOL_DESCRIPTION": "Basic processing tool with minimal configuration",
+                "SPL_LLM_PROVIDER": "openai",
+                "SPL_LLM_API_KEY": "YOUR_API_KEY_HERE",
+                "SPL_LLM_MODEL": "gpt-3.5-turbo",
+                "SPL_LLM_PROMPT_TEMPLATE": "You are a helpful assistant. Reply to: {{input}}",
+                "SPL_MCPS_0_ID": "mcp-filesystem-server",
+                "SPL_MCPS_0_COMMAND": "mcp-filesystem-server",
+                "SPL_MCPS_0_ARGS": "."
             }
         }
     }

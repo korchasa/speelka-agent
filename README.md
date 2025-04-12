@@ -2,26 +2,27 @@
 
 Speelka Agent is a universal LLM agent based on the Model Context Protocol (MCP), providing tool execution capabilities through a Go-based implementation.
 
-## Key Advantages
+```mermaid
+flowchart TB
+    User["Any MCP Client"] --> |"1. Request"| Agent["Speelka Agent"]
+    Agent --> |"2. Format prompt"| LLM["LLM Service"]
+    LLM --> |"3. Tool calls"| Agent
+    Agent --> |"4. Execute tools"| Tools["External MCP Tools"]
+    Tools --> |"5. Return results"| Agent
+    Agent --> |"6. Process repeat"| LLM
+    Agent --> |"7. Final answer"| User
+```
 
-- **Precise Agent Definition**: Enables detailed agent behavior definition through prompt engineering
-- **Client-Side Context Optimization**: Reduces context size requirements on the client side, resulting in more efficient token usage and cost savings
-- **LLM Flexibility**: Allows different LLM providers and configurations between client and agent sides, optimizing for performance and cost
-- **Centralized Tool Management**: Provides a single point of control for all available tools
-- **Integration Options**: Supports multiple integration methods including MCP stdio, MCP HTTP* and Simple HTTP API* (*planned)
-- **Reliability**: Includes built-in retry mechanisms for handling transient failures
-- **Extensibility**: Supports system behavior extensions without requiring client-side changes
+## Key Features
 
-## Architecture
-
-Speelka Agent uses a clean architecture approach with the following key components:
-
-- **Agent**: Central orchestrator that coordinates all other components
-- **Configuration Manager**: Provides centralized access to all configuration settings
-- **LLM Service**: Handles communication with Language Model providers
-- **MCP Server**: Exposes the agent functionality to clients
-- **MCP Connector**: Connects to external MCP servers to execute tools
-- **Chat**: Manages the conversation history and formatting
+- **Precise Agent Definition**: Define detailed agent behavior through prompt engineering
+- **Client-Side Context Optimization**: Reduce context size on the client side for more efficient token usage
+- **LLM Flexibility**: Use different LLM providers between client and agent sides
+- **Centralized Tool Management**: Single point of control for all available tools
+- **Multiple Integration Options**: Support for MCP stdio, MCP HTTP, and Simple HTTP API
+- **Built-in Reliability**: Retry mechanisms for handling transient failures
+- **Extensibility**: System behavior extensions without client-side changes
+- **MCP-Aware Logging**: Structured logging with MCP notifications
 
 ## Getting Started
 
@@ -41,53 +42,72 @@ go build ./cmd/speelka-agent
 
 ### Configuration
 
-Configuration is provided through environment variables:
+Configuration is provided through environment variables. All environment variables are prefixed with `SPL_`:
 
 | Environment Variable | Default Value | Description |
 |---------------------|---------------|-------------|
 | **Agent Configuration** | | |
-| `AGENT_NAME` | *Required* | Name of the agent |
-| `AGENT_VERSION` | "1.0.0" | Version of the agent |
+| `SPL_AGENT_NAME` | *Required* | Name of the agent |
+| `SPL_AGENT_VERSION` | "1.0.0" | Version of the agent |
 | **Tool Configuration** | | |
-| `TOOL_NAME` | *Required* | Name of the tool provided by the agent |
-| `TOOL_DESCRIPTION` | *Required* | Description of the tool functionality |
-| `TOOL_ARGUMENT_NAME` | *Required* | Name of the argument for the tool |
-| `TOOL_ARGUMENT_DESCRIPTION` | *Required* | Description of the argument for the tool |
+| `SPL_TOOL_NAME` | *Required* | Name of the tool provided by the agent |
+| `SPL_TOOL_DESCRIPTION` | *Required* | Description of the tool functionality |
+| `SPL_TOOL_ARGUMENT_NAME` | *Required* | Name of the argument for the tool |
+| `SPL_TOOL_ARGUMENT_DESCRIPTION` | *Required* | Description of the argument for the tool |
 | **LLM Configuration** | | |
-| `LLM_PROVIDER` | *Required* | Provider of LLM service (e.g., "openai", "anthropic") |
-| `LLM_API_KEY` | *Required* | API key for the LLM provider |
-| `LLM_MODEL` | *Required* | Model name (e.g., "gpt-4o", "claude-3-opus-20240229") |
-| `LLM_MAX_TOKENS` | 0 | Maximum tokens to generate (0 means no limit) |
-| `LLM_TEMPERATURE` | 0.7 | Temperature parameter for randomness in generation |
-| `LLM_PROMPT_TEMPLATE` | *Required* | Template for system prompts (must include placeholder matching the `TOOL_ARGUMENT_NAME` value and `{{tools}}`) |
+| `SPL_LLM_PROVIDER` | *Required* | Provider of LLM service (e.g., "openai", "anthropic") |
+| `SPL_LLM_API_KEY` | *Required* | API key for the LLM provider |
+| `SPL_LLM_MODEL` | *Required* | Model name (e.g., "gpt-4o", "claude-3-opus-20240229") |
+| `SPL_LLM_MAX_TOKENS` | 0 | Maximum tokens to generate (0 means no limit) |
+| `SPL_LLM_TEMPERATURE` | 0.7 | Temperature parameter for randomness in generation |
+| `SPL_LLM_PROMPT_TEMPLATE` | *Required* | Template for system prompts (must include placeholder matching the `SPL_TOOL_ARGUMENT_NAME` value and `{{tools}}`) |
 | **LLM Retry Configuration** | | |
-| `LLM_RETRY_MAX_RETRIES` | 3 | Maximum number of retry attempts for LLM API calls |
-| `LLM_RETRY_INITIAL_BACKOFF` | 1.0 | Initial backoff time in seconds |
-| `LLM_RETRY_MAX_BACKOFF` | 30.0 | Maximum backoff time in seconds |
-| `LLM_RETRY_BACKOFF_MULTIPLIER` | 2.0 | Multiplier for increasing backoff time |
+| `SPL_LLM_RETRY_MAX_RETRIES` | 3 | Maximum number of retry attempts for LLM API calls |
+| `SPL_LLM_RETRY_INITIAL_BACKOFF` | 1.0 | Initial backoff time in seconds |
+| `SPL_LLM_RETRY_MAX_BACKOFF` | 30.0 | Maximum backoff time in seconds |
+| `SPL_LLM_RETRY_BACKOFF_MULTIPLIER` | 2.0 | Multiplier for increasing backoff time |
 | **MCP Servers Configuration** | | |
-| `MCPS_0_ID` | "" | Identifier for the first MCP server |
-| `MCPS_0_COMMAND` | "" | Command to execute for the first server |
-| `MCPS_0_ARGS` | "" | Command arguments as space-separated string |
-| `MCPS_0_ENV_*` | "" | Environment variables for the server (prefix with `MCPS_0_ENV_`) |
-| `MCPS_1_ID`, etc. | "" | Configuration for additional servers (increment index) |
+| `SPL_MCPS_0_ID` | "" | Identifier for the first MCP server |
+| `SPL_MCPS_0_COMMAND` | "" | Command to execute for the first server |
+| `SPL_MCPS_0_ARGS` | "" | Command arguments as space-separated string |
+| `SPL_MCPS_0_ENV_*` | "" | Environment variables for the server (prefix with `SPL_MCPS_0_ENV_`) |
+| `SPL_MCPS_1_ID`, etc. | "" | Configuration for additional servers (increment index) |
 | **MCP Retry Configuration** | | |
-| `MSPS_RETRY_MAX_RETRIES` | 3 | Maximum number of retry attempts for MCP server connections |
-| `MSPS_RETRY_INITIAL_BACKOFF` | 1.0 | Initial backoff time in seconds |
-| `MSPS_RETRY_MAX_BACKOFF` | 30.0 | Maximum backoff time in seconds |
-| `MSPS_RETRY_BACKOFF_MULTIPLIER` | 2.0 | Multiplier for increasing backoff time |
+| `SPL_MSPS_RETRY_MAX_RETRIES` | 3 | Maximum number of retry attempts for MCP server connections |
+| `SPL_MSPS_RETRY_INITIAL_BACKOFF` | 1.0 | Initial backoff time in seconds |
+| `SPL_MSPS_RETRY_MAX_BACKOFF` | 30.0 | Maximum backoff time in seconds |
+| `SPL_MSPS_RETRY_BACKOFF_MULTIPLIER` | 2.0 | Multiplier for increasing backoff time |
 | **Runtime Configuration** | | |
-| `RUNTIME_LOG_LEVEL` | "info" | Log level (debug, info, warn, error) |
-| `RUNTIME_LOG_OUTPUT` | "stderr" | Log output destination (stdout, stderr, file path) |
-| `RUNTIME_STDIO_ENABLED` | true | Enable stdin/stdout transport |
-| `RUNTIME_STDIO_BUFFER_SIZE` | 8192 | Buffer size for stdio transport |
-| `RUNTIME_HTTP_ENABLED` | false | Enable HTTP transport |
-| `RUNTIME_HTTP_HOST` | "localhost" | Host for HTTP server |
-| `RUNTIME_HTTP_PORT` | 3000 | Port for HTTP server |
+| `SPL_LOG_LEVEL` | "info" | Log level (debug, info, warn, error) |
+| `SPL_LOG_OUTPUT` | "stderr" | Log output destination (stdout, stderr, file path) |
+| `SPL_RUNTIME_STDIO_ENABLED` | true | Enable stdin/stdout transport |
+| `SPL_RUNTIME_STDIO_BUFFER_SIZE` | 8192 | Buffer size for stdio transport |
+| `SPL_RUNTIME_HTTP_ENABLED` | false | Enable HTTP transport |
+| `SPL_RUNTIME_HTTP_HOST` | "localhost" | Host for HTTP server |
+| `SPL_RUNTIME_HTTP_PORT` | 3000 | Port for HTTP server |
+
+> **Note**: For backward compatibility, the system also accepts environment variables without the `SPL_` prefix, but this behavior may be removed in future versions.
 
 Example configuration files are available in the `examples` directory:
 - `examples/simple.env`: Basic agent configuration
 - `examples/architect.env`: Software architecture analysis agent
+
+#### Basic Configuration Example
+
+```bash
+# Required configuration
+export SPL_AGENT_NAME="speelka-agent"
+export SPL_TOOL_NAME="process"
+export SPL_TOOL_DESCRIPTION="Process user queries with LLM"
+export SPL_TOOL_ARGUMENT_NAME="input"
+export SPL_TOOL_ARGUMENT_DESCRIPTION="The user query to process"
+export SPL_LLM_PROVIDER="openai"
+export SPL_LLM_API_KEY="your_api_key"
+export SPL_LLM_MODEL="gpt-4o"
+export SPL_LLM_PROMPT_TEMPLATE="You are a helpful AI assistant. User query: {{input}} Available tools: {{tools}}"
+```
+
+For more detailed information about configuration options, see [Environment Variables Reference](documents/knowledge.md#environment-variables-reference).
 
 ### Running the Agent
 
@@ -103,7 +123,7 @@ Example configuration files are available in the `examples` directory:
 ./speelka-agent
 ```
 
-## Usage
+## Usage Examples
 
 ### HTTP API
 
@@ -122,16 +142,20 @@ curl -X POST http://localhost:3000/message -H "Content-Type: application/json" -
 }'
 ```
 
-### Integration with External Tools
+### External Tool Integration
 
-The agent can connect to external tools using the MCP protocol by configuring environment variables:
+Connect to external tools using the MCP protocol:
 
 ```bash
-# MCP server for Playwright
-export MCPS_0_ID="playwright"
-export MCPS_0_COMMAND="mcp-playwright"
-export MCPS_0_ARGS=""
-export MCPS_0_ENV_NODE_ENV="production"
+# MCP server for Playwright browser automation
+export SPL_MCPS_0_ID="playwright"
+export SPL_MCPS_0_COMMAND="mcp-playwright"
+export SPL_MCPS_0_ARGS=""
+
+# MCP server for filesystem operations
+export SPL_MCPS_1_ID="filesystem"
+export SPL_MCPS_1_COMMAND="mcp-filesystem-server"
+export SPL_MCPS_1_ARGS="."
 ```
 
 ## Supported LLM Providers
@@ -139,21 +163,40 @@ export MCPS_0_ENV_NODE_ENV="production"
 - **OpenAI**: GPT-3.5, GPT-4, GPT-4o
 - **Anthropic**: Claude models
 
+## Documentation
+
+For more detailed information, see:
+
+- [System Architecture](documents/architecture.md)
+- [Implementation Details](documents/implementation.md)
+- [Project File Structure](documents/file_structure.md)
+- [Reference Materials](documents/knowledge.md)
+- [Future Development](documents/roadmap.md)
+
 ## Development
-
-### Project Structure
-
-- `/cmd`: Command-line application entry points
-- `/internal`: Core application code
-- `/docs`: Project documentation
-- `/examples`: Example configuration files
-- `/scripts`: Utility scripts for development and configuration conversion
 
 ### Running Tests
 
 ```bash
 go test ./...
 ```
+
+### Helper Commands
+
+The `run` script provides commands for common operations:
+
+```bash
+# Development
+./run build        # Build the project
+./run test         # Run tests with coverage
+./run check        # Run all checks
+
+# Interaction
+./run call         # Test with simple query
+./run complex-call # Test with complex query
+```
+
+See [Command Reference](documents/knowledge.md#command-reference) for more options.
 
 ## License
 

@@ -7,11 +7,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/korchasa/speelka-agent-go/internal/logger"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/korchasa/speelka-agent-go/internal/utils"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	log "github.com/sirupsen/logrus"
 )
 
 // MCPServer implements the contracts.MCPServerSpec interface
@@ -20,17 +20,17 @@ import (
 type MCPServer struct {
 	server    *server.MCPServer
 	config    types.MCPServerConfig
-	logger    *log.Logger
+	logger    logger.Spec
 	sseServer *server.SSEServer
 }
 
 // NewMCPServer creates a new MCPServer instance
 // Responsibility: Factory method for creating an MCP server
 // Features: Initializes the data structure with the given parameters
-func NewMCPServer(config types.MCPServerConfig, log *log.Logger) *MCPServer {
+func NewMCPServer(config types.MCPServerConfig, logger logger.Spec) *MCPServer {
 	return &MCPServer{
 		config: config,
-		logger: log,
+		logger: logger,
 	}
 }
 
@@ -71,7 +71,8 @@ func (s *MCPServer) ServeStdio(handler server.ToolHandlerFunc) error {
 
 func (s *MCPServer) createAndInitMCPServer(handler server.ToolHandlerFunc) error {
 	var opts []server.ServerOption
-	if s.config.Debug || true {
+	opts = append(opts, server.WithLogging())
+	if s.config.Debug {
 		opts = append(opts, server.WithHooks(s.BuildHooks()))
 	}
 
@@ -152,4 +153,8 @@ func (s *MCPServer) BuildHooks() *server.Hooks {
 		}))
 	})
 	return hooks
+}
+
+func (s *MCPServer) AttachLogger(spec logger.Spec) {
+	spec.SetMCPServer(s.server)
 }
