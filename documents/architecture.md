@@ -66,6 +66,9 @@ flowchart TB
 - Formats prompts with templates
 - Provides conversation context for LLM requests
 - Tracks tool calls and results
+- Implements token counting and history compaction
+- Supports multiple compaction strategies to reduce context size
+- Ensures conversations remain within LLM token limits
 
 ### MCPLogger
 - Wraps logrus logging library with MCP capabilities
@@ -83,6 +86,9 @@ graph TD
     A[User Request] --> B[MCP Server]
     B --> C[Agent]
     C --> D[Chat]
+    D --> DA[Token Counter]
+    DA --> DB[History Compaction]
+    DB --> D
     D --> E[LLM Service]
     E --> F[LLM Provider]
     F --> E
@@ -125,8 +131,9 @@ graph TD
 4. LLM responds with text and/or tool calls
 5. For each tool call, MCP Connector executes tool on appropriate server
 6. Tool results added to Chat history
-7. Process repeats until LLM issues "answer" command
-8. Final response returned to user via MCP Server
+7. Token count checked and compaction applied if needed
+8. Process repeats until LLM issues "answer" command
+9. Final response returned to user via MCP Server
 
 ## Error Handling Philosophy
 - **Categories**: Validation, Transient, Internal, External

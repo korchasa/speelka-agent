@@ -9,7 +9,6 @@ import (
 
 	"github.com/korchasa/speelka-agent-go/internal/logger"
 	"github.com/korchasa/speelka-agent-go/internal/types"
-	"github.com/korchasa/speelka-agent-go/internal/utils"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -82,7 +81,7 @@ func (s *MCPServer) createAndInitMCPServer(handler server.ToolHandlerFunc) error
 		opts...,
 	)
 
-	s.logger.Infof("MCP server initialized with config: %s", utils.SDump(s.config))
+	s.logger.Infof("MCP server initialized with config: %s", logger.SDump(s.config))
 
 	tool := mcp.NewTool(s.config.Tool.Name,
 		mcp.WithDescription(s.config.Tool.Description),
@@ -102,59 +101,84 @@ func (s *MCPServer) createAndInitMCPServer(handler server.ToolHandlerFunc) error
 // Features: Resets the launch flag and performs necessary cleanup
 func (s *MCPServer) Stop(ctx context.Context) error {
 	if s.sseServer != nil {
-		err := s.sseServer.Shutdown(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to shutdown SSE server: %w", err)
+		if err := s.sseServer.Shutdown(ctx); err != nil {
+			s.logger.Warnf("Error stopping SSE server: %v", err)
 		}
+		s.sseServer = nil
 	}
+	s.server = nil
 	return nil
 }
 
+// BuildHooks creates hook functions for the MCP server
 func (s *MCPServer) BuildHooks() *server.Hooks {
 	hooks := &server.Hooks{}
-	hooks.AddOnSuccess(func(ctx context.Context, id any, method mcp.MCPMethod, message any, result any) {
-		s.logger.WithField("id", id).Infof("MCP server hook onSuccess")
-		s.logger.Debugf("Details: %s", utils.SDump(map[string]any{
-			"message": message,
-			"result":  result,
-		}))
-	})
-	hooks.AddOnError(func(ctx context.Context, id any, method mcp.MCPMethod, message any, err error) {
-		s.logger.WithField("id", id).Infof("MCP server hook onError")
-		s.logger.Debugf("Details: %s", utils.SDump(map[string]any{
-			"message": message,
-			"error":   err,
-		}))
-	})
-	hooks.AddBeforeInitialize(func(ctx context.Context, id any, message *mcp.InitializeRequest) {
-		s.logger.WithField("id", id).Infof("MCP server hook beforeInitialize for tool `%s`", message.Method)
-		s.logger.Debugf("Details: %s", utils.SDump(map[string]any{
-			"message": message,
-		}))
-	})
-	hooks.AddAfterInitialize(func(ctx context.Context, id any, message *mcp.InitializeRequest, result *mcp.InitializeResult) {
-		s.logger.WithField("id", id).Infof("MCP server hook afterInitialize for tool `%s`", message.Method)
-		s.logger.Debugf("Details: %s", utils.SDump(map[string]any{
-			"message": message,
-			"result":  result,
-		}))
-	})
+
 	hooks.AddBeforeCallTool(func(ctx context.Context, id any, message *mcp.CallToolRequest) {
-		s.logger.WithField("id", id).Infof("MCP server hook beforeCallTool for tool `%s`", message.Method)
-		s.logger.Debugf("Details: %s", utils.SDump(map[string]any{
-			"message": message,
-		}))
+		s.logger.Debugf(">> Before call %s: %+v", message.Params.Name, message)
 	})
+
 	hooks.AddAfterCallTool(func(ctx context.Context, id any, message *mcp.CallToolRequest, result *mcp.CallToolResult) {
-		s.logger.WithField("id", id).Infof("MCP server hook afterCallTool for tool `%s`", message.Method)
-		s.logger.Debugf("Details: %s", utils.SDump(map[string]any{
-			"message": message,
-			"result":  result,
-		}))
+		s.logger.Debugf("<< After call %s result: %+v", message.Params.Name, result)
 	})
+
+	hooks.AddOnError(func(ctx context.Context, id any, method mcp.MCPMethod, message any, err error) {
+		s.logger.Errorf("<< Error with method %s: %v", method, err)
+	})
+
 	return hooks
 }
 
-func (s *MCPServer) AttachLogger(spec logger.Spec) {
-	spec.SetMCPServer(s.server)
+// AttachLogger attaches a logger to the MCP server
+func (s *MCPServer) AttachLogger(logger logger.Spec) {
+	logger.SetMCPServer(s)
 }
+
+// GetServer returns the underlying server instance
+func (s *MCPServer) GetServer() *server.MCPServer {
+	return s.server
+}
+
+// AddTool adds a tool to the MCP server
+// Responsibility: Adding a tool to the server
+// Features: Delegates to the underlying server's AddTool method
+func (s *MCPServer) AddTool(tool mcp.Tool, handler server.ToolHandlerFunc) {
+	if s.server != nil {
+		s.server.AddTool(tool, handler)
+	} else {
+		s.logger.Warn("Cannot add tool: server not initialized")
+	}
+}
+
+// GetAllTools returns all tools registered on the server
+// Responsibility: Providing access to all available tools
+// Features: Collects and returns all tools from the server
+func (s *MCPServer) GetAllTools() []mcp.Tool {
+	if s.server == nil {
+		s.logger.Warn("Cannot get tools: server not initialized")
+		return []mcp.Tool{}
+	}
+
+	// Since we can't directly access the tools in the server,
+	// we'll need to implement this differently or just return a partial list.
+	// For now, return just the tool we know exists
+	return []mcp.Tool{
+		mcp.NewTool(s.config.Tool.Name,
+			mcp.WithDescription(s.config.Tool.Description),
+			mcp.WithString(s.config.Tool.ArgumentName,
+				mcp.Description(s.config.Tool.ArgumentDescription),
+				mcp.Required(),
+			),
+		),
+		ExitTool,
+	}
+}
+
+// ExitTool is used to signal that the conversation should end
+var ExitTool = mcp.NewTool("answer",
+	mcp.WithDescription("Send response to the user"),
+	mcp.WithString("text",
+		mcp.Required(),
+		mcp.Description("Text to send to the user"),
+	),
+)

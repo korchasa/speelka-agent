@@ -31,6 +31,9 @@ type ConfigurationManagerSpec interface {
 	// GetLogConfig returns the logging configuration.
 	GetLogConfig() LogConfig
 
+	// GetChatConfig returns the chat configuration.
+	GetChatConfig() ChatConfig
+
 	// GetString returns a string configuration value.
 	// It returns the value and a boolean indicating whether the value was found.
 	GetString(key string) (string, bool)
@@ -46,10 +49,6 @@ type ConfigurationManagerSpec interface {
 	// GetBool returns a boolean configuration value.
 	// It returns the value and a boolean indicating whether the value was found.
 	GetBool(key string) (bool, bool)
-
-	// GetStringMap returns a string map configuration value.
-	// It returns the value and a boolean indicating whether the value was found.
-	GetStringMap(key string) (map[string]string, bool)
 }
 
 // HTTPConfig represents the configuration for HTTP transport.
@@ -100,6 +99,13 @@ type MCPServerConfig struct {
 
 	// Debug determines if debug mode is enabled.
 	Debug bool
+
+	// MaxTokens is the maximum number of tokens allowed in chat history
+	MaxTokens int
+
+	// CompactionStrategy defines how chat history is reduced when token limit is reached
+	// Supported values: "delete-old" (default)
+	CompactionStrategy string
 }
 
 type MCPServerToolConfig struct {
@@ -154,4 +160,16 @@ type LogConfig struct {
 
 	// Output is the log output.
 	Output io.Writer
+}
+
+// ChatConfig represents the configuration for chat management
+// Responsibility: Storing parameters for managing conversation history
+// Features: Contains settings for token limitations and history compaction
+type ChatConfig struct {
+	// MaxTokens is the maximum number of tokens allowed in chat history
+	MaxTokens int
+
+	// CompactionStrategy defines how chat history is reduced when token limit is reached
+	// Supported values: "delete-old" (default)
+	CompactionStrategy string
 }

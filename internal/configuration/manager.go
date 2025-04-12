@@ -14,7 +14,6 @@ import (
 
 	"github.com/korchasa/speelka-agent-go/internal/logger"
 	"github.com/korchasa/speelka-agent-go/internal/types"
-	"github.com/korchasa/speelka-agent-go/internal/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -70,6 +69,10 @@ type Configuration struct {
 				BackoffMultiplier float64 `json:"backoff_multiplier"`
 			} `json:"retry"`
 		} `json:"connections"`
+		Chat struct {
+			MaxTokens          int    `json:"max_tokens"`
+			CompactionStrategy string `json:"compaction_strategy"`
+		} `json:"chat"`
 	} `json:"agent"`
 	Runtime struct {
 		Log struct {
@@ -136,7 +139,9 @@ func (cm *Manager) loadFromEnvironment() error {
 			Enabled:    getEnvBool("SPL_RUNTIME_STDIO_ENABLED", true),
 			BufferSize: getEnvInt("SPL_RUNTIME_STDIO_BUFFER_SIZE", 8192),
 		},
-		Debug: false,
+		Debug:              false,
+		MaxTokens:          getEnvInt("SPL_CHAT_MAX_TOKENS", 0),
+		CompactionStrategy: getEnvString("SPL_CHAT_COMPACTION_STRATEGY", "delete-old"),
 	}
 
 	// Validate required fields for MCP Server Config
@@ -209,7 +214,7 @@ func (cm *Manager) loadFromEnvironment() error {
 		}
 	}
 
-	// Set the MCP Connector Config with the servers and retry settings
+	// MCP Connector Config - Retry
 	cm.mcpConnectorConfig = types.MCPConnectorConfig{
 		McpServers: mcpServers,
 		RetryConfig: types.RetryConfig{
@@ -220,20 +225,75 @@ func (cm *Manager) loadFromEnvironment() error {
 		},
 	}
 
-	// LLM Config - Using complete environment variable names
+	// LLM Service Config
+	apiKey := getEnvString("SPL_LLM_API_KEY", "")
+	provider := getEnvString("SPL_LLM_PROVIDER", "")
+	model := getEnvString("SPL_LLM_MODEL", "")
 	promptTemplate := getEnvString("SPL_LLM_PROMPT_TEMPLATE", "")
 
-	// Check if temperature and max tokens are explicitly set
-	_, isTemperatureSet := os.LookupEnv("SPL_LLM_TEMPERATURE")
-	_, isMaxTokensSet := os.LookupEnv("SPL_LLM_MAX_TOKENS")
+	// Temperature and max tokens handling
+	var temperature float64
+	var maxTokens int
+	var isTemperatureSet, isMaxTokensSet bool
 
+	// Check if the temperature is explicitly set
+	temperatureStr := os.Getenv("SPL_LLM_TEMPERATURE")
+	if temperatureStr != "" {
+		var err error
+		temperature, err = strconv.ParseFloat(temperatureStr, 64)
+		if err != nil {
+			temperature = 0.7 // Default
+		} else {
+			isTemperatureSet = true
+		}
+	} else {
+		temperature = 0.7 // Default
+	}
+
+	// Check if max tokens is explicitly set
+	maxTokensStr := os.Getenv("SPL_LLM_MAX_TOKENS")
+	if maxTokensStr != "" {
+		var err error
+		maxTokens, err = strconv.Atoi(maxTokensStr)
+		if err != nil {
+			maxTokens = 0 // Default, meaning no limit
+		} else {
+			isMaxTokensSet = true
+		}
+	} else {
+		maxTokens = 0 // Default, meaning no limit
+	}
+
+	// Validate required fields for LLM Service Config
+	if apiKey == "" {
+		validationErrors = append(validationErrors, "SPL_LLM_API_KEY environment variable is required")
+	}
+	if provider == "" {
+		validationErrors = append(validationErrors, "SPL_LLM_PROVIDER environment variable is required")
+	}
+	if model == "" {
+		validationErrors = append(validationErrors, "SPL_LLM_MODEL environment variable is required")
+	}
+	if promptTemplate == "" {
+		validationErrors = append(validationErrors, "SPL_LLM_PROMPT_TEMPLATE environment variable is required")
+	}
+
+	// Validate prompt template
+	if promptTemplate != "" {
+		err := cm.validatePromptTemplate(promptTemplate, cm.mcpServerConfig.Tool.ArgumentName)
+		if err != nil {
+			validationErrors = append(validationErrors, fmt.Sprintf("Invalid prompt template: %v", err))
+		}
+	}
+
+	// Set validated LLM Service Config
 	cm.llmServiceConfig = types.LLMConfig{
-		Provider:             getEnvString("SPL_LLM_PROVIDER", ""),
-		Model:                getEnvString("SPL_LLM_MODEL", ""),
-		APIKey:               getEnvString("SPL_LLM_API_KEY", ""),
-		MaxTokens:            getEnvInt("SPL_LLM_MAX_TOKENS", 0),
+		Provider:             provider,
+		Model:                model,
+		APIKey:               apiKey,
+		MaxTokens:            maxTokens,
 		IsMaxTokensSet:       isMaxTokensSet,
-		Temperature:          getEnvFloat("SPL_LLM_TEMPERATURE", 0.7),
+		Temperature:          temperature,
 		IsTemperatureSet:     isTemperatureSet,
 		SystemPromptTemplate: promptTemplate,
 		RetryConfig: types.RetryConfig{
@@ -243,54 +303,17 @@ func (cm *Manager) loadFromEnvironment() error {
 			BackoffMultiplier: getEnvFloat("SPL_LLM_RETRY_BACKOFF_MULTIPLIER", 2.0),
 		},
 	}
-	// Validate required fields for LLM Config
-	if cm.llmServiceConfig.Provider == "" {
-		validationErrors = append(validationErrors, "SPL_LLM_PROVIDER environment variable is required")
-	}
-	if cm.llmServiceConfig.Model == "" {
-		validationErrors = append(validationErrors, "SPL_LLM_MODEL environment variable is required")
-	}
-	if promptTemplate == "" {
-		validationErrors = append(validationErrors, "SPL_LLM_PROMPT_TEMPLATE environment variable is required")
-	} else {
-		// Validate prompt template has all required placeholders
-		err := cm.validatePromptTemplate(promptTemplate, cm.mcpServerConfig.Tool.ArgumentName)
-		if err != nil {
-			cm.logger.Errorf("PROMPT TEMPLATE VALIDATION ERROR: %v", err)
-			validationErrors = append(validationErrors, fmt.Sprintf("prompt template validation failed: %v", err))
-		}
-	}
 
-	// Load log configuration
+	// Log Config
 	cm.logConfig = types.LogConfig{
-		Level:  logrus.InfoLevel,
-		Output: os.Stderr,
+		Level:  cm.loadLevelFromName(getEnvString("SPL_LOG_LEVEL", "info")),
+		Output: cm.loadOutputFromName(getEnvString("SPL_LOG_OUTPUT", "stderr")),
 	}
 
-	// Parse log level from environment variables
-	if logLevel := os.Getenv("SPL_LOG_LEVEL"); logLevel != "" {
-		level := cm.loadLevelFromName(logLevel)
-		cm.logConfig.Level = level
-	}
-
-	// Parse log output from environment variables
-	if logOutput := os.Getenv("SPL_LOG_OUTPUT"); logOutput != "" {
-		cm.logConfig.Output = cm.loadOutputFromName(logOutput)
-	}
-
-	// Return validation errors if any were found
+	// If there are validation errors, return them
 	if len(validationErrors) > 0 {
-		return fmt.Errorf("configuration validation errors: %s", strings.Join(validationErrors, ", "))
+		return fmt.Errorf("configuration validation failed: %s", strings.Join(validationErrors, "; "))
 	}
-
-	llmCopy := cm.llmServiceConfig
-	llmCopy.APIKey = "<hidden>"
-	cm.logger.Infof("Full Config: %s", utils.SDump(map[string]interface{}{
-		"mcp-server":      cm.mcpServerConfig,
-		"mcp-connections": cm.mcpConnectorConfig,
-		"llm":             llmCopy,
-		"log":             cm.logConfig,
-	}))
 
 	return nil
 }
@@ -505,6 +528,14 @@ func (cm *Manager) GetLLMConfig() types.LLMConfig {
 // GetLogConfig returns the logging configuration.
 func (cm *Manager) GetLogConfig() types.LogConfig {
 	return cm.logConfig
+}
+
+// GetChatConfig returns the chat configuration.
+func (cm *Manager) GetChatConfig() types.ChatConfig {
+	return types.ChatConfig{
+		MaxTokens:          cm.mcpServerConfig.MaxTokens,
+		CompactionStrategy: cm.mcpServerConfig.CompactionStrategy,
+	}
 }
 
 // GetString returns a string value from the configuration.

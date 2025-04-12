@@ -176,19 +176,22 @@ case $CMD in
     check)
         echo -e "${BLUE}Running all project checks...${NC}"
 
-        echo -e "\n${YELLOW}1. Building project${NC}"
+        echo -e "\n${YELLOW}1. Format code${NC}"
+        go fmt ./internal/...
+
+        echo -e "\n${YELLOW}2. Building project${NC}"
         ./run build
 
-        echo -e "\n${YELLOW}2. Running linter${NC}"
+        echo -e "\n${YELLOW}3. Running linter${NC}"
         ./run lint
 
-        echo -e "\n${YELLOW}3. Running tests${NC}"
+        echo -e "\n${YELLOW}4. Running tests${NC}"
         ./run test
 
-        echo -e "\n${YELLOW}4. Running call${NC}"
+        echo -e "\n${YELLOW}5. Running call${NC}"
         ./run call
 
-        echo -e "\n${YELLOW}5. Running complex call${NC}"
+        echo -e "\n${YELLOW}6. Running complex call${NC}"
         ./run complex-call
 
         echo -e "\n${GREEN}✓ All checks passed!${NC}"
