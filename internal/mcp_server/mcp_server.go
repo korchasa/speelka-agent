@@ -19,14 +19,14 @@ import (
 type MCPServer struct {
 	server    *server.MCPServer
 	config    types.MCPServerConfig
-	logger    logger.Spec
+	logger    types.LoggerSpec
 	sseServer *server.SSEServer
 }
 
 // NewMCPServer creates a new MCPServer instance
 // Responsibility: Factory method for creating an MCP server
 // Features: Initializes the data structure with the given parameters
-func NewMCPServer(config types.MCPServerConfig, logger logger.Spec) *MCPServer {
+func NewMCPServer(config types.MCPServerConfig, logger types.LoggerSpec) *MCPServer {
 	return &MCPServer{
 		config: config,
 		logger: logger,
@@ -130,7 +130,7 @@ func (s *MCPServer) BuildHooks() *server.Hooks {
 }
 
 // AttachLogger attaches a logger to the MCP server
-func (s *MCPServer) AttachLogger(logger logger.Spec) {
+func (s *MCPServer) AttachLogger(logger types.LoggerSpec) {
 	logger.SetMCPServer(s)
 }
 

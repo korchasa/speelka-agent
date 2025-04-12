@@ -23,13 +23,13 @@ import (
 type LLMService struct {
 	config types.LLMConfig
 	client llms.Model
-	logger logger.Spec
+	logger types.LoggerSpec
 }
 
 // NewLLMService creates a new instance of LLMService
 // Responsibility: Factory method for creating an LLM service
 // Features: Returns an uninitialized service that requires Initialize to be called
-func NewLLMService(cfg types.LLMConfig, logger logger.Spec) (*LLMService, error) {
+func NewLLMService(cfg types.LLMConfig, logger types.LoggerSpec) (*LLMService, error) {
 	s := &LLMService{
 		config: cfg,
 		logger: logger,

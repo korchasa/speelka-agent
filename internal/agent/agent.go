@@ -5,13 +5,78 @@ import (
 	"fmt"
 
 	"github.com/korchasa/speelka-agent-go/internal/chat"
-	"github.com/korchasa/speelka-agent-go/internal/llm_service"
 	"github.com/korchasa/speelka-agent-go/internal/logger"
-	"github.com/korchasa/speelka-agent-go/internal/mcp_connector"
-	"github.com/korchasa/speelka-agent-go/internal/mcp_server"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/sirupsen/logrus"
 )
+
+// LoggerAdapter adapts a types.LoggerSpec to a logger.Spec
+type LoggerAdapter struct {
+	logger types.LoggerSpec
+}
+
+func NewLoggerAdapter(logger types.LoggerSpec) types.LoggerSpec {
+	return &LoggerAdapter{logger: logger}
+}
+
+func (a *LoggerAdapter) SetLevel(level logrus.Level) {
+	a.logger.SetLevel(level)
+}
+
+func (a *LoggerAdapter) Debug(args ...interface{}) {
+	a.logger.Debug(args...)
+}
+
+func (a *LoggerAdapter) Debugf(format string, args ...interface{}) {
+	a.logger.Debugf(format, args...)
+}
+
+func (a *LoggerAdapter) Info(args ...interface{}) {
+	a.logger.Info(args...)
+}
+
+func (a *LoggerAdapter) Infof(format string, args ...interface{}) {
+	a.logger.Infof(format, args...)
+}
+
+func (a *LoggerAdapter) Warn(args ...interface{}) {
+	a.logger.Warn(args...)
+}
+
+func (a *LoggerAdapter) Warnf(format string, args ...interface{}) {
+	a.logger.Warnf(format, args...)
+}
+
+func (a *LoggerAdapter) Error(args ...interface{}) {
+	a.logger.Error(args...)
+}
+
+func (a *LoggerAdapter) Errorf(format string, args ...interface{}) {
+	a.logger.Errorf(format, args...)
+}
+
+func (a *LoggerAdapter) Fatal(args ...interface{}) {
+	a.logger.Fatal(args...)
+}
+
+func (a *LoggerAdapter) Fatalf(format string, args ...interface{}) {
+	a.logger.Fatalf(format, args...)
+}
+
+func (a *LoggerAdapter) WithField(key string, value interface{}) types.LogEntrySpec {
+	// Create a new Entry with the field
+	return &logger.Entry{}
+}
+
+func (a *LoggerAdapter) WithFields(fields logrus.Fields) types.LogEntrySpec {
+	// Create a new Entry with the fields
+	return &logger.Entry{}
+}
+
+func (a *LoggerAdapter) SetMCPServer(mcpServer interface{}) {
+	a.logger.SetMCPServer(mcpServer)
+}
 
 // MaxLLMIterations Maximum number of LLM interaction iterations
 const MaxLLMIterations = 25
@@ -26,25 +91,25 @@ var ExitTool = mcp.NewTool("answer",
 
 type Agent struct {
 	config       types.AgentConfig
-	llmService   *llm_service.LLMService
-	mcpServer    *mcp_server.MCPServer
-	mcpConnector *mcp_connector.MCPConnector
-	logger       logger.Spec
+	llmService   types.LLMServiceSpec
+	mcpServer    types.MCPServerSpec
+	mcpConnector types.MCPConnectorSpec
+	logger       types.LoggerSpec
 }
 
 // GetMCPServer returns the MCP server instance for external use
-func (a *Agent) GetMCPServer() *mcp_server.MCPServer {
+func (a *Agent) GetMCPServer() types.MCPServerSpec {
 	return a.mcpServer
 }
 
 // NewAgent creates a new instance of Agent with the given dependencies
 func NewAgent(
 	config types.AgentConfig,
-	llmService *llm_service.LLMService,
-	mcpServer *mcp_server.MCPServer,
-	mcpConnector *mcp_connector.MCPConnector,
-	logger logger.Spec,
-) *Agent {
+	llmService types.LLMServiceSpec,
+	mcpServer types.MCPServerSpec,
+	mcpConnector types.MCPConnectorSpec,
+	logger types.LoggerSpec,
+) types.AgentSpec {
 	return &Agent{
 		config:       config,
 		llmService:   llmService,
@@ -128,7 +193,7 @@ func (a *Agent) isExitCommand(call types.CallToolRequest) bool {
 
 // HandleRequest processes the incoming MCP request
 func (a *Agent) HandleRequest(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	a.logger.Debugf(">> HandleRequest: %s", logger.SDump(map[string]any{"req": req}))
+	a.logger.Debugf(">> HandleRequest: %s", types.SDump(map[string]any{"req": req}))
 
 	toolConfig := a.config.Tool
 	if req.Params.Name != toolConfig.Name {
@@ -171,11 +236,12 @@ func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolR
 	toolConfig := a.config.Tool
 
 	// Create and initialize chat history with compaction settings
+	loggerAdapter := NewLoggerAdapter(a.logger)
 	history := chat.NewChat(
 		a.config.Model,
 		a.config.SystemPromptTemplate,
 		toolConfig.ArgumentName,
-		a.logger,
+		loggerAdapter,
 	)
 
 	// Configure chat compaction settings from configuration
@@ -207,7 +273,7 @@ func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolR
 			return mcp.NewToolResultError(fmt.Sprintf("failed to send request to LLM: %s", err)), nil
 		}
 		a.logger.Infof("<< LLM response received with %d choices", len(calls))
-		a.logger.Debugf("<< Details: %s", logger.SDump(map[string]any{"message": message, "calls": calls}))
+		a.logger.Debugf("<< Details: %s", types.SDump(map[string]any{"message": message, "calls": calls}))
 
 		for _, call := range calls {
 			if a.isExitCommand(call) {
@@ -232,13 +298,13 @@ func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolR
 		// Execute tool calls
 		for _, call := range calls {
 			a.logger.Infof(">> Process tool call: %s", call.ToolName())
-			a.logger.Debugf(">> Details: %s", logger.SDump(call))
+			a.logger.Debugf(">> Details: %s", types.SDump(call))
 
 			// Add tool call to history
 			history.AddToolCall(call)
 
 			// Execute the tool
-			a.logger.Infof(">> Execute tool `%s` with args: %s", call.ToolName(), logger.SDump(call.Params.Arguments))
+			a.logger.Infof(">> Execute tool `%s` with args: %s", call.ToolName(), types.SDump(call.Params.Arguments))
 			result, err := a.mcpConnector.ExecuteTool(ctx, call)
 			if err != nil {
 				a.logger.Errorf("failed to execute tool %s: %v", call.ToolName(), err)

@@ -6,7 +6,6 @@ import (
 
 	"github.com/korchasa/speelka-agent-go/internal/configuration"
 	"github.com/korchasa/speelka-agent-go/internal/llm_service"
-	"github.com/korchasa/speelka-agent-go/internal/logger"
 	"github.com/korchasa/speelka-agent-go/internal/mcp_connector"
 	"github.com/korchasa/speelka-agent-go/internal/mcp_server"
 	"github.com/korchasa/speelka-agent-go/internal/types"
@@ -15,12 +14,12 @@ import (
 // App is responsible for instantiating and managing the Agent and its dependencies
 type App struct {
 	configManager types.ConfigurationManagerSpec
-	agent         *Agent
-	logger        logger.Spec
+	agent         types.AgentSpec
+	logger        types.LoggerSpec
 }
 
 // NewApp creates a new instance of App with the given logger
-func NewApp(logger logger.Spec) (*App, error) {
+func NewApp(logger types.LoggerSpec) (*App, error) {
 	return &App{
 		logger: logger,
 	}, nil
@@ -49,6 +48,7 @@ func (a *App) Initialize() error {
 
 	// Create MCP server
 	mcpServer := mcp_server.NewMCPServer(a.configManager.GetMCPServerConfig(), a.logger)
+	a.logger.SetMCPServer(mcpServer)
 	a.logger.Info("MCP server instance created")
 
 	// Create MCP connector
@@ -95,17 +95,4 @@ func (a *App) Stop(shutdownCtx context.Context) error {
 		return fmt.Errorf("agent not initialized, nothing to stop")
 	}
 	return a.agent.Stop(shutdownCtx)
-}
-
-// GetAgent returns the Agent instance
-func (a *App) GetAgent() *Agent {
-	return a.agent
-}
-
-// GetMCPServer returns the MCP server instance for external use
-func (a *App) GetMCPServer() *mcp_server.MCPServer {
-	if a.agent == nil {
-		return nil
-	}
-	return a.agent.GetMCPServer()
 }

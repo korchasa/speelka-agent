@@ -109,10 +109,5 @@ func run(ctx context.Context) error {
         return fmt.Errorf("failed to start agent: %w", err)
     }
 
-    // Get the MCP server from app and set it in our logger
-    mcpServer := app.GetMCPServer()
-    log.SetMCPServer(mcpServer)
-    log.Info("MCP server attached to logger")
-
     return nil
 }

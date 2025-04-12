@@ -35,7 +35,7 @@ type Chat struct {
 	promptTemplate string
 	argName        string
 	messages       []llms.MessageContent
-	logger         logger.Spec
+	logger         types.LoggerSpec
 
 	// Token tracking
 	modelName   string
@@ -47,7 +47,7 @@ type Chat struct {
 }
 
 // NewChat creates a new Chat with the given prompt template and argument name
-func NewChat(model string, promptTemplate, argName string, logger logger.Spec) *Chat {
+func NewChat(model string, promptTemplate, argName string, logger types.LoggerSpec) *Chat {
 	return &Chat{
 		promptTemplate:     promptTemplate,
 		argName:            argName,

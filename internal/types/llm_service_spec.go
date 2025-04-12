@@ -3,6 +3,21 @@
 // Features: Contains only interfaces and data structures, without implementation
 package types
 
+import (
+	"context"
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/tmc/langchaingo/llms"
+)
+
+// LLMServiceSpec represents the interface for the LLM service.
+// Responsibility: Defining the contract for the LLM service
+// Features: Defines methods for sending requests to the LLM
+type LLMServiceSpec interface {
+	// SendRequest sends a request to the LLM with the given prompt and tools.
+	// It returns the response message, any tool calls, and an error if the request fails.
+	SendRequest(ctx context.Context, messages []llms.MessageContent, tools []mcp.Tool) (string, []CallToolRequest, error)
+}
+
 // LLMConfig represents the configuration for the LLM service.
 // Responsibility: Storing all settings for working with the language model
 // Features: Includes parameters for connecting to the provider, model settings, and prompt templates
