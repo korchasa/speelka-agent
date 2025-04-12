@@ -5,10 +5,6 @@ import (
 	"fmt"
 
 	"github.com/korchasa/speelka-agent-go/internal/chat"
-	"github.com/korchasa/speelka-agent-go/internal/llm_service"
-	"github.com/korchasa/speelka-agent-go/internal/logger"
-	"github.com/korchasa/speelka-agent-go/internal/mcp_connector"
-	"github.com/korchasa/speelka-agent-go/internal/mcp_server"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -25,85 +21,42 @@ var ExitTool = mcp.NewTool("answer",
 )
 
 type Agent struct {
-	configManager types.ConfigurationManagerSpec
-	llmService    *llm_service.LLMService
-	mcpServer     *mcp_server.MCPServer
-	mcpConnector  *mcp_connector.MCPConnector
-	logger        logger.Spec
+	config       types.AgentConfig
+	llmService   types.LLMServiceSpec
+	mcpServer    types.MCPServerSpec
+	mcpConnector types.MCPConnectorSpec
+	logger       types.LoggerSpec
 }
 
 // GetMCPServer returns the MCP server instance for external use
-func (a *Agent) GetMCPServer() *mcp_server.MCPServer {
+func (a *Agent) GetMCPServer() types.MCPServerSpec {
 	return a.mcpServer
 }
 
-// NewAgent creates a new instance of Agent with the given configuration manager and logger
-func NewAgent(configManager types.ConfigurationManagerSpec, logger logger.Spec) (*Agent, error) {
-	llmService, err := llm_service.NewLLMService(configManager.GetLLMConfig(), logger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create LLM service: %w", err)
+// NewAgent creates a new instance of Agent with the given dependencies
+func NewAgent(
+	config types.AgentConfig,
+	llmService types.LLMServiceSpec,
+	mcpServer types.MCPServerSpec,
+	mcpConnector types.MCPConnectorSpec,
+	logger types.LoggerSpec,
+) types.AgentSpec {
+	return &Agent{
+		config:       config,
+		llmService:   llmService,
+		mcpServer:    mcpServer,
+		mcpConnector: mcpConnector,
+		logger:       logger,
 	}
-	logger.Info("LLM service instance created")
-
-	mcpServer := mcp_server.NewMCPServer(configManager.GetMCPServerConfig(), logger)
-	logger.Info("MCP server instance created")
-
-	mcpConnector := mcp_connector.NewMCPConnector(configManager.GetMCPConnectorConfig(), logger)
-	logger.Info("MCP connector instance created")
-
-	agent := &Agent{
-		configManager: configManager,
-		llmService:    llmService,
-		mcpServer:     mcpServer,
-		mcpConnector:  mcpConnector,
-		logger:        logger,
-	}
-
-	// Register all tools
-	agent.registerTools()
-
-	return agent, nil
 }
 
-// Start starts the MCP server in daemon or stdio mode
-func (a *Agent) Start(daemonMode bool, ctx context.Context) error {
-	// First, initialize and connect to MCPs
-	err := a.mcpConnector.InitAndConnectToMCPs(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to init MCP connector: %w", err)
-	}
-	a.logger.Info("MCP connector connected successfully")
-
-	if daemonMode {
-		a.logger.Info("Running in daemon mode with HTTP SSE MCP server")
-		if err := a.mcpServer.ServeDaemon(a.HandleRequest); err != nil {
-			return fmt.Errorf("failed to start HTTP MCP server: %w", err)
-		}
-	} else {
-		a.logger.Info("Running in script mode with stdio MCP server")
-		if err := a.mcpServer.ServeStdio(a.HandleRequest); err != nil {
-			return fmt.Errorf("failed to start Stdio MCP Server: %w", err)
-		}
-	}
-	return nil
-}
-
-// Stop stops the MCP server
-func (a *Agent) Stop(shutdownCtx context.Context) error {
-	if err := a.mcpServer.Stop(shutdownCtx); err != nil {
-		return fmt.Errorf("failed to stop HTTP MCP server: %w", err)
-	}
-	a.logger.Info("Server shutdown complete")
-	return nil
-}
-
-// registerTools registers all tools for the agent
-func (a *Agent) registerTools() {
+// RegisterTools registers all tools for the agent
+func (a *Agent) RegisterTools() {
 	// Register exit tool
 	a.mcpServer.AddTool(ExitTool, nil) // No handler needed as we catch exit tool in process
 
 	// Register agent's core tool for handling user queries
-	toolConfig := a.configManager.GetMCPServerConfig().Tool
+	toolConfig := a.config.Tool
 	a.mcpServer.AddTool(
 		mcp.NewTool(
 			toolConfig.Name,
@@ -139,9 +92,9 @@ func (a *Agent) isExitCommand(call types.CallToolRequest) bool {
 
 // HandleRequest processes the incoming MCP request
 func (a *Agent) HandleRequest(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	a.logger.Debugf(">> HandleRequest: %s", logger.SDump(map[string]any{"req": req}))
+	a.logger.Debugf(">> HandleRequest: %s", types.SDump(map[string]any{"req": req}))
 
-	toolConfig := a.configManager.GetMCPServerConfig().Tool
+	toolConfig := a.config.Tool
 	if req.Params.Name != toolConfig.Name {
 		a.logger.Errorf("invalid tool name: %s", req.Params.Name)
 		return mcp.NewToolResultError("invalid tool name"), nil
@@ -179,25 +132,21 @@ func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolR
 		return mcp.NewToolResultError(fmt.Sprintf("failed to get tools: %s", err)), nil
 	}
 
-	toolConfig := a.configManager.GetMCPServerConfig().Tool
-
-	// Create and initialize chat history with compaction settings
 	history := chat.NewChat(
-		a.configManager.GetLLMConfig().Model,
-		a.configManager.GetLLMConfig().SystemPromptTemplate,
-		toolConfig.ArgumentName,
+		a.config.Model,
+		a.config.SystemPromptTemplate,
+		a.config.Tool.ArgumentName,
 		a.logger,
 	)
 
 	// Configure chat compaction settings from configuration
-	chatConfig := a.configManager.GetChatConfig()
-	history.SetMaxTokens(chatConfig.MaxTokens)
-	if err := history.SetCompactionStrategy(chatConfig.CompactionStrategy); err != nil {
+	history.SetMaxTokens(a.config.MaxTokens)
+	if err := history.SetCompactionStrategy(a.config.CompactionStrategy); err != nil {
 		a.logger.Warnf("Error setting chat compaction strategy: %v. Using default.", err)
 	}
 
 	a.logger.Infof("Chat configured with max tokens: %d, compaction strategy: %s",
-		chatConfig.MaxTokens, chatConfig.CompactionStrategy)
+		a.config.MaxTokens, a.config.CompactionStrategy)
 
 	err = history.Begin(userRequest, tools)
 	if err != nil {
@@ -219,7 +168,7 @@ func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolR
 			return mcp.NewToolResultError(fmt.Sprintf("failed to send request to LLM: %s", err)), nil
 		}
 		a.logger.Infof("<< LLM response received with %d choices", len(calls))
-		a.logger.Debugf("<< Details: %s", logger.SDump(map[string]any{"message": message, "calls": calls}))
+		a.logger.Debugf("<< Details: %s", types.SDump(map[string]any{"message": message, "calls": calls}))
 
 		for _, call := range calls {
 			if a.isExitCommand(call) {
@@ -244,13 +193,13 @@ func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolR
 		// Execute tool calls
 		for _, call := range calls {
 			a.logger.Infof(">> Process tool call: %s", call.ToolName())
-			a.logger.Debugf(">> Details: %s", logger.SDump(call))
+			a.logger.Debugf(">> Details: %s", types.SDump(call))
 
 			// Add tool call to history
 			history.AddToolCall(call)
 
 			// Execute the tool
-			a.logger.Infof(">> Execute tool `%s` with args: %s", call.ToolName(), logger.SDump(call.Params.Arguments))
+			a.logger.Infof(">> Execute tool `%s` with args: %s", call.ToolName(), types.SDump(call.Params.Arguments))
 			result, err := a.mcpConnector.ExecuteTool(ctx, call)
 			if err != nil {
 				a.logger.Errorf("failed to execute tool %s: %v", call.ToolName(), err)

@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/korchasa/speelka-agent-go/internal/logger"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/sirupsen/logrus"
 )
@@ -21,7 +20,7 @@ import (
 // Responsibility: Managing application configuration
 // Features: Reads settings from environment variables
 type Manager struct {
-	logger             logger.Spec
+	logger             types.LoggerSpec
 	mcpServerConfig    types.MCPServerConfig
 	mcpConnectorConfig types.MCPConnectorConfig
 	llmServiceConfig   types.LLMConfig
@@ -96,7 +95,7 @@ type Configuration struct {
 // NewConfigurationManager creates a new instance of ConfigurationManagerSpec.
 // Responsibility: Factory method for creating a configuration manager
 // Features: Returns a simple instance without initialization
-func NewConfigurationManager(logger logger.Spec) *Manager {
+func NewConfigurationManager(logger types.LoggerSpec) *Manager {
 	return &Manager{
 		logger: logger,
 	}

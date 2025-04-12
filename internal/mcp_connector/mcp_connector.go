@@ -24,14 +24,14 @@ type MCPConnector struct {
 	clients         map[string]client.MCPClient
 	tools           map[string][]mcp.Tool
 	dataLock        sync.RWMutex
-	logger          logger.Spec
+	logger          types.LoggerSpec
 	toolCallTimeout time.Duration
 }
 
 // NewMCPConnector creates a new instance of MCPConnector
 // Responsibility: Factory method for creating an MCP connector
 // Features: Returns a simple instance without initialization
-func NewMCPConnector(config types.MCPConnectorConfig, logger logger.Spec) *MCPConnector {
+func NewMCPConnector(config types.MCPConnectorConfig, logger types.LoggerSpec) *MCPConnector {
 	return &MCPConnector{
 		clients:         make(map[string]client.MCPClient),
 		tools:           make(map[string][]mcp.Tool),

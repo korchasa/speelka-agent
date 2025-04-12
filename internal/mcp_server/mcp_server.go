@@ -19,24 +19,39 @@ import (
 type MCPServer struct {
 	server    *server.MCPServer
 	config    types.MCPServerConfig
-	logger    logger.Spec
+	logger    types.LoggerSpec
 	sseServer *server.SSEServer
 }
 
 // NewMCPServer creates a new MCPServer instance
 // Responsibility: Factory method for creating an MCP server
 // Features: Initializes the data structure with the given parameters
-func NewMCPServer(config types.MCPServerConfig, logger logger.Spec) *MCPServer {
+func NewMCPServer(config types.MCPServerConfig, logger types.LoggerSpec) *MCPServer {
 	return &MCPServer{
 		config: config,
 		logger: logger,
 	}
 }
 
-// ServeDaemon initializes and starts the HTTP MCP server
+func (s *MCPServer) Serve(ctx context.Context, daemonMode bool, handler server.ToolHandlerFunc) error {
+	if daemonMode {
+		s.logger.Info("Running in daemon mode with HTTP SSE MCP server")
+		if err := s.serveDaemon(handler); err != nil {
+			return fmt.Errorf("failed to start HTTP MCP server: %w", err)
+		}
+	} else {
+		s.logger.Info("Running in script mode with stdio MCP server")
+		if err := s.serveStdio(handler); err != nil {
+			return fmt.Errorf("failed to start Stdio MCP Server: %w", err)
+		}
+	}
+	return nil
+}
+
+// serveDaemon initializes and starts the HTTP MCP server
 // Responsibility: Starting the server in daemon mode with HTTP interface
 // Features: Sets the launch flag and logs configuration information
-func (s *MCPServer) ServeDaemon(handler server.ToolHandlerFunc) error {
+func (s *MCPServer) serveDaemon(handler server.ToolHandlerFunc) error {
 	var err error
 	if err = s.createAndInitMCPServer(handler); err != nil {
 		return fmt.Errorf("failed to create and initialize MCP server: %w", err)
@@ -52,10 +67,10 @@ func (s *MCPServer) ServeDaemon(handler server.ToolHandlerFunc) error {
 	return nil
 }
 
-// ServeStdio initializes and starts the stdio MCP server
+// serveStdio initializes and starts the stdio MCP server
 // Responsibility: Starting the server in input-output mode through standard streams
 // Features: Sets the launch flag and prepares stdin/stdout handling
-func (s *MCPServer) ServeStdio(handler server.ToolHandlerFunc) error {
+func (s *MCPServer) serveStdio(handler server.ToolHandlerFunc) error {
 	var err error
 	if err = s.createAndInitMCPServer(handler); err != nil {
 		return fmt.Errorf("failed to create and initialize MCP server: %w", err)
@@ -130,7 +145,7 @@ func (s *MCPServer) BuildHooks() *server.Hooks {
 }
 
 // AttachLogger attaches a logger to the MCP server
-func (s *MCPServer) AttachLogger(logger logger.Spec) {
+func (s *MCPServer) AttachLogger(logger types.LoggerSpec) {
 	logger.SetMCPServer(s)
 }
 
