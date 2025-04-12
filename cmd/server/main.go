@@ -13,7 +13,6 @@ import (
     "syscall"
 
     "github.com/korchasa/speelka-agent-go/internal/agent"
-    "github.com/korchasa/speelka-agent-go/internal/configuration"
     mcplogger "github.com/korchasa/speelka-agent-go/internal/logger"
     "github.com/sirupsen/logrus"
 )
@@ -86,33 +85,32 @@ func main() {
 // Features: Sequentially initializes all necessary components
 // and launches the server in the required mode
 func run(ctx context.Context) error {
+    // Create the app with the logger
+    app, err := agent.NewApp(log)
+    if err != nil {
+        return fmt.Errorf("failed to create agent app: %w", err)
+    }
+
     // Load configuration from environment variables
-    configManager := configuration.NewConfigurationManager(log)
-    err := configManager.LoadConfiguration(ctx)
+    err = app.LoadConfiguration(ctx)
     if err != nil {
         log.Fatalf("Failed to load configuration: %v", err)
     }
 
-    // Reconfigure the logger with parameters from configuration
-    logConfig := configManager.GetLogConfig()
-    log.SetLevel(logConfig.Level)
-    log.SetOutput(logConfig.Output)
-    log.Info("Logger reconfigured with settings from configuration")
-
-    // Initialize system components
-    agentApp, err := agent.NewAgent(configManager, log)
+    // Initialize the app (creates the Agent and its dependencies)
+    err = app.Initialize()
     if err != nil {
-        return fmt.Errorf("failed to create agent: %w", err)
+        return fmt.Errorf("failed to initialize agent app: %w", err)
     }
 
     // Start the agent
-    err = agentApp.Start(*daemonMode, ctx)
+    err = app.Start(*daemonMode, ctx)
     if err != nil {
         return fmt.Errorf("failed to start agent: %w", err)
     }
 
-    // Get the MCP server from agent and set it in our logger
-    mcpServer := agentApp.GetMCPServer()
+    // Get the MCP server from app and set it in our logger
+    mcpServer := app.GetMCPServer()
     log.SetMCPServer(mcpServer)
     log.Info("MCP server attached to logger")
 
