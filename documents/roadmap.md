@@ -1,10 +1,11 @@
-# Roadmap
-- [ ] MCP logging support
-- [ ] Context size limit and history compaction
-- [ ] Request budget in money
+# Future Development
+
+## Short-term Goals
+- [ ] MCP `logging/setLevel` call support (not supported by mcp-go)
+- [ ] Context size limit and history compaction for agents
+- [ ] Request budget in money: config param to limit cost of overall LLM calls for one request sequence
+
+## Mid-term Goals
 - [ ] Refactoring: Application, error handling, interfaces
-- [ ] Return MCP errors to LLM
 - [ ] Recursive configuration for multiple agents
-- [ ] CONFIG_URL support
-- [ ] Thoughts and goals of tool usage
-- [ ] MCP capabilities cache
+- [ ] Thoughts and goals of tool usage tracking and visibility

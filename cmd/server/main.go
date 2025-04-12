@@ -57,6 +57,7 @@ func main() {
 	// Create MCPLogger with internal configuration
 	log = mcplogger.NewLogger()
 	log.SetFormatter(utils.NewCustomLogFormatter())
+	log.Info("Logger initialized")
 
 	// Set up panic handler
 	defer panicHandler()

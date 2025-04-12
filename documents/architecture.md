@@ -1,51 +1,55 @@
-# Speelka Agent Architecture
+# System Architecture
 
 ## Overview
-Speelka Agent = Universal LLM agent using Model Context Protocol (MCP). Modular, extensible system with clean architecture.
-
-## Key Advantages
-1. **Client-Side Context Optimization**: ↓ context size = ↓ token usage, ↓ costs
-2. **LLM Flexibility**: Different LLMs between client/agent = optimized performance/cost
-3. **Precise Agent Definition**: Detailed behavior via prompt engineering
-4. **Centralized Tool Management**: Single control point for all tools
-5. **Integration Options**: MCP stdio, MCP HTTP*, Simple HTTP API* (*planned)
-6. **Reliability**: Built-in retry mechanisms for transient failures
-7. **Extensibility**: System extensions without client-side changes
+Speelka Agent is a universal LLM agent based on Model Context Protocol (MCP), providing a modular, extensible system with clean architecture.
 
 ## Core Design Principles
-1. **Separation of Concerns**: Single responsibility per component
-2. **Dependency Injection**: Dependencies via constructors
+1. **Separation of Concerns**: Each component has a single responsibility
+2. **Dependency Injection**: Dependencies are provided via constructors
 3. **Interface-Based Design**: Components implement interfaces for testability
 4. **Error Handling Strategy**: Structured, categorized error handling
-5. **Configuration Management**: Centralized config with component-specific subsets
+5. **Configuration Management**: Centralized configuration with component-specific subsets
+
+## High-Level Architecture
+
+```mermaid
+flowchart TB
+    User["Any MCP Client"] --> |"1. Request"| Agent["Speelka Agent"]
+    Agent --> |"2. Format prompt"| LLM["LLM Service"]
+    LLM --> |"3. Tool calls"| Agent
+    Agent --> |"4. Execute tools"| Tools["External MCP Tools"]
+    Tools --> |"5. Return results"| Agent
+    Agent --> |"6. Process repeat"| LLM
+    Agent --> |"7. Final answer"| User
+```
 
 ## Key Components
 
 ### Agent
 - Central orchestrator coordinating all components
-- Manages conversation flow: user ↔ LLM ↔ tools
+- Manages conversation flow between user, LLM, and tools
 - Processes user requests via MCP server
 - Controls LLM interaction loop
 - Delegates tool execution to MCP connector
 - Maintains conversation state via Chat component
 
 ### Configuration Manager
-- Centralized config access point
-- Loads config from env vars/files
-- Provides typed access to config subsets
+- Centralized configuration access point
+- Loads configuration from environment variables or files
+- Provides typed access to configuration subsets
 - Implements `ConfigurationManagerSpec` interface
 
 ### LLM Service
-- Handles LLM provider communication
+- Handles communication with LLM providers
 - Supports multiple providers (OpenAI, Anthropic)
-- Formats/sends requests to LLMs
-- Processes responses, extracts tool calls
+- Formats and sends requests to LLMs
+- Processes responses and extracts tool calls
 - Implements retry logic for transient errors
 
 ### MCP Server
 - Exposes agent functionality to clients
 - Supports HTTP and stdio protocols
-- Registers/manages available tools
+- Registers and manages available tools
 - Processes incoming requests
 - Returns responses to clients
 
@@ -57,132 +61,22 @@ Speelka Agent = Universal LLM agent using Model Context Protocol (MCP). Modular,
 - Returns tool execution results
 
 ### Chat
-- Manages conversation history/formatting
-- Maintains message history: user ↔ assistant ↔ tools
+- Manages conversation history and formatting
+- Maintains message history between user, assistant, and tools
 - Formats prompts with templates
 - Provides conversation context for LLM requests
 - Tracks tool calls and results
 
-## MCPLogger Component
+### MCPLogger
+- Wraps logrus logging library with MCP capabilities
+- Supports standard logging and MCP protocol-based logging to clients
+- Maps between logrus levels and MCP protocol levels
+- Sends "notifications/message" to connected clients
+- Provides "logging/setLevel" tool for clients
 
-The `mcplogger` package provides a wrapper around the logrus logging library that implements MCP (Model Context Protocol) logging capabilities while maintaining the familiar logrus interface.
+## System Diagrams
 
-### Design Goals
-
-1. **Dual Functionality:** The MCPLogger simultaneously supports standard logrus logging and MCP protocol-based logging to clients.
-2. **Minimal Interface:** Implements only the subset of logrus methods actually used in the application.
-3. **Backwards Compatibility:** Provides a drop-in replacement for existing logrus usage.
-4. **Level Mapping:** Maps between logrus logging levels and MCP protocol levels.
-
-### Key Components
-
-1. **MCPLogger Interface:** Defines the core logging methods supported by our wrapper.
-2. **MCPLogrus Struct:** Main implementation that wraps a logrus.Logger instance and adds MCP capabilities.
-3. **MCPLogEntry Struct:** Wrapper around logrus.Entry to support structured logging with MCP notification support.
-
-### Integration with MCP
-
-The logger integrates with MCP in two ways:
-
-1. **Logging Notifications:** Sends "notifications/message" notifications to connected clients with log data.
-2. **Level Setting API:** Provides a "logging/setLevel" tool that clients can use to adjust the minimum log level.
-
-### Usage Example
-
-```go
-// Create a standard logrus logger
-logrusLogger := logrus.New()
-
-// Wrap it with MCPLogger
-mcpLogger := mcplogger.NewMCPLogger(logrusLogger, mcpServer)
-
-// Use it like regular logrus
-mcpLogger.Info("This is an info message")
-mcpLogger.WithField("key", "value").Error("This is an error with context")
-```
-
-This provides all the standard logrus logging capabilities while automatically sending appropriate notifications to MCP clients.
-
-## Data Flow
-1. User request → MCP Server
-2. Agent processes request, initializes Chat session
-3. LLM Service called with formatted prompt + available tools
-4. LLM responds with text and/or tool calls
-5. For each tool call, MCP Connector executes tool on appropriate server
-6. Tool results added to Chat history
-7. Process repeats until LLM issues "answer" command
-8. Final response returned to user via MCP Server
-
-## Error Handling
-- **Categories**: Validation, Transient, Internal, External
-- **Retry**: Appropriate mechanisms per error type
-- **Context-rich messages**: Minimal sensitive information
-
-### Handling Nil Interface Values
-1. **Always Check for Nil**: Before type assertions on interface{} values
-   ```go
-   argValue, exists := someMap[key]
-   if !exists || argValue == nil {
-       // Handle nil case
-   }
-   ```
-
-2. **Safe Type Assertions**: Use two-return form
-   ```go
-   strValue, ok := argValue.(string)
-   if !ok {
-       // Handle type assertion failure
-   }
-   ```
-
-3. **Descriptive Error Messages**: Include expected vs actual type
-4. **Return Graceful Errors**: Clear errors vs panics
-
-## Configuration
-- Env vars for different aspects:
-  - Agent info (name, version)
-  - Tool settings (name, description, arguments)
-  - LLM service settings (provider, model, API key)
-  - MCP connector config
-  - Transport settings (HTTP, stdio)
-  - Logging config
-
-Example:
-```bash
-# Agent settings
-export SPL_AGENT_NAME="speelka-agent"
-export SPL_AGENT_VERSION="1.0.0"
-
-# Tool settings
-export SPL_TOOL_NAME="process"
-export SPL_TOOL_DESCRIPTION="Process tool for handling user queries with LLM"
-export SPL_TOOL_ARGUMENT_NAME="query"
-export SPL_TOOL_ARGUMENT_DESCRIPTION="The user query to process"
-
-# LLM settings
-export SPL_LLM_PROVIDER="openai"
-export SPL_LLM_MODEL="gpt-4o"
-
-# MCP servers
-export SPL_MCPS_0_ID="time"
-export SPL_MCPS_0_COMMAND="docker"
-export SPL_MCPS_0_ARGS="run -i --rm mcp/time"
-```
-
-## External Dependencies
-- `mcp-go`: Go implementation of Model Context Protocol
-- `langchaingo`: Go client for LLM interaction
-- `logrus`: Structured logging
-- Standard Go libraries
-
-## Security Considerations
-- API keys from env vars/secure storage
-- Sensitive info sanitized in errors/logs
-- Transport security options for HTTP
-
-## Multi-Transport Support
-- **Daemon mode**: HTTP server for multi-client support
-- **CLI mode**: Stdin/stdout for command-line usage
+### Request Flow Diagram
 
 ```mermaid
 graph TD
@@ -201,6 +95,8 @@ graph TD
     C --> B
     B --> I[User Response]
 ```
+
+### Configuration Structure
 
 ```mermaid
 graph TD
@@ -222,63 +118,40 @@ graph TD
     F --> S[Stdio Settings]
 ```
 
-## Website Component Structure
+## Data Flow
+1. User request → MCP Server
+2. Agent processes request, initializes Chat session
+3. LLM Service called with formatted prompt + available tools
+4. LLM responds with text and/or tool calls
+5. For each tool call, MCP Connector executes tool on appropriate server
+6. Tool results added to Chat history
+7. Process repeats until LLM issues "answer" command
+8. Final response returned to user via MCP Server
 
-### JavaScript Organization
-- **scripts.js**: General utilities and common website functionality
-  - Error handling
-  - Clipboard operations
-  - Form validation
-  - Storage management
-  - DOM manipulation
-  - General page initialization
+## Error Handling Philosophy
+- **Categories**: Validation, Transient, Internal, External
+- **Retry Strategies**: Appropriate mechanisms per error type
+- **Context-rich messages**: Including relevant information without sensitive data
+- **Graceful degradation**: System remains functional when components fail
 
-This modular approach improves maintainability by separating concerns and allowing for easier updates to specific parts of the codebase.
+### Error Handling Principles
+1. **Always Check for Nil**: Before type assertions on interface values
+2. **Safe Type Assertions**: Use two-return form
+3. **Descriptive Error Messages**: Include expected vs actual type
+4. **Return Graceful Errors**: Clear errors instead of panics
 
-```mermaid
-graph LR
-    A[index.html] --> B[scripts.js]
-```
+## Security Considerations
+- API keys stored in environment variables or secure storage
+- Sensitive information sanitized in errors and logs
+- Transport security options for HTTP connections
+- Access control for tool execution
 
-## Site Directory Architecture
+## Multi-Transport Support
+- **Daemon mode**: HTTP server for multi-client support
+- **CLI mode**: Stdin/stdout for command-line usage
 
-The `site` directory contains the landing page for Speelka Agent, using a modern HTML/CSS/JavaScript stack.
-
-### Component Structure
-
-```
-site/
-├── index.html        # Main HTML file with the landing page
-├── js/               # JavaScript modules
-│   ├── scripts.js    # Core utilities and application initialization
-├── css/              # Stylesheet files
-│   └── styles.css    # Main CSS file with responsive design
-├── img/              # Image assets and icons
-├── sitemap.xml       # Site map for search engines
-└── robots.txt        # Robots instructions for search engines
-```
-
-### Module Dependencies
-
-The JavaScript files are designed with the following dependency structure:
-
-```mermaid
-graph TD
-    A[scripts.js] --> D[DOM Initialization]
-    A --> E[Error Handling]
-    A --> F[Clipboard Utils]
-    A --> G[Storage Utils]
-```
-
-### JavaScript Module Responsibilities
-
-1. **scripts.js**:
-   - Core utility modules (ErrorHandler, ClipboardUtils, StorageUtils, DOMUtils)
-   - Application initialization and DOM setup
-   - Navigation and UI behavior
-   - Event handling for common elements
-
-### Known Technical Debt
-
-1. **External Library Dependencies**:
-   - Dependencies are loaded using unpinned versions (latest tag), which could cause unexpected breaking changes
+## External Dependencies
+- `mcp-go`: Go implementation of Model Context Protocol
+- `langchaingo`: Go client for LLM interaction
+- `logrus`: Structured logging
+- Standard Go libraries

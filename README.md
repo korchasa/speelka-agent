@@ -13,28 +13,16 @@ flowchart TB
     Agent --> |"7. Final answer"| User
 ```
 
-## Key Advantages
+## Key Features
 
-- **Precise Agent Definition**: Enables detailed agent behavior definition through prompt engineering
-- **Client-Side Context Optimization**: Reduces context size requirements on the client side, resulting in more efficient token usage and cost savings
-- **LLM Flexibility**: Allows different LLM providers and configurations between client and agent sides, optimizing for performance and cost
-- **Centralized Tool Management**: Provides a single point of control for all available tools
-- **Integration Options**: Supports multiple integration methods including MCP stdio, MCP HTTP* and Simple HTTP API* (*planned)
-- **Reliability**: Includes built-in retry mechanisms for handling transient failures
-- **Extensibility**: Supports system behavior extensions without requiring client-side changes
-- **MCP-Aware Logging**: Integrates structured logging with MCP notifications for improved client monitoring
-
-## Architecture
-
-Speelka Agent uses a clean architecture approach with the following key components:
-
-- **Agent**: Central orchestrator that coordinates all other components
-- **Configuration Manager**: Provides centralized access to all configuration settings
-- **LLM Service**: Handles communication with Language Model providers
-- **MCP Server**: Exposes the agent functionality to clients
-- **MCP Connector**: Connects to external MCP servers to execute tools
-- **Chat**: Manages the conversation history and formatting
-- **MCPLogger**: Provides a wrapper around logrus that implements MCP logging protocol while maintaining familiar logging interface
+- **Precise Agent Definition**: Define detailed agent behavior through prompt engineering
+- **Client-Side Context Optimization**: Reduce context size on the client side for more efficient token usage
+- **LLM Flexibility**: Use different LLM providers between client and agent sides
+- **Centralized Tool Management**: Single point of control for all available tools
+- **Multiple Integration Options**: Support for MCP stdio, MCP HTTP, and Simple HTTP API
+- **Built-in Reliability**: Retry mechanisms for handling transient failures
+- **Extensibility**: System behavior extensions without client-side changes
+- **MCP-Aware Logging**: Structured logging with MCP notifications
 
 ## Getting Started
 
@@ -90,8 +78,8 @@ Configuration is provided through environment variables. All environment variabl
 | `SPL_MSPS_RETRY_MAX_BACKOFF` | 30.0 | Maximum backoff time in seconds |
 | `SPL_MSPS_RETRY_BACKOFF_MULTIPLIER` | 2.0 | Multiplier for increasing backoff time |
 | **Runtime Configuration** | | |
-| `SPL_RUNTIME_LOG_LEVEL` | "info" | Log level (debug, info, warn, error) |
-| `SPL_RUNTIME_LOG_OUTPUT` | "stderr" | Log output destination (stdout, stderr, file path) |
+| `SPL_LOG_LEVEL` | "info" | Log level (debug, info, warn, error) |
+| `SPL_LOG_OUTPUT` | "stderr" | Log output destination (stdout, stderr, file path) |
 | `SPL_RUNTIME_STDIO_ENABLED` | true | Enable stdin/stdout transport |
 | `SPL_RUNTIME_STDIO_BUFFER_SIZE` | 8192 | Buffer size for stdio transport |
 | `SPL_RUNTIME_HTTP_ENABLED` | false | Enable HTTP transport |
@@ -103,6 +91,23 @@ Configuration is provided through environment variables. All environment variabl
 Example configuration files are available in the `examples` directory:
 - `examples/simple.env`: Basic agent configuration
 - `examples/architect.env`: Software architecture analysis agent
+
+#### Basic Configuration Example
+
+```bash
+# Required configuration
+export SPL_AGENT_NAME="speelka-agent"
+export SPL_TOOL_NAME="process"
+export SPL_TOOL_DESCRIPTION="Process user queries with LLM"
+export SPL_TOOL_ARGUMENT_NAME="input"
+export SPL_TOOL_ARGUMENT_DESCRIPTION="The user query to process"
+export SPL_LLM_PROVIDER="openai"
+export SPL_LLM_API_KEY="your_api_key"
+export SPL_LLM_MODEL="gpt-4o"
+export SPL_LLM_PROMPT_TEMPLATE="You are a helpful AI assistant. User query: {{input}} Available tools: {{tools}}"
+```
+
+For more detailed information about configuration options, see [Environment Variables Reference](documents/knowledge.md#environment-variables-reference).
 
 ### Running the Agent
 
@@ -118,7 +123,7 @@ Example configuration files are available in the `examples` directory:
 ./speelka-agent
 ```
 
-## Usage
+## Usage Examples
 
 ### HTTP API
 
@@ -137,16 +142,20 @@ curl -X POST http://localhost:3000/message -H "Content-Type: application/json" -
 }'
 ```
 
-### Integration with External Tools
+### External Tool Integration
 
-The agent can connect to external tools using the MCP protocol by configuring environment variables:
+Connect to external tools using the MCP protocol:
 
 ```bash
-# MCP server for Playwright
+# MCP server for Playwright browser automation
 export SPL_MCPS_0_ID="playwright"
 export SPL_MCPS_0_COMMAND="mcp-playwright"
 export SPL_MCPS_0_ARGS=""
-export SPL_MCPS_0_ENV_NODE_ENV="production"
+
+# MCP server for filesystem operations
+export SPL_MCPS_1_ID="filesystem"
+export SPL_MCPS_1_COMMAND="mcp-filesystem-server"
+export SPL_MCPS_1_ARGS="."
 ```
 
 ## Supported LLM Providers
@@ -154,15 +163,17 @@ export SPL_MCPS_0_ENV_NODE_ENV="production"
 - **OpenAI**: GPT-3.5, GPT-4, GPT-4o
 - **Anthropic**: Claude models
 
+## Documentation
+
+For more detailed information, see:
+
+- [System Architecture](documents/architecture.md)
+- [Implementation Details](documents/implementation.md)
+- [Project File Structure](documents/file_structure.md)
+- [Reference Materials](documents/knowledge.md)
+- [Future Development](documents/roadmap.md)
+
 ## Development
-
-### Project Structure
-
-- `/cmd`: Command-line application entry points
-- `/internal`: Core application code
-- `/docs`: Project documentation
-- `/examples`: Example configuration files
-- `/scripts`: Utility scripts for development and configuration conversion
 
 ### Running Tests
 
@@ -170,9 +181,22 @@ export SPL_MCPS_0_ENV_NODE_ENV="production"
 go test ./...
 ```
 
-### Useful links
+### Helper Commands
 
-- [JSON Escape Online Tool](https://www.devtoolsdaily.com/json/escape/)
+The `run` script provides commands for common operations:
+
+```bash
+# Development
+./run build        # Build the project
+./run test         # Run tests with coverage
+./run check        # Run all checks
+
+# Interaction
+./run call         # Test with simple query
+./run complex-call # Test with complex query
+```
+
+See [Command Reference](documents/knowledge.md#command-reference) for more options.
 
 ## License
 
