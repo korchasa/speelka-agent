@@ -5,13 +5,16 @@ package configuration
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/ghodss/yaml"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/sirupsen/logrus"
 )
@@ -104,7 +107,7 @@ func NewConfigurationManager(logger types.LoggerSpec) *Manager {
 
 // LoadConfiguration loads configuration from environment variables
 // Responsibility: Loading configuration settings
-// Features: Loads configuration from environment variables
+// Features: Loads configuration from environment variables, which take precedence over file-based configuration
 func (cm *Manager) LoadConfiguration(ctx context.Context) error {
 	// Try to load from environment variables
 	err := cm.loadFromEnvironment()
@@ -582,4 +585,165 @@ func (cm *Manager) loadLevelFromName(name string) logrus.Level {
 		cm.logger.Warnf("Invalid log level specified: %s, defaulting to info", name)
 		return logrus.InfoLevel
 	}
+}
+
+// LoadConfigurationFromFile loads configuration from a specified file.
+// Responsibility: Loading configuration settings from a file
+// Features: Supports YAML and JSON file formats based on file extension
+func (cm *Manager) LoadConfigurationFromFile(filePath string) error {
+	// Validate file path
+	if filePath == "" {
+		return fmt.Errorf("empty file path provided")
+	}
+
+	// Read file content
+	fileContent, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read configuration file: %w", err)
+	}
+
+	// Determine file format based on extension
+	ext := strings.ToLower(filepath.Ext(filePath))
+	var config Configuration
+
+	switch ext {
+	case ".yaml", ".yml":
+		// Parse YAML file
+		err = yaml.Unmarshal(fileContent, &config)
+		if err != nil {
+			return fmt.Errorf("failed to parse YAML configuration: %w", err)
+		}
+	case ".json":
+		// Parse JSON file
+		err = json.Unmarshal(fileContent, &config)
+		if err != nil {
+			return fmt.Errorf("failed to parse JSON configuration: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported file format: %s (supported formats: .yaml, .yml, .json)", ext)
+	}
+
+	// Apply configuration
+	return cm.applyConfiguration(config)
+}
+
+// applyConfiguration applies the parsed configuration to the configuration manager.
+// Responsibility: Converting parsed configuration to internal configuration structures
+// Features: Maps Configuration struct fields to internal configuration structures
+func (cm *Manager) applyConfiguration(config Configuration) error {
+	// MCP Server Config
+	cm.mcpServerConfig = types.MCPServerConfig{
+		Name:    config.Agent.Name,
+		Version: config.Agent.Version,
+		Tool: types.MCPServerToolConfig{
+			Name:                config.Agent.Tool.Name,
+			Description:         config.Agent.Tool.Description,
+			ArgumentName:        config.Agent.Tool.ArgumentName,
+			ArgumentDescription: config.Agent.Tool.ArgumentDescription,
+		},
+		HTTP: types.HTTPConfig{
+			Enabled: config.Runtime.Transports.HTTP.Enabled,
+			Host:    config.Runtime.Transports.HTTP.Host,
+			Port:    config.Runtime.Transports.HTTP.Port,
+		},
+		Stdio: types.StdioConfig{
+			Enabled:    config.Runtime.Transports.Stdio.Enabled,
+			BufferSize: config.Runtime.Transports.Stdio.BufferSize,
+		},
+		Debug: false,
+	}
+
+	// LLM Config
+	cm.llmServiceConfig = types.LLMConfig{
+		Provider:             config.Agent.LLM.Provider,
+		Model:                config.Agent.LLM.Model,
+		APIKey:               config.Agent.LLM.APIKey,
+		MaxTokens:            config.Agent.LLM.MaxTokens,
+		Temperature:          config.Agent.LLM.Temperature,
+		SystemPromptTemplate: config.Agent.LLM.PromptTemplate,
+		RetryConfig: types.RetryConfig{
+			MaxRetries:        config.Agent.LLM.Retry.MaxRetries,
+			InitialBackoff:    config.Agent.LLM.Retry.InitialBackoff,
+			MaxBackoff:        config.Agent.LLM.Retry.MaxBackoff,
+			BackoffMultiplier: config.Agent.LLM.Retry.BackoffMultiplier,
+		},
+		IsMaxTokensSet:   config.Agent.LLM.MaxTokens > 0,
+		IsTemperatureSet: config.Agent.LLM.Temperature > 0,
+	}
+
+	// Log Config
+	var logLevel logrus.Level
+	switch strings.ToLower(config.Runtime.Log.Level) {
+	case "debug":
+		logLevel = logrus.DebugLevel
+	case "info":
+		logLevel = logrus.InfoLevel
+	case "warn", "warning":
+		logLevel = logrus.WarnLevel
+	case "error":
+		logLevel = logrus.ErrorLevel
+	default:
+		logLevel = logrus.InfoLevel
+	}
+
+	cm.logConfig = types.LogConfig{
+		Level:  logLevel,
+		Output: cm.loadOutputFromName(config.Runtime.Log.Output),
+	}
+
+	// MCP Connector Config
+	cm.mcpConnectorConfig = types.MCPConnectorConfig{
+		McpServers: make(map[string]types.MCPServerConnection),
+		RetryConfig: types.RetryConfig{
+			MaxRetries:        config.Agent.Connections.Retry.MaxRetries,
+			InitialBackoff:    config.Agent.Connections.Retry.InitialBackoff,
+			MaxBackoff:        config.Agent.Connections.Retry.MaxBackoff,
+			BackoffMultiplier: config.Agent.Connections.Retry.BackoffMultiplier,
+		},
+	}
+
+	// Convert McpServers map to the expected format
+	for id, server := range config.Agent.Connections.McpServers {
+		envVars := []string{}
+		for key, value := range server.Environment {
+			envVars = append(envVars, fmt.Sprintf("%s=%s", key, value))
+		}
+
+		cm.mcpConnectorConfig.McpServers[id] = types.MCPServerConnection{
+			URL:         server.URL,
+			APIKey:      server.APIKey,
+			Command:     server.Command,
+			Args:        server.Args,
+			Environment: envVars,
+		}
+	}
+
+	// Agent Config
+	cm.agentConfig = types.AgentConfig{
+		Tool: types.MCPServerToolConfig{
+			Name:                config.Agent.Tool.Name,
+			Description:         config.Agent.Tool.Description,
+			ArgumentName:        config.Agent.Tool.ArgumentName,
+			ArgumentDescription: config.Agent.Tool.ArgumentDescription,
+		},
+		Model:                config.Agent.LLM.Model,
+		SystemPromptTemplate: config.Agent.LLM.PromptTemplate,
+		MaxTokens:            config.Agent.Chat.MaxTokens,
+		CompactionStrategy:   config.Agent.Chat.CompactionStrategy,
+		MaxLLMIterations:     25, // Default value
+	}
+
+	// Validate the configuration
+	var validationErrors []string
+
+	// Validate prompt template
+	if err := cm.validatePromptTemplate(cm.llmServiceConfig.SystemPromptTemplate, cm.mcpServerConfig.Tool.ArgumentName); err != nil {
+		validationErrors = append(validationErrors, fmt.Sprintf("Invalid prompt template: %v", err))
+	}
+
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("configuration validation errors: %s", strings.Join(validationErrors, "; "))
+	}
+
+	return nil
 }

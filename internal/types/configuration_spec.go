@@ -15,9 +15,16 @@ import (
 // Features: Supports configuration loading from files and strings,
 // provides access to various types of configuration parameters
 type ConfigurationManagerSpec interface {
-	// LoadConfiguration loads configuration from a file.
+	// LoadConfiguration loads configuration from various sources based on context.
+	// It first tries to load from a configuration file if specified,
+	// then applies environment variables (which take precedence).
 	// It returns an error if the loading fails.
 	LoadConfiguration(ctx context.Context) error
+
+	// LoadConfigurationFromFile loads configuration from a file.
+	// The file format is determined by the file extension (.yaml, .yml, or .json).
+	// It returns an error if the loading fails.
+	LoadConfigurationFromFile(filePath string) error
 
 	// GetMCPServerConfig returns the MCP server configuration.
 	GetMCPServerConfig() MCPServerConfig

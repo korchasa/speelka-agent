@@ -1,6 +1,6 @@
 ---
 description: whole project test
-globs: 
+globs:
 alwaysApply: false
 ---
 # CHECK WHOLE PROJECT SEQUENCE
