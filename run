@@ -37,6 +37,7 @@ function help() {
     echo "  call-multistep        Call a multi-step process using MCP"
     echo "  call-news             Call a ai news agent with a request"
     echo "  check                 Run all checks in project (test, lint)"
+    echo "  site                  Run the site"
     echo "  fetch_url <url>       Fetch a URL using MCP"
     echo "  help                  Display this help message"
     echo ""
@@ -85,11 +86,6 @@ case $CMD in
 
         # Clean up the coverage file
         rm coverage.out
-        ;;
-    acceptance-test)
-        echo -e "${BLUE}Running acceptance tests...${NC}"
-        load_env
-        go test -v -run TestHTTPRequest
         ;;
     lint)
         echo -e "${BLUE}Running linter...${NC}"
@@ -194,6 +190,12 @@ case $CMD in
         ./run call-multistep
 
         echo -e "\n${GREEN}✓ All checks passed!${NC}"
+        ;;
+    site)
+        echo -e "${BLUE}Running site...${NC}"
+        check_command "python3"
+        cd site
+        python3 -m http.server -b 127.0.0.1 8000
         ;;
     help)
         help

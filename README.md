@@ -44,28 +44,15 @@ go build ./cmd/server
 
 ### Configuration
 
-Configuration can be provided through YAML configuration files (preferred), JSON files, or environment variables. Environment variables take precedence over file-based configuration.
+Configuration can be provided using YAML, JSON, or environment variables.
 
-#### Command-Line Options
+> **Note:** The `./examples` directory is deprecated and will be removed in a future version. Please use the examples in the `./site/examples` directory instead.
 
-| Option      | Description                                                    |
-|-------------|----------------------------------------------------------------|
-| `--config`  | Path to configuration file (YAML or JSON format)               |
-| `--daemon`  | Run as a daemon with HTTP SSE MCP server (default: stdio mode) |
-
-#### Using Configuration Files (Recommended)
-
-You can provide configuration through YAML files (preferred) or JSON files using the `--config` flag:
-
-```bash
-./speelka-agent --config config.yaml
-```
-
-Example configuration files are available in the `examples` directory:
-- `examples/simple.yaml`: Basic agent configuration in YAML format (preferred)
-- `examples/ai-news.yaml`: AI news agent configuration in YAML format (preferred)
-- `examples/simple.json`: Basic agent configuration in JSON format
-- `examples/simple.env`: Basic agent configuration as environment variables
+Example configuration files are available in the `site/examples` directory:
+- `site/examples/simple.yaml`: Basic agent configuration in YAML format (preferred)
+- `site/examples/ai-news.yaml`: AI news agent configuration in YAML format (preferred)
+- `site/examples/simple.json`: Basic agent configuration in JSON format
+- `site/examples/simple.env`: Basic agent configuration as environment variables
 
 Here's a simple YAML configuration example:
 

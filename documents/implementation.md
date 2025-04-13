@@ -390,7 +390,9 @@ export SPL_LLM_RETRY_BACKOFF_MULTIPLIER=2.0
 ### File-Based Configuration
 The system also supports YAML and JSON configuration files, which can be specified using the `--config` flag.
 
-Example YAML configuration:
+> **Note:** Example configuration files have been moved from `./examples` to `./site/examples` directory. The `./examples` directory has been deprecated and will be removed in a future version.
+
+Example YAML configuration (from `site/examples/architect.yaml`):
 
 ```yaml
 agent:

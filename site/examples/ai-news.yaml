@@ -1,4 +1,7 @@
-# AI News Agent configuration in YAML format
+# AI News Agent
+# A specialized agent that curates and summarizes news about artificial intelligence.
+# Perfect for staying updated on the latest AI developments.
+# Features: News Curation, Web Browsing, Structured Responses
 agent:
   name: "ai-news-agent"
   version: "1.0.0"

@@ -1,4 +1,71 @@
-# Project File Structure
+# File Structure
+
+## Project Structure
+
+```
+speelka-agent/
+├── .github/                 # GitHub workflows and configuration
+├── cmd/
+│   └── server/              # Entry point for the application
+├── configs/                 # Configuration templates
+├── documents/               # Project documentation
+│   ├── architecture.md      # System architecture details
+│   ├── implementation.md    # Implementation details
+│   ├── file_structure.md    # This file
+│   ├── remote_resources.md  # Links to external resources
+│   └── whiteboard.md        # Temporary workspace for planning (deleted upon completion)
+├── internal/                # Internal packages
+│   ├── agent/               # Agent implementation
+│   ├── chat/                # Chat session management
+│   ├── config/              # Configuration loading and parsing
+│   ├── connector/           # MCP connector for tool execution
+│   ├── log/                 # Logging utilities
+│   ├── prompt/              # Prompt templates and management
+│   ├── tools/               # Tool definitions and implementations
+│   └── transports/          # Transport layers (stdio, HTTP)
+├── site/                    # Website files
+│   ├── css/                 # CSS styles
+│   ├── examples/            # Example configuration files (used for website)
+│   ├── img/                 # Images
+│   ├── js/                  # JavaScript files
+│   └── index.html           # Main website page
+├── vendor/                  # Vendored dependencies
+├── .gitignore               # Git ignore file
+├── go.mod                   # Go module file
+├── go.sum                   # Go dependencies checksum
+├── LICENSE                  # License file
+├── Makefile                 # Build and development tasks
+└── README.md                # Project overview
+```
+
+## Key Directories
+
+### `cmd/server/`
+Contains the main entry point for the application.
+
+### `configs/`
+Contains configuration templates and examples.
+
+### `documents/`
+Contains project documentation, including architecture, implementation details, and this file structure document.
+
+### `internal/`
+Contains all internal packages used by the application.
+
+### `site/examples/`
+Contains example configuration files in YAML, JSON, and environment variable format:
+- `simple.yaml` - Basic example in YAML format
+- `simple.json` - Basic example in JSON format
+- `simple.env` - Basic example using environment variables
+- `ai-news.yaml` - AI news agent example in YAML format
+- `ai-news.json` - AI news agent example in JSON format
+- `ai-news.env` - AI news agent example using environment variables
+- `architect.yaml` - Architecture consultant agent in YAML format
+- `architect.json` - Architecture consultant agent in JSON format
+- `architect.env` - Architecture consultant agent using environment variables
+
+### `vendor/`
+Contains vendored dependencies.
 
 ## Root Directory
 
@@ -14,7 +81,6 @@ speelka-agent/
 ├── vendor/                   # Vendored dependencies
 ├── bin/                      # Compiled binaries/scripts
 ├── documents/                # Project documentation
-├── examples/                 # Example configuration files
 ├── site/                     # Project website
 └── .github/workflows/        # CI/CD configurations
 ```
@@ -67,38 +133,33 @@ internal/
 site/
 ├── index.html                # Main landing page
 ├── css/
-│   ├── styles.css            # Main stylesheet
-│   └── normalize.css         # CSS reset/normalization
+│   └── styles.css            # Main stylesheet
 ├── js/
 │   └── scripts.js            # Core JavaScript functionality
+├── examples/                 # Configuration examples
+│   ├── simple.yaml           # Basic agent configuration in YAML format (preferred)
+│   ├── ai-news.yaml          # AI news agent example in YAML format
+│   └── architect.yaml        # Architecture consultant agent in YAML format
 └── img/                      # Images and icons
     ├── logo.svg
     ├── flow-diagram.svg
     └── speelka-icon.png
 ```
 
-## Documents Directory
-
-```
-documents/
-├── architecture.md           # System architecture and design
-├── file_structure.md         # Project structure (this file)
-├── implementation.md         # Implementation details
-├── knowledge.md              # References and code examples
-└── remote_resources.md       # Links to external resources
-```
-
 ## Examples Directory
 
+> **Note:** The `./examples` directory has been deprecated and removed. Please use the examples in the `./site/examples` directory instead.
+
+The example configurations have been moved to the `site/examples` directory as part of the website resources:
+
 ```
-examples/
+site/examples/
 ├── simple.yaml               # Basic agent configuration in YAML format (preferred)
 ├── ai-news.yaml              # AI news agent configuration in YAML format (preferred)
-├── simple.json               # Basic agent configuration in JSON format
-├── simple.env                # Basic agent configuration as environment variables
-├── architect.env             # Architecture analysis agent config
-└── ai-news.env               # AI news agent configuration as environment variables
+└── architect.yaml            # Architecture analysis agent config
 ```
+
+These examples demonstrate different agent configurations and can be used as templates for creating custom agents. The website now loads these examples directly from the filesystem to ensure consistency between documentation and actual implementation.
 
 ## Key External Dependencies
 
@@ -157,3 +218,14 @@ flowchart TD
 - Architectures: linux/amd64, linux/arm64
 - Uses Docker Buildx and QEMU for cross-platform builds
 - Pushes to GitHub Container Registry with appropriate tags
+
+## Documents Directory
+
+```
+documents/
+├── architecture.md           # System architecture and design
+├── file_structure.md         # Project structure (this file)
+├── implementation.md         # Implementation details
+├── knowledge.md              # References and code examples
+└── remote_resources.md       # Links to external resources
+```
