@@ -789,6 +789,21 @@ header nav {
     word-wrap: break-word;
 }
 
+/* Prevent nested code blocks appearance */
+.code-block code {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    display: block;
+    box-shadow: none;
+    border-radius: 0;
+}
+
 /* Highlight.js customizations */
 
 .code-block .copy-btn:hover {
@@ -1009,6 +1024,21 @@ header nav {
     line-height: 1.5;
     white-space: pre-wrap;
     word-wrap: break-word;
+}
+
+/* Prevent nested code blocks appearance in yaml-code */
+.yaml-code code {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    display: block;
+    box-shadow: none;
+    border-radius: 0;
 }
 
 .yaml-code .copy-btn,.code-block .copy-btn {
