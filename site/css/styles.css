@@ -1189,3 +1189,209 @@ header nav {
     margin-right: 10px;
     font-size: 16px;
 }
+
+/* Examples Section Styles */
+#examples {
+    background-color: var(--bg-secondary);
+    padding: 80px 0;
+}
+
+.examples-tabs {
+    margin: 30px 0;
+    background-color: var(--bg-code);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.tabs-navigation {
+    display: flex;
+    background-color: var(--bg-card);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 70px;
+    z-index: 10;
+}
+
+.tab-btn {
+    padding: 15px 25px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.tab-btn:hover {
+    color: var(--primary);
+}
+
+.tab-btn.active {
+    color: var(--primary);
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: var(--primary);
+}
+
+.tab-content {
+    display: none;
+    padding: 30px;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.5s ease;
+}
+
+.code-toggle {
+    margin-top: 20px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.code-toggle-buttons {
+    display: flex;
+    background-color: var(--bg-card);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.toggle-btn {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.toggle-btn:hover {
+    color: var(--primary);
+}
+
+.toggle-btn.active {
+    color: var(--primary);
+    background-color: rgba(138, 92, 246, 0.1);
+}
+
+.code-toggle-content {
+    display: none;
+}
+
+.code-toggle-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+.example-notes {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: rgba(59, 130, 246, 0.1);
+    border-left: 4px solid var(--primary-color);
+    border-radius: 4px;
+}
+
+.example-notes h4 {
+    margin-top: 0;
+    font-size: 18px;
+    color: var(--primary-color);
+}
+
+.example-notes ul {
+    margin-bottom: 0;
+    padding-left: 20px;
+}
+
+.example-notes li {
+    margin-bottom: 8px;
+}
+
+.example-notes li:last-child {
+    margin-bottom: 0;
+}
+
+/* Important Note Section */
+.important-note {
+    margin: 25px 0;
+    padding: 20px;
+    border-radius: var(--radius);
+    background-color: rgba(138, 92, 246, 0.1);
+    border-left: 4px solid var(--primary-color);
+}
+
+.important-note h4 {
+    display: flex;
+    align-items: center;
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: var(--primary-color);
+    font-size: 16px;
+}
+
+.important-note h4 i {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+.important-note p {
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.important-note p:last-child {
+    margin-bottom: 0;
+}
+
+.small-code {
+    font-size: 14px;
+    padding: 10px;
+    margin: 10px 0;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Add responsive styles for the examples section */
+@media (max-width: 768px) {
+    .tabs-navigation {
+        flex-wrap: wrap;
+    }
+
+    .tab-btn {
+        padding: 12px 15px;
+        font-size: 14px;
+    }
+
+    .tab-content {
+        padding: 20px 15px;
+    }
+
+    .toggle-btn {
+        padding: 8px 15px;
+        font-size: 13px;
+    }
+
+    .example-notes {
+        padding: 15px;
+    }
+}

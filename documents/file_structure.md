@@ -92,9 +92,12 @@ documents/
 
 ```
 examples/
-├── simple.env                # Basic agent configuration
+├── simple.yaml               # Basic agent configuration in YAML format (preferred)
+├── ai-news.yaml              # AI news agent configuration in YAML format (preferred)
+├── simple.json               # Basic agent configuration in JSON format
+├── simple.env                # Basic agent configuration as environment variables
 ├── architect.env             # Architecture analysis agent config
-└── ai-news.env               # AI news agent configuration
+└── ai-news.env               # AI news agent configuration as environment variables
 ```
 
 ## Key External Dependencies

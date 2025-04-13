@@ -472,34 +472,80 @@ function setupNavigation() {
 }
 
 /**
- * Initialize tab functionality
+ * Initializes tabbed interfaces throughout the page
  */
 function initTabs() {
-    try {
-        const tabContainers = document.querySelectorAll('.tab-container');
-        if (!tabContainers.length) return;
+    // Set up any tabbed interfaces
+    const tabContainers = document.querySelectorAll('.tabs-navigation');
 
         tabContainers.forEach(container => {
-            const tabs = container.querySelectorAll('.tab');
-            const tabContents = container.querySelectorAll('.tab-content');
+        const tabButtons = container.querySelectorAll('.tab-btn');
 
-            tabs.forEach((tab, index) => {
-                tab.addEventListener('click', () => {
-                    // Remove active class from all tabs and content
-                    tabs.forEach(t => t.classList.remove('active'));
-                    tabContents.forEach(c => c.classList.remove('active'));
-
-                    // Add active class to clicked tab and corresponding content
-                    tab.classList.add('active');
-                    if (tabContents[index]) {
-                        tabContents[index].classList.add('active');
-                    }
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons in this container
+                container.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active');
                 });
+
+                // Add active class to clicked button
+                button.classList.add('active');
+
+                // Get the tab to show
+                const tabId = button.getAttribute('data-tab');
+
+                // Find the parent tabs container
+                const tabsContainer = container.closest('section');
+
+                // Hide all tab contents in this container
+                tabsContainer.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+
+                // Show the selected tab content
+                const tabContent = tabsContainer.querySelector(`#${tabId}-tab`);
+                if (tabContent) {
+                    tabContent.classList.add('active');
+                }
             });
         });
-    } catch (error) {
-        ErrorHandler.logError('Tabs', 'Failed to initialize tabs', false);
-    }
+    });
+
+    // Set up format toggle buttons for code examples
+    const toggleContainers = document.querySelectorAll('.code-toggle-buttons');
+
+    toggleContainers.forEach(container => {
+        const toggleButtons = container.querySelectorAll('.toggle-btn');
+
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons in this container
+                container.querySelectorAll('.toggle-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+
+                // Add active class to clicked button
+                button.classList.add('active');
+
+                // Get the format to show
+                const format = button.getAttribute('data-format');
+
+                // Find the parent toggle container
+                const codeToggleContainer = container.closest('.code-toggle');
+
+                // Hide all code contents in this container
+                codeToggleContainer.querySelectorAll('.code-toggle-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+
+                // Show the selected format content
+                const formatContent = codeToggleContainer.querySelector(`#simple-${format}`);
+                if (formatContent) {
+                    formatContent.classList.add('active');
+                    }
+            });
+        });
+    });
 }
 
 /**

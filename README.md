@@ -24,6 +24,7 @@ flowchart TB
 - **Extensibility**: System behavior extensions without client-side changes
 - **MCP-Aware Logging**: Structured logging with MCP notifications
 - **Token Management**: Automatic token counting and history compaction
+- **Flexible Configuration**: Support for environment variables, YAML, and JSON configuration files
 
 ## Getting Started
 
@@ -43,7 +44,75 @@ go build ./cmd/server
 
 ### Configuration
 
-Configuration is provided through environment variables. All environment variables are prefixed with `SPL_`:
+Configuration can be provided through YAML configuration files (preferred), JSON files, or environment variables. Environment variables take precedence over file-based configuration.
+
+#### Command-Line Options
+
+| Option      | Description                                                    |
+|-------------|----------------------------------------------------------------|
+| `--config`  | Path to configuration file (YAML or JSON format)               |
+| `--daemon`  | Run as a daemon with HTTP SSE MCP server (default: stdio mode) |
+
+#### Using Configuration Files (Recommended)
+
+You can provide configuration through YAML files (preferred) or JSON files using the `--config` flag:
+
+```bash
+./speelka-agent --config config.yaml
+```
+
+Example configuration files are available in the `examples` directory:
+- `examples/simple.yaml`: Basic agent configuration in YAML format (preferred)
+- `examples/ai-news.yaml`: AI news agent configuration in YAML format (preferred)
+- `examples/simple.json`: Basic agent configuration in JSON format
+- `examples/simple.env`: Basic agent configuration as environment variables
+
+Here's a simple YAML configuration example:
+
+```yaml
+agent:
+  name: "simple-speelka-agent"
+  version: "1.0.0"
+
+  # Tool configuration
+  tool:
+    name: "process"
+    description: "Process tool for handling user queries with LLM"
+    argument_name: "input"
+    argument_description: "The user query to process"
+
+  # LLM configuration
+  llm:
+    provider: "openai"
+    api_key: ""  # Set via environment variable instead for security
+    model: "gpt-4o"
+    temperature: 0.7
+    prompt_template: "You are a helpful AI assistant. Respond to the following request: {{input}}. Provide a detailed and helpful response. Available tools: {{tools}}"
+
+  # MCP Server connections
+  connections:
+    mcpServers:
+      time:
+        command: "docker"
+        args: ["run", "-i", "--rm", "mcp/time"]
+
+      filesystem:
+        command: "mcp-filesystem-server"
+        args: ["/path/to/directory"]
+
+# Runtime configuration
+runtime:
+  log:
+    level: "info"
+
+  transports:
+    stdio:
+      enabled: true
+```
+
+#### Using Environment Variables
+
+All environment variables are prefixed with `SPL_`:
 
 | Environment Variable                | Default Value | Description                                                                                                        |
 |-------------------------------------|---------------|--------------------------------------------------------------------------------------------------------------------|
@@ -91,26 +160,6 @@ Configuration is provided through environment variables. All environment variabl
 | `SPL_RUNTIME_HTTP_HOST`             | "localhost"   | Host for HTTP server                                                                                               |
 | `SPL_RUNTIME_HTTP_PORT`             | 3000          | Port for HTTP server                                                                                               |
 
-Example configuration files are available in the `examples` directory:
-- `examples/simple.env`: Basic agent configuration
-- `examples/architect.env`: Software architecture analysis agent
-- `examples/ai-news.env`: AI news digest agent
-
-#### Basic Configuration Example
-
-```bash
-# Required configuration
-export SPL_AGENT_NAME="speelka-agent"
-export SPL_TOOL_NAME="process"
-export SPL_TOOL_DESCRIPTION="Process user queries with LLM"
-export SPL_TOOL_ARGUMENT_NAME="input"
-export SPL_TOOL_ARGUMENT_DESCRIPTION="The user query to process"
-export SPL_LLM_PROVIDER="openai"
-export SPL_LLM_API_KEY="your_api_key"
-export SPL_LLM_MODEL="gpt-4o"
-export SPL_LLM_PROMPT_TEMPLATE="You are a helpful AI assistant. User query: {{input}} Available tools: {{tools}}"
-```
-
 For more detailed information about configuration options, see [Environment Variables Reference](documents/knowledge.md#environment-variables-reference).
 
 ### Running the Agent
@@ -118,13 +167,13 @@ For more detailed information about configuration options, see [Environment Vari
 #### Daemon Mode (HTTP Server)
 
 ```bash
-./speelka-agent --daemon
+./speelka-agent --daemon [--config config.yaml]
 ```
 
 #### CLI Mode (Standard Input/Output)
 
 ```bash
-./speelka-agent
+./speelka-agent [--config config.yaml]
 ```
 
 ## Usage Examples
@@ -148,7 +197,25 @@ curl -X POST http://localhost:3000/message -H "Content-Type: application/json" -
 
 ### External Tool Integration
 
-Connect to external tools using the MCP protocol:
+Connect to external tools using the MCP protocol in your YAML configuration:
+
+```yaml
+agent:
+  # ... other agent configuration ...
+  connections:
+    mcpServers:
+      # MCP server for Playwright browser automation
+      playwright:
+        command: "mcp-playwright"
+        args: []
+
+      # MCP server for filesystem operations
+      filesystem:
+        command: "mcp-filesystem-server"
+        args: ["."]
+```
+
+Or using environment variables:
 
 ```bash
 # MCP server for Playwright browser automation
@@ -198,7 +265,7 @@ The `run` script provides commands for common operations:
 
 # Interaction
 ./run call         # Test with simple query
-./run complex-call # Test with complex query
+./run call-multistep # Test with multi-step query
 ./run call-news    # Test news agent
 ./run fetch_url    # Fetch a URL using MCP
 

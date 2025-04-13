@@ -52,11 +52,35 @@
 - **Purpose**: Configuration management
 - **File**: `internal/configuration/manager.go`
 - **Implementation Features**:
-  - JSON configuration via `CONFIG_JSON` env var (legacy support)
+  - YAML configuration via `--config` flag (preferred method)
+  - JSON configuration support (alternative)
+  - Environment variables with `SPL_` prefix
   - Type-safe configuration access
   - Default value handling
   - Configuration validation
   - Log file path handling (values other than stdout/stderr are treated as file paths)
+
+### Configuration Precedence
+1. Environment variables (highest precedence)
+2. YAML/JSON configuration file
+3. Default values (lowest precedence)
+
+### Configuration Example (YAML)
+```yaml
+agent:
+  name: "speelka-agent"
+  version: "1.0.0"
+  tool:
+    name: "process"
+    description: "Process user queries with LLM"
+    argument_name: "input"
+    argument_description: "The user query to process"
+  llm:
+    provider: "openai"
+    api_key: ""  # Set via environment variable for security
+    model: "gpt-4o"
+    prompt_template: "You are a helpful assistant. {{input}}"
+```
 
 ### LLM Service
 - **Purpose**: LLM provider integration
@@ -331,6 +355,9 @@ The Chat component automatically:
 
 ## Configuration Implementation
 
+The system supports both environment variables and file-based configuration (YAML and JSON):
+
+### Environment Variables
 The system primarily uses environment variables for configuration, with a common `SPL_` prefix. For backward compatibility, the system also accepts environment variables without the prefix.
 
 Example environment variable configuration:
@@ -359,6 +386,67 @@ export SPL_LLM_RETRY_INITIAL_BACKOFF=1.0
 export SPL_LLM_RETRY_MAX_BACKOFF=30.0
 export SPL_LLM_RETRY_BACKOFF_MULTIPLIER=2.0
 ```
+
+### File-Based Configuration
+The system also supports YAML and JSON configuration files, which can be specified using the `--config` flag.
+
+Example YAML configuration:
+
+```yaml
+agent:
+  name: "architect-speelka-agent"
+  version: "1.0.0"
+  tool:
+    name: "architect"
+    description: "Architecture design and assessment tool"
+    argument_name: "query"
+    argument_description: "Architecture query or task to process"
+  llm:
+    provider: "openai"
+    model: "gpt-4o"
+    # ... rest of configuration ...
+```
+
+Example JSON configuration:
+
+```json
+{
+  "agent": {
+    "name": "architect-speelka-agent",
+    "version": "1.0.0",
+    "tool": {
+      "name": "architect",
+      "description": "Architecture design and assessment tool",
+      "argument_name": "query",
+      "argument_description": "Architecture query or task to process"
+    },
+    "llm": {
+      "provider": "openai",
+      "model": "gpt-4o"
+      // ... rest of configuration ...
+    }
+  }
+}
+```
+
+### Configuration Loading Hierarchy
+The system follows this hierarchy when loading configuration:
+
+1. Command-line arguments (e.g., `--config`, `--daemon`)
+2. Environment variables (always take precedence over file-based configuration)
+3. Configuration file specified via `--config` flag
+4. Default values
+
+This hierarchy ensures that environment variables can override settings from configuration files, allowing for flexible deployment strategies.
+
+### Configuration Manager Implementation
+The configuration manager is responsible for:
+
+1. Loading configuration from files (YAML or JSON based on file extension)
+2. Loading configuration from environment variables
+3. Applying the configuration loading hierarchy
+4. Validating the loaded configuration
+5. Providing access to configuration through type-safe getters
 
 ### MCP Servers Configuration Format
 ```bash
@@ -437,9 +525,9 @@ The `run` script provides a unified interface for common operations:
 - `./run check`: Run all checks (test, lint, build)
 
 ### Interaction Commands
-- `./run call`: Test with simple "What time is it now?" request
-- `./run complex-call`: Test with complex file-finding request
-- `./run call-news`: Test news agent
+- `./run call`: Test with simple "What time is it now?" request using YAML config
+- `./run call-multistep`: Test with complex file-finding request using YAML config
+- `./run call-news`: Test news agent with YAML config
 - `./run fetch_url <url>`: Fetch URL using MCP
 
 ### Inspection Command
