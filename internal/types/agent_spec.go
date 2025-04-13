@@ -34,4 +34,7 @@ type AgentConfig struct {
 	// Chat configuration
 	MaxTokens          int
 	CompactionStrategy string
+
+	// Agent behavior configuration
+	MaxLLMIterations int
 }

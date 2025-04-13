@@ -25,6 +25,7 @@ type Manager struct {
 	mcpConnectorConfig types.MCPConnectorConfig
 	llmServiceConfig   types.LLMConfig
 	logConfig          types.LogConfig
+	agentConfig        types.AgentConfig
 }
 
 // Configuration represents the complete JSON configuration structure
@@ -138,9 +139,7 @@ func (cm *Manager) loadFromEnvironment() error {
 			Enabled:    getEnvBool("SPL_RUNTIME_STDIO_ENABLED", true),
 			BufferSize: getEnvInt("SPL_RUNTIME_STDIO_BUFFER_SIZE", 8192),
 		},
-		Debug:              false,
-		MaxTokens:          getEnvInt("SPL_CHAT_MAX_TOKENS", 0),
-		CompactionStrategy: getEnvString("SPL_CHAT_COMPACTION_STRATEGY", "delete-old"),
+		Debug: false,
 	}
 
 	// Validate required fields for MCP Server Config
@@ -307,6 +306,16 @@ func (cm *Manager) loadFromEnvironment() error {
 	cm.logConfig = types.LogConfig{
 		Level:  cm.loadLevelFromName(getEnvString("SPL_LOG_LEVEL", "info")),
 		Output: cm.loadOutputFromName(getEnvString("SPL_LOG_OUTPUT", "stderr")),
+	}
+
+	// Agent Config
+	cm.agentConfig = types.AgentConfig{
+		Tool:                 cm.mcpServerConfig.Tool,
+		Model:                cm.llmServiceConfig.Model,
+		SystemPromptTemplate: cm.llmServiceConfig.SystemPromptTemplate,
+		MaxTokens:            getEnvInt("SPL_CHAT_MAX_TOKENS", 0),
+		CompactionStrategy:   getEnvString("SPL_CHAT_COMPACTION_STRATEGY", "delete-old"),
+		MaxLLMIterations:     getEnvInt("SPL_CHAT_MAX_ITERATIONS", 25),
 	}
 
 	// If there are validation errors, return them
@@ -529,36 +538,8 @@ func (cm *Manager) GetLogConfig() types.LogConfig {
 	return cm.logConfig
 }
 
-// GetChatConfig returns the chat configuration.
-func (cm *Manager) GetChatConfig() types.ChatConfig {
-	return types.ChatConfig{
-		MaxTokens:          cm.mcpServerConfig.MaxTokens,
-		CompactionStrategy: cm.mcpServerConfig.CompactionStrategy,
-	}
-}
-
-// GetString returns a string value from the configuration.
-func (cm *Manager) GetString(key string) (string, bool) {
-	// Implementation to be added if needed
-	return "", false
-}
-
-// GetInt returns an integer value from the configuration.
-func (cm *Manager) GetInt(key string) (int, bool) {
-	// Implementation to be added if needed
-	return 0, false
-}
-
-// GetFloat returns a float value from the configuration.
-func (cm *Manager) GetFloat(key string) (float64, bool) {
-	// Implementation to be added if needed
-	return 0, false
-}
-
-// GetBool returns a boolean value from the configuration.
-func (cm *Manager) GetBool(key string) (bool, bool) {
-	// Implementation to be added if needed
-	return false, false
+func (cm *Manager) GetAgentConfig() types.AgentConfig {
+	return cm.agentConfig
 }
 
 // GetStringMap returns a string map value from the configuration.

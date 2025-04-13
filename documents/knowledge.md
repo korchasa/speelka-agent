@@ -117,24 +117,25 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{
 
 ## Environment Variables Reference
 
-| Category | Variable | Description | Default |
-|----------|----------|-------------|---------|
-| **Agent** | `SPL_AGENT_NAME` | Name of the agent | *Required* |
-| | `SPL_AGENT_VERSION` | Version of the agent | "1.0.0" |
-| **Tool** | `SPL_TOOL_NAME` | Name of the tool | *Required* |
-| | `SPL_TOOL_DESCRIPTION` | Description of the tool | *Required* |
-| | `SPL_TOOL_ARGUMENT_NAME` | Argument name | *Required* |
-| | `SPL_TOOL_ARGUMENT_DESCRIPTION` | Argument description | *Required* |
-| **LLM** | `SPL_LLM_PROVIDER` | Provider (openai, anthropic) | *Required* |
-| | `SPL_LLM_API_KEY` | API key | *Required* |
-| | `SPL_LLM_MODEL` | Model name | *Required* |
-| | `SPL_LLM_MAX_TOKENS` | Max output tokens | 0 (no limit) |
-| | `SPL_LLM_TEMPERATURE` | Temperature for sampling | 0.7 |
-| | `SPL_LLM_PROMPT_TEMPLATE` | System prompt template | *Required* |
-| **Agent** | `SPL_CHAT_MAX_TOKENS` | Max history tokens | 0 (based on model) |
-| | `SPL_CHAT_COMPACTION_STRATEGY` | Compaction strategy | "delete-old" |
-| **Retry** | `SPL_LLM_RETRY_MAX_RETRIES` | Max retry attempts | 3 |
-| | `SPL_LLM_RETRY_INITIAL_BACKOFF` | Initial backoff (seconds) | 1.0 |
-| | `SPL_LLM_RETRY_MAX_BACKOFF` | Max backoff (seconds) | 30.0 |
-| | `SPL_LLM_RETRY_BACKOFF_MULTIPLIER` | Backoff multiplier | 2.0 |
-| **Runtime** | `SPL_LOG_LEVEL` | Log level | "info" |
+| Category    | Variable                           | Description                      | Default            |
+|-------------|------------------------------------|----------------------------------|--------------------|
+| **Agent**   | `SPL_AGENT_NAME`                   | Name of the agent                | *Required*         |
+|             | `SPL_AGENT_VERSION`                | Version of the agent             | "1.0.0"            |
+| **Tool**    | `SPL_TOOL_NAME`                    | Name of the tool                 | *Required*         |
+|             | `SPL_TOOL_DESCRIPTION`             | Description of the tool          | *Required*         |
+|             | `SPL_TOOL_ARGUMENT_NAME`           | Argument name                    | *Required*         |
+|             | `SPL_TOOL_ARGUMENT_DESCRIPTION`    | Argument description             | *Required*         |
+| **LLM**     | `SPL_LLM_PROVIDER`                 | Provider (openai, anthropic)     | *Required*         |
+|             | `SPL_LLM_API_KEY`                  | API key                          | *Required*         |
+|             | `SPL_LLM_MODEL`                    | Model name                       | *Required*         |
+|             | `SPL_LLM_MAX_TOKENS`               | Max output tokens                | 0 (no limit)       |
+|             | `SPL_LLM_TEMPERATURE`              | Temperature for sampling         | 0.7                |
+|             | `SPL_LLM_PROMPT_TEMPLATE`          | System prompt template           | *Required*         |
+| **Agent**   | `SPL_CHAT_MAX_TOKENS`              | Max history tokens               | 0 (based on model) |
+|             | `SPL_CHAT_COMPACTION_STRATEGY`     | Compaction strategy              | "delete-old"       |
+|             | `SPL_CHAT_MAX_ITERATIONS=25`       | Maximum number of LLM iterations | 25                 |
+| **Retry**   | `SPL_LLM_RETRY_MAX_RETRIES`        | Max retry attempts               | 3                  |
+|             | `SPL_LLM_RETRY_INITIAL_BACKOFF`    | Initial backoff (seconds)        | 1.0                |
+|             | `SPL_LLM_RETRY_MAX_BACKOFF`        | Max backoff (seconds)            | 30.0               |
+|             | `SPL_LLM_RETRY_BACKOFF_MULTIPLIER` | Backoff multiplier               | 2.0                |
+| **Runtime** | `SPL_LOG_LEVEL`                    | Log level                        | "info"             |

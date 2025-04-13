@@ -9,9 +9,6 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// MaxLLMIterations Maximum number of LLM interaction iterations
-const MaxLLMIterations = 25
-
 var ExitTool = mcp.NewTool("answer",
 	mcp.WithDescription("Send response to the user"),
 	mcp.WithString("text",
@@ -158,7 +155,7 @@ func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolR
 	iteration := 0
 
 	// Main loop for LLM and tool interaction
-	for iteration < MaxLLMIterations {
+	for iteration < a.config.MaxLLMIterations {
 		iteration++
 
 		a.logger.WithField("iteration", iteration).Infof(">> Send request to LLM")
@@ -215,7 +212,7 @@ func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolR
 	}
 
 	// If we reach here, we've exceeded the maximum number of iterations
-	errMsg := fmt.Sprintf("exceeded maximum number of LLM iterations (%d)", MaxLLMIterations)
+	errMsg := fmt.Sprintf("exceeded maximum number of LLM iterations (%d)", a.config.MaxLLMIterations)
 	a.logger.Errorf(errMsg)
 	a.logger.Infof("Chat ended with total tokens: %d", history.GetTotalTokens())
 	return mcp.NewToolResultError(errMsg), nil

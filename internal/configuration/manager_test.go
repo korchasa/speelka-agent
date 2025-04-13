@@ -115,10 +115,18 @@ func TestLoadEnvironmentConfiguration(t *testing.T) {
 			assert.Equal(t, 0.5, llmConfig.Temperature)
 			assert.Equal(t, "Template with {{query}} and {{tools}} placeholders", llmConfig.SystemPromptTemplate)
 
-			// Verify chat configuration
-			chatConfig := cm.GetChatConfig()
-			assert.Equal(t, 1000, chatConfig.MaxTokens)
-			assert.Equal(t, "delete-old", chatConfig.CompactionStrategy)
+			// Verify agent configuration
+			agentConfig := cm.GetAgentConfig()
+			assert.Equal(t, 1000, agentConfig.MaxTokens)
+			assert.Equal(t, "delete-old", agentConfig.CompactionStrategy)
+			assert.Equal(t, "test-tool", agentConfig.Tool.Name)
+			assert.Equal(t, "Test tool description", agentConfig.Tool.Description)
+			assert.Equal(t, "query", agentConfig.Tool.ArgumentName)
+			assert.Equal(t, "Test query description", agentConfig.Tool.ArgumentDescription)
+			assert.Equal(t, "gpt-4o", agentConfig.Model)
+			assert.Equal(t, "Template with {{query}} and {{tools}} placeholders", agentConfig.SystemPromptTemplate)
+			assert.Equal(t, 1000, agentConfig.MaxTokens)
+			assert.Equal(t, "delete-old", agentConfig.CompactionStrategy)
 		})
 	})
 
@@ -145,10 +153,10 @@ func TestLoadEnvironmentConfiguration(t *testing.T) {
 			err := cm.LoadConfiguration(context.Background())
 			assert.NoError(t, err)
 
-			// Verify chat configuration default values
-			chatConfig := cm.GetChatConfig()
-			assert.Equal(t, 0, chatConfig.MaxTokens, "Default value for SPL_CHAT_MAX_TOKENS should be 0")
-			assert.Equal(t, "delete-old", chatConfig.CompactionStrategy)
+			// Verify chat configuration default values through agent config
+			agentConfig := cm.GetAgentConfig()
+			assert.Equal(t, 0, agentConfig.MaxTokens, "Default value for SPL_CHAT_MAX_TOKENS should be 0")
+			assert.Equal(t, "delete-old", agentConfig.CompactionStrategy)
 		})
 	})
 

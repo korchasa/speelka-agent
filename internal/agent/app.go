@@ -63,14 +63,8 @@ func (a *App) Initialize(ctx context.Context) error {
 	}
 	a.logger.Info("MCP connector connected successfully")
 
-	// Create Agent configuration
-	agentConfig := types.AgentConfig{
-		Tool:                 a.configManager.GetMCPServerConfig().Tool,
-		Model:                a.configManager.GetLLMConfig().Model,
-		SystemPromptTemplate: a.configManager.GetLLMConfig().SystemPromptTemplate,
-		MaxTokens:            a.configManager.GetChatConfig().MaxTokens,
-		CompactionStrategy:   a.configManager.GetChatConfig().CompactionStrategy,
-	}
+	// Get Agent configuration
+	agentConfig := a.configManager.GetAgentConfig()
 
 	// Create Agent
 	agent := NewAgent(

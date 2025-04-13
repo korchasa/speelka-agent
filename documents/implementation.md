@@ -158,6 +158,7 @@ type ConfigurationManagerSpec interface {
     GetMCPConnectorConfig() MCPConnectorConfig
     GetLLMConfig() LLMConfig
     GetLogConfig() LogConfig
+    GetAgentConfig() AgentConfig
 }
 ```
 
@@ -193,6 +194,18 @@ type MCPServerConfig struct {
 type MCPConnectorConfig struct {
     Servers []MCPServerConnection
     RetryConfig RetryConfig
+}
+```
+
+### Agent
+```go
+type AgentConfig struct {
+    Tool                 MCPServerToolConfig
+    Model                string
+    SystemPromptTemplate string
+    MaxTokens            int
+    CompactionStrategy   string
+    MaxLLMIterations     int
 }
 ```
 
@@ -235,6 +248,7 @@ The chat history compaction system manages token usage and ensures conversations
 # Chat compaction configuration (now part of the Agent configuration)
 export SPL_CHAT_MAX_TOKENS=0                    # Default value 0 means token limit will be based on the selected model
 export SPL_CHAT_COMPACTION_STRATEGY="delete-old" # Default compaction strategy
+export SPL_CHAT_MAX_ITERATIONS=25
 ```
 
 ### Compaction Strategies
@@ -302,6 +316,7 @@ The Chat component automatically:
    - Request sending with tools
    - Response parsing
    - Tool call extraction
+   - Configurable maximum iterations (SPL_CHAT_MAX_ITERATIONS, default: 25)
 
 4. **Tool Execution**:
    - Tool lookup in available tools
