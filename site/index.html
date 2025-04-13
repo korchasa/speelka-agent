@@ -27,6 +27,10 @@
 
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js" defer></script>
     <!-- Mermaid.js for diagrams -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js" defer></script>
     <!-- Favicon -->
@@ -60,58 +64,6 @@
     <!-- Scripts -->
     <script src="js/scripts.js" defer></script>
 
-    <style>
-        /* Additional spacing for sections */
-        .step-container {
-            margin-bottom: 3rem;
-            padding-bottom: 2rem;
-        }
-
-        .agent-selection {
-            margin-bottom: 2.5rem;
-        }
-
-        .configuration-templates {
-            margin-top: 1.5rem;
-            height: auto;
-            position: relative;
-        }
-
-        /* Configure YAML code blocks to have full height */
-        .configuration-templates .yaml-code {
-            min-height: 600px;
-            height: auto;
-            max-height: none;
-            overflow-y: visible;
-        }
-
-        /* Hide inactive tab content */
-        .configuration-templates .tab-content {
-            display: none;
-            height: auto;
-        }
-
-        /* Show only active tab content */
-        .configuration-templates .tab-content.active {
-            display: block;
-        }
-
-        .yaml-code code {
-            height: 100%;
-            display: block;
-            white-space: pre;
-        }
-
-        /* Increased vertical spacing between major sections */
-        section {
-            padding: 5rem 0;
-        }
-
-        h3 {
-            margin-top: 2rem;
-            margin-bottom: 1.5rem;
-        }
-    </style>
 </head>
 <body>
     <!-- Header -->
@@ -295,11 +247,11 @@ flowchart TB
 
                 <div class="step-container">
                     <div class="step-number">3</div>
-                    <h3>Setup your MCP Client</h3>
+                    <h3>Set up your MCP Client</h3>
                     <p>To interact with your Speelka Agent, you'll need an MCP-compatible client. </p>
 
                     <div class="important-note">
-                        <h4>Cluade Desktop</h4>
+                        <h4>Claude Desktop</h4>
                         <p>Check out the <a href="https://modelcontextprotocol.io/quickstart/user" target="_blank">Claude Desktop setup guide</a> for installation instructions.</p>
                         <p>Configure Claude Desktop to use your Speelka Agent by editing the <code>claude_desktop_config.json</code> file:</p>
 

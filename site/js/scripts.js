@@ -113,6 +113,32 @@ function initializeMermaid() {
     }
 }
 
+/**
+ * Initializes highlight.js for code syntax highlighting
+ */
+function initializeHighlightJS() {
+    if (typeof hljs !== 'undefined') {
+        // Apply highlighting to all code blocks
+        document.querySelectorAll('pre code').forEach(block => {
+            // If the code block has a language-* class, use that language
+            const languageClass = Array.from(block.classList).find(cls => cls.startsWith('language-'));
+            if (languageClass) {
+                const language = languageClass.replace('language-', '');
+                // Set the language explicitly
+                block.setAttribute('data-language', language);
+            }
+
+            // Make sure any previous highlighting is cleared
+            if (block.hasAttribute('data-highlighted')) {
+                block.removeAttribute('data-highlighted');
+            }
+
+            // Apply highlighting
+            hljs.highlightElement(block);
+        });
+    }
+}
+
 // Function to load example files
 function loadExampleFile(exampleName, format) {
     // Only load YAML files since they're the only ones that exist
@@ -144,6 +170,30 @@ function loadExampleFile(exampleName, format) {
                     // Update the content of the code element
                     codeElement.textContent = content;
                     console.log(`Updated code content in ${tabConfigId}`);
+
+                    // Remove any existing highlight.js classes
+                    codeElement.classList.remove('hljs');
+                    Array.from(codeElement.classList).forEach(cls => {
+                        if (cls.startsWith('language-') || cls.startsWith('hljs-')) {
+                            codeElement.classList.remove(cls);
+                        }
+                    });
+
+                    // Add language class for YAML
+                    codeElement.classList.add('language-yaml');
+
+                    // Set the language explicitly
+                    codeElement.setAttribute('data-language', 'yaml');
+
+                    // Make sure any previous highlighting is cleared
+                    if (codeElement.hasAttribute('data-highlighted')) {
+                        codeElement.removeAttribute('data-highlighted');
+                    }
+
+                    // Apply syntax highlighting to the updated code
+                    if (typeof hljs !== 'undefined') {
+                        hljs.highlightElement(codeElement);
+                    }
                 } else {
                     console.error(`Code element not found in ${tabConfigId}`);
                 }
@@ -181,6 +231,9 @@ function initializeApp() {
 
         // Initialize mermaid diagrams
         initializeMermaid();
+
+        // Initialize syntax highlighting
+        initializeHighlightJS();
 
         // Initialize mobile menu
         initMobileMenu();

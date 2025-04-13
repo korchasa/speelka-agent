@@ -2,6 +2,23 @@
 # A specialized agent that curates and summarizes news about artificial intelligence.
 # Perfect for staying updated on the latest AI developments.
 # Features: News Curation, Web Browsing, Structured Responses
+
+# Runtime configuration
+runtime:
+  log:
+    level: "debug"
+    output: "./app.log"
+
+  transports:
+    stdio:
+      enabled: true
+      buffer_size: 8192
+
+    http:
+      enabled: false
+      host: "localhost"
+      port: 3000
+
 agent:
   name: "ai-news-agent"
   version: "1.0.0"
@@ -12,6 +29,11 @@ agent:
     description: "Looking for news related to AI"
     argument_name: "query"
     argument_description: "The user request to process"
+
+  # Chat configuration
+  chat:
+    max_tokens: 0
+    compaction_strategy: "delete-old"
 
   # LLM configuration
   llm:
@@ -50,23 +72,3 @@ agent:
       max_backoff: 30.0
       backoff_multiplier: 2.0
 
-  # Chat configuration
-  chat:
-    max_tokens: 0
-    compaction_strategy: "delete-old"
-
-# Runtime configuration
-runtime:
-  log:
-    level: "debug"
-    output: "./app.log"
-
-  transports:
-    stdio:
-      enabled: true
-      buffer_size: 8192
-
-    http:
-      enabled: false
-      host: "localhost"
-      port: 3000
