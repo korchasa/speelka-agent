@@ -39,7 +39,7 @@ agent:
   # LLM configuration
   llm:
     provider: openai
-    api_key: 'dummy-api-key'
+    api_key: ''
     model: gpt-4o
     max_tokens: 0
     temperature: 0.2

@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,8 +23,7 @@ func TestDefaultLoader_LoadConfiguration(t *testing.T) {
 
 	// Verify default runtime values
 	assert.Equal(t, "info", config.Runtime.Log.RawLevel)
-	assert.Equal(t, "stderr", config.Runtime.Log.Output)
-	assert.Equal(t, os.Stderr, config.Runtime.Log.Writer)
+	assert.Equal(t, "stderr", config.Runtime.Log.RawOutput)
 
 	// Verify default transport values
 	assert.Equal(t, true, config.Runtime.Transports.Stdio.Enabled)
@@ -65,4 +65,11 @@ func TestDefaultLoader_LoadConfiguration(t *testing.T) {
 	// Verify empty server connections map
 	assert.NotNil(t, config.Agent.Connections.McpServers)
 	assert.Empty(t, config.Agent.Connections.McpServers)
+
+	// After Apply, check parsed fields
+	config.Apply(config)
+	assert.Equal(t, "info", config.Runtime.Log.RawLevel)
+	assert.Equal(t, "stderr", config.Runtime.Log.RawOutput)
+	assert.Equal(t, os.Stderr, config.Runtime.Log.Output)
+	assert.Equal(t, logrus.InfoLevel, config.Runtime.Log.LogLevel)
 }

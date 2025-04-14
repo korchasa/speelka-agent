@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -91,7 +92,11 @@ func TestJSONLoader_LoadConfiguration(t *testing.T) {
 				assert.Equal(t, "test-api-key", config.Agent.LLM.APIKey)
 				assert.Equal(t, "You are a helpful assistant. User query: {{query}} Available tools: {{tools}}", config.Agent.LLM.PromptTemplate)
 				assert.Equal(t, "debug", config.Runtime.Log.RawLevel)
-				assert.Equal(t, "./test.log", config.Runtime.Log.Output)
+				assert.Equal(t, "./test.log", config.Runtime.Log.RawOutput)
+				// After Apply, check parsed fields
+				config.Apply(config)
+				assert.NotNil(t, config.Runtime.Log.Output)
+				assert.Equal(t, logrus.DebugLevel, config.Runtime.Log.LogLevel)
 			},
 		},
 		{

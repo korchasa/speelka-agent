@@ -5,7 +5,7 @@
 
 runtime:
   log:
-    level: debug
+    level: info
     output: ./simple.log
 
 agent:
@@ -21,7 +21,7 @@ agent:
   # LLM configuration
   llm:
     provider: "openai"
-    api_key: "dummy-api-key"  # Set via environment variable SPL_LLM_API_KEY for security
+    api_key: ""  # Set via environment variable SPL_LLM_API_KEY for security
     model: "gpt-4o"
     prompt_template: "You are a helpful AI assistant. Respond to the following request: {{input}}. Provide a detailed and helpful response. Available tools: {{tools}}"
 

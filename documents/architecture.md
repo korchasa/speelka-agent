@@ -38,6 +38,9 @@ flowchart TB
 - Loads configuration from environment variables or files
 - Provides typed access to configuration subsets
 - Implements `ConfigurationManagerSpec` interface
+- **Log configuration flow:**
+  - All configuration loaders (DefaultLoader, EnvLoader, YAMLLoader, JSONLoader) set only `RawLevel` and `RawOutput` as strings.
+  - The `Apply` method of `types.Configuration` is solely responsible for parsing these fields into `LogLevel` and `Output`.
 
 ### LLM Service
 - Handles communication with LLM providers
@@ -186,6 +189,7 @@ graph TD
 - **Defaults**: Sensible defaults with clear override mechanics
 - **Validation**: Immediate error reporting on configuration issues
 - **Security**: Sensitive values like API keys can be supplied via environment variables
+- **Log parsing responsibility:** Only `Apply` parses log level/output; loaders set only raw string fields.
 
 ### Configuration Loading Process
 1. Load from default path

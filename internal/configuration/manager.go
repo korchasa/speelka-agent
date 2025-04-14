@@ -215,11 +215,11 @@ func (cm *Manager) GetLLMConfig() types.LLMConfig {
 func (cm *Manager) GetLogConfig() types.LogConfig {
 	// Convert from the new configuration format to the Log config format
 	logConfig := types.LogConfig{
+		RawLevel:  cm.config.Runtime.Log.RawLevel,
+		RawOutput: cm.config.Runtime.Log.RawOutput,
 		Level:     cm.config.Runtime.Log.LogLevel,
-		RawOutput: cm.config.Runtime.Log.Output,
-		Output:    cm.config.Runtime.Log.Writer,
+		Output:    cm.config.Runtime.Log.Output,
 	}
-
 	return logConfig
 }
 

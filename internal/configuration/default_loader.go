@@ -3,10 +3,7 @@
 package configuration
 
 import (
-	"os"
-
 	"github.com/korchasa/speelka-agent-go/internal/types"
-	"github.com/sirupsen/logrus"
 )
 
 // DefaultLoader implements the LoaderSpec interface for loading default configuration values.
@@ -23,9 +20,7 @@ func (l *DefaultLoader) LoadConfiguration() (*types.Configuration, error) {
 
 	// Set default values for RuntimeConfig
 	config.Runtime.Log.RawLevel = "info"
-	config.Runtime.Log.Output = "stderr"
-	config.Runtime.Log.LogLevel = logrus.InfoLevel
-	config.Runtime.Log.Writer = os.Stderr
+	config.Runtime.Log.RawOutput = "stderr"
 
 	// Set default values for Runtime Transport
 	config.Runtime.Transports.Stdio.Enabled = true

@@ -24,12 +24,12 @@ type RuntimeConfig struct {
 
 // RuntimeLogConfig represents the log configuration section in the runtime config
 type RuntimeLogConfig struct {
-	RawLevel string `json:"level" yaml:"level"`
-	Output   string `json:"output" yaml:"output"`
+	RawLevel  string `json:"level" yaml:"level"`
+	RawOutput string `json:"output" yaml:"output"`
 
 	// Internal fields, not directly from config file
 	LogLevel logrus.Level
-	Writer   io.Writer
+	Output   io.Writer
 }
 
 // RuntimeTransportConfig represents the transport configuration section in the runtime config
@@ -258,8 +258,8 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 	if newConfig.Runtime.Log.RawLevel != "" {
 		c.Runtime.Log.RawLevel = newConfig.Runtime.Log.RawLevel
 	}
-	if newConfig.Runtime.Log.Output != "" {
-		c.Runtime.Log.Output = newConfig.Runtime.Log.Output
+	if newConfig.Runtime.Log.RawOutput != "" {
+		c.Runtime.Log.RawOutput = newConfig.Runtime.Log.RawOutput
 	}
 
 	// Apply transports configuration
@@ -289,25 +289,22 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 		c.Runtime.Log.LogLevel = logrus.InfoLevel
 	}
 
-	// Handle log file output if Output is a file path
-	if c.Runtime.Log.Output != "" {
-		if c.Runtime.Log.Output == "stdout" {
-			c.Runtime.Log.Writer = os.Stdout
-		} else if c.Runtime.Log.Output == "stderr" {
-			c.Runtime.Log.Writer = os.Stderr
+	// Handle log file output if RawOutput is a file path
+	if c.Runtime.Log.RawOutput != "" {
+		if c.Runtime.Log.RawOutput == "stdout" {
+			c.Runtime.Log.Output = os.Stdout
+		} else if c.Runtime.Log.RawOutput == "stderr" {
+			c.Runtime.Log.Output = os.Stderr
 		} else {
 			// Try to open the log file
-			file, err := os.OpenFile(c.Runtime.Log.Output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			file, err := os.OpenFile(c.Runtime.Log.RawOutput, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
 				// Default to stderr on error
-				c.Runtime.Log.Writer = os.Stderr
+				c.Runtime.Log.Output = os.Stderr
 			} else {
-				c.Runtime.Log.Writer = file
+				c.Runtime.Log.Output = file
 			}
 		}
-	} else {
-		// Default to stderr if not specified
-		c.Runtime.Log.Writer = os.Stderr
 	}
 
 	// Apply Agent configuration
@@ -339,7 +336,7 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 	if newConfig.Agent.LLM.Model != "" {
 		c.Agent.LLM.Model = newConfig.Agent.LLM.Model
 	}
-	if newConfig.Agent.LLM.APIKey != "" {
+	if newConfig.Agent.LLM.APIKey != "" || c.Agent.LLM.APIKey == "" {
 		c.Agent.LLM.APIKey = newConfig.Agent.LLM.APIKey
 	}
 	if newConfig.Agent.LLM.MaxTokens != 0 || newConfig.Agent.LLM.IsMaxTokensSet {

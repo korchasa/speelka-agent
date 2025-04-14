@@ -5,14 +5,18 @@ package types
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
+
+	"github.com/sirupsen/logrus"
 )
 
 // LogConfig represents the configuration for logging.
 // Responsibility: Storing logging system settings
 // Features: Defines the level, format, and output location for logs
 type LogConfig struct {
+	// RawLevel is the raw log level.
+	RawLevel string
+
 	// Level is the log level.
 	Level logrus.Level
 

@@ -101,7 +101,7 @@ agent:
 		assert.Equal(t, "test-api-key", cm.config.Agent.LLM.APIKey)
 		assert.Equal(t, "You are a helpful assistant. User query: {{query}} Available tools: {{tools}}", cm.config.Agent.LLM.PromptTemplate)
 		assert.Equal(t, "debug", cm.config.Runtime.Log.RawLevel)
-		assert.Equal(t, "./test.log", cm.config.Runtime.Log.Output)
+		assert.Equal(t, "./test.log", cm.config.Runtime.Log.RawOutput)
 		assert.Equal(t, logrus.DebugLevel, cm.config.Runtime.Log.LogLevel)
 
 		// Verify getters return the correct values
@@ -166,7 +166,7 @@ agent:
 		assert.Equal(t, "default-tool", cm.config.Agent.Tool.Name)
 		assert.Equal(t, "Default tool", cm.config.Agent.Tool.Description)
 		assert.Equal(t, "info", cm.config.Runtime.Log.RawLevel)
-		assert.Equal(t, "stdout", cm.config.Runtime.Log.Output)
+		assert.Equal(t, "stdout", cm.config.Runtime.Log.RawOutput)
 		assert.Equal(t, "default-api-key", cm.config.Agent.LLM.APIKey)
 	})
 

@@ -28,8 +28,8 @@ func TestConfigurationValidate(t *testing.T) {
 			config: &Configuration{
 				Runtime: RuntimeConfig{
 					Log: RuntimeLogConfig{
-						RawLevel: "debug",
-						Output:   "stdout",
+						RawLevel:  "debug",
+						RawOutput: "stdout",
 					},
 				},
 				Agent: ConfigAgent{
@@ -274,10 +274,10 @@ func TestConfiguration_Apply(t *testing.T) {
 	baseConfig := &Configuration{
 		Runtime: RuntimeConfig{
 			Log: RuntimeLogConfig{
-				RawLevel: "info",
-				Output:   "stdout",
-				LogLevel: logrus.InfoLevel,
-				Writer:   os.Stdout,
+				RawLevel:  "info",
+				RawOutput: "stdout",
+				LogLevel:  logrus.InfoLevel,
+				Output:    os.Stdout,
 			},
 			Transports: RuntimeTransportConfig{
 				Stdio: RuntimeStdioConfig{
@@ -428,9 +428,9 @@ func TestConfiguration_Apply(t *testing.T) {
 
 	// Verify that the values were updated correctly
 	assert.Equal(t, "debug", baseConfig.Runtime.Log.RawLevel)
-	assert.Equal(t, "stdout", baseConfig.Runtime.Log.Output)
+	assert.Equal(t, "stdout", baseConfig.Runtime.Log.RawOutput)
 	assert.Equal(t, logrus.DebugLevel, baseConfig.Runtime.Log.LogLevel)
-	assert.Equal(t, os.Stdout, baseConfig.Runtime.Log.Writer)
+	assert.Equal(t, os.Stdout, baseConfig.Runtime.Log.Output)
 
 	// Verify runtime transport values
 	assert.Equal(t, true, baseConfig.Runtime.Transports.Stdio.Enabled, "Stdio.Enabled should be true")
@@ -483,18 +483,18 @@ func TestConfiguration_Apply(t *testing.T) {
 	invalidLogConfig := &Configuration{
 		Runtime: RuntimeConfig{
 			Log: RuntimeLogConfig{
-				RawLevel: "invalid_level",
-				Output:   "stderr",
+				RawLevel:  "invalid_level",
+				RawOutput: "stderr",
 			},
 		},
 	}
 
 	baseConfig.Apply(invalidLogConfig)
 	assert.Equal(t, "invalid_level", baseConfig.Runtime.Log.RawLevel)
-	assert.Equal(t, "stderr", baseConfig.Runtime.Log.Output)
+	assert.Equal(t, "stderr", baseConfig.Runtime.Log.RawOutput)
 	// Should default to info level for invalid log level
 	assert.Equal(t, logrus.InfoLevel, baseConfig.Runtime.Log.LogLevel)
-	assert.Equal(t, os.Stderr, baseConfig.Runtime.Log.Writer)
+	assert.Equal(t, os.Stderr, baseConfig.Runtime.Log.Output)
 
 	// Test with file output
 	// First create a temp directory for the test
@@ -506,24 +506,42 @@ func TestConfiguration_Apply(t *testing.T) {
 	fileLogConfig := &Configuration{
 		Runtime: RuntimeConfig{
 			Log: RuntimeLogConfig{
-				RawLevel: "warn",
-				Output:   logFilePath,
+				RawLevel:  "warn",
+				RawOutput: logFilePath,
 			},
 		},
 	}
 
 	baseConfig.Apply(fileLogConfig)
 	assert.Equal(t, "warn", baseConfig.Runtime.Log.RawLevel)
-	assert.Equal(t, logFilePath, baseConfig.Runtime.Log.Output)
+	assert.Equal(t, logFilePath, baseConfig.Runtime.Log.RawOutput)
 	assert.Equal(t, logrus.WarnLevel, baseConfig.Runtime.Log.LogLevel)
 	// Writer should be a file now, not stdout or stderr
-	assert.NotEqual(t, os.Stdout, baseConfig.Runtime.Log.Writer)
-	assert.NotEqual(t, os.Stderr, baseConfig.Runtime.Log.Writer)
+	assert.NotEqual(t, os.Stdout, baseConfig.Runtime.Log.Output)
+	assert.NotEqual(t, os.Stderr, baseConfig.Runtime.Log.Output)
 
 	// Close the file to avoid resource leaks in the test
-	if file, ok := baseConfig.Runtime.Log.Writer.(*os.File); ok && file != os.Stdout && file != os.Stderr {
+	if file, ok := baseConfig.Runtime.Log.Output.(*os.File); ok && file != os.Stdout && file != os.Stderr {
 		file.Close()
 	}
+
+	// Test precedence: config file with empty APIKey, env with non-empty APIKey
+	baseConfigWithEmptyAPIKey := &Configuration{
+		Agent: ConfigAgent{
+			LLM: AgentLLMConfig{
+				APIKey: "",
+			},
+		},
+	}
+	overlayConfigWithEnvAPIKey := &Configuration{
+		Agent: ConfigAgent{
+			LLM: AgentLLMConfig{
+				APIKey: "env-api-key",
+			},
+		},
+	}
+	baseConfigWithEmptyAPIKey.Apply(overlayConfigWithEnvAPIKey)
+	assert.Equal(t, "env-api-key", baseConfigWithEmptyAPIKey.Agent.LLM.APIKey, "Environment variable should override empty config file value for APIKey")
 }
 
 /* These functions might be defined elsewhere or have been removed

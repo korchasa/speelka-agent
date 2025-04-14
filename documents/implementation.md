@@ -59,7 +59,9 @@
   - Default value handling
   - Strict validation with immediate error reporting for parsing failures
   - Configuration validation
-  - Log file path handling (values other than stdout/stderr are treated as file paths)
+  - **Log file path and level handling:**
+    - All configuration loaders (DefaultLoader, EnvLoader, YAMLLoader, JSONLoader) set only `RawLevel` and `RawOutput` as strings.
+    - The `Apply` method of `types.Configuration` is solely responsible for parsing these fields into `LogLevel` and `Output`.
   - Dummy API keys in example files for testing purposes
 
 ### Configuration Structure
@@ -67,6 +69,10 @@
 - **Components**:
   - `Runtime`: Runtime settings (logging, etc.)
     - `Log`: Logging settings
+      - `RawLevel` (string): Loader-provided log level
+      - `RawOutput` (string): Loader-provided log output
+      - `LogLevel` (logrus.Level): Parsed in `Apply`
+      - `Output` (io.Writer): Parsed in `Apply`
     - `Transports`: Transport configurations
   - `Agent`: Agent-specific settings
     - Basic properties: name, version

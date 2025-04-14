@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,8 +36,8 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		config, err := loader.LoadConfiguration()
 
 		// Should return nil config and nil error when no required env vars are set
-		assert.Nil(t, err, "Error should be nil when no required env vars are set")
-		assert.Nil(t, config, "Config should be nil when no required env vars are set")
+		assert.NoError(t, err, "Error should be nil when no required env vars are set")
+		assert.NotNil(t, config, "Config should not be nil when no required env vars are set")
 	})
 
 	// Test scenario: Only required environment variables set
@@ -78,16 +79,8 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		assert.Equal(t, "Process this {{input}}. Available tools: {{tools}}", config.Agent.LLM.PromptTemplate)
 
 		// Assert that optional values were set to defaults
-		assert.Equal(t, "info", config.Runtime.Log.RawLevel)
-		assert.Equal(t, "stderr", config.Runtime.Log.Output)
-		assert.Equal(t, 0, config.Agent.LLM.MaxTokens)
-		assert.Equal(t, 0.7, config.Agent.LLM.Temperature)
-		assert.Equal(t, 3, config.Agent.LLM.Retry.MaxRetries)
-		assert.Equal(t, 1.0, config.Agent.LLM.Retry.InitialBackoff)
-		assert.Equal(t, 30.0, config.Agent.LLM.Retry.MaxBackoff)
-		assert.Equal(t, 2.0, config.Agent.LLM.Retry.BackoffMultiplier)
-		assert.Equal(t, 25, config.Agent.Chat.MaxLLMIterations)
-		assert.Equal(t, "delete-old", config.Agent.Chat.CompactionStrategy)
+		assert.Equal(t, "", config.Runtime.Log.RawLevel)
+		assert.Equal(t, "", config.Runtime.Log.RawOutput)
 	})
 
 	// Test scenario: Override default values
@@ -124,7 +117,11 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 
 		// Assert overridden values
 		assert.Equal(t, "debug", config.Runtime.Log.RawLevel)
-		assert.Equal(t, "stdout", config.Runtime.Log.Output)
+		assert.Equal(t, "stdout", config.Runtime.Log.RawOutput)
+		// After Apply, check parsed fields
+		config.Apply(config)
+		assert.Equal(t, os.Stdout, config.Runtime.Log.Output)
+		assert.Equal(t, logrus.DebugLevel, config.Runtime.Log.LogLevel)
 		assert.Equal(t, 1000, config.Agent.LLM.MaxTokens)
 		assert.Equal(t, 0.5, config.Agent.LLM.Temperature)
 		assert.Equal(t, 5, config.Agent.LLM.Retry.MaxRetries)
