@@ -54,7 +54,7 @@ You are a Senior Software Developer with extensive expertise in best practices, 
 2. Run `./run test` to check if the project tests pass.
 3. Run `./run lint` to check if the project lints.
 4. Run `./run call` and analyze the output to check if the simple acceptance tests pass.
-5. Run `./run complex-call` and analyze the output to check if the complex acceptance tests pass.
+5. Run `./run call-multistep` and analyze the output to check if the complex acceptance tests pass.
 
 # TEXT COMPACTION RULES
 - Remove history: Remove history, updates, and changelog.

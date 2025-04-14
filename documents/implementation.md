@@ -52,11 +52,98 @@
 - **Purpose**: Configuration management
 - **File**: `internal/configuration/manager.go`
 - **Implementation Features**:
-  - JSON configuration via `CONFIG_JSON` env var (legacy support)
+  - YAML configuration via `--config` flag (preferred method)
+  - JSON configuration support (alternative)
+  - Environment variables with `SPL_` prefix
   - Type-safe configuration access
   - Default value handling
+  - Strict validation with immediate error reporting for parsing failures
   - Configuration validation
-  - Log file path handling (values other than stdout/stderr are treated as file paths)
+  - **Log file path and level handling:**
+    - All configuration loaders (DefaultLoader, EnvLoader, YAMLLoader, JSONLoader) set only `RawLevel` and `RawOutput` as strings.
+    - The `Apply` method of `types.Configuration` is solely responsible for parsing these fields into `LogLevel` and `Output`.
+  - Dummy API keys in example files for testing purposes
+
+### Configuration Structure
+- **Base Structure**: `types.Configuration`
+- **Components**:
+  - `Runtime`: Runtime settings (logging, etc.)
+    - `Log`: Logging settings
+      - `RawLevel` (string): Loader-provided log level
+      - `RawOutput` (string): Loader-provided log output
+      - `LogLevel` (logrus.Level): Parsed in `Apply`
+      - `Output` (io.Writer): Parsed in `Apply`
+    - `Transports`: Transport configurations
+  - `Agent`: Agent-specific settings
+    - Basic properties: name, version
+    - Tool configuration
+    - LLM configuration
+    - Chat configuration
+    - External connection settings for MCP servers
+
+### Configuration Loaders
+- **DefaultLoader**: Provides sensible defaults for all configuration options
+- **EnvLoader**: Loads configuration from environment variables with SPL_ prefix
+- **YAMLLoader**: Loads configuration from YAML files (preferred file format)
+- **JSONLoader**: Loads configuration from JSON files
+
+### Configuration Precedence
+1. Environment variables (highest precedence)
+2. YAML/JSON configuration file
+3. Default values (lowest precedence)
+
+### Configuration Example (YAML)
+```yaml
+# Runtime configuration
+runtime:
+  log:
+    level: debug
+    output: ./simple.log
+
+  transports:
+    stdio:
+      enabled: true
+      buffer_size: 8192
+    http:
+      enabled: false
+      host: localhost
+      port: 3000
+
+# Agent configuration
+agent:
+  name: "simple-speelka-agent"
+
+  # Tool configuration
+  tool:
+    name: "process"
+    description: "Process tool for handling user queries with LLM"
+    argument_name: "input"
+    argument_description: "The user query to process"
+
+  # Chat configuration
+  chat:
+    max_tokens: 0
+    compaction_strategy: "delete-old"
+    max_llm_iterations: 25
+
+  # LLM configuration
+  llm:
+    provider: "openai"
+    api_key: "dummy-api-key"  # Set via environment variable for security
+    model: "gpt-4o"
+    temperature: 0.7
+    prompt_template: "You are a helpful assistant. {{input}}. Available tools: {{tools}}"
+
+  # MCP Server connections
+  connections:
+    mcpServers:
+      time:
+        command: "docker"
+        args: ["run", "-i", "--rm", "mcp/time"]
+      filesystem:
+        command: "mcp-filesystem-server"
+        args: ["/path/to/directory"]
+```
 
 ### LLM Service
 - **Purpose**: LLM provider integration
@@ -331,6 +418,9 @@ The Chat component automatically:
 
 ## Configuration Implementation
 
+The system supports both environment variables and file-based configuration (YAML and JSON):
+
+### Environment Variables
 The system primarily uses environment variables for configuration, with a common `SPL_` prefix. For backward compatibility, the system also accepts environment variables without the prefix.
 
 Example environment variable configuration:
@@ -359,6 +449,69 @@ export SPL_LLM_RETRY_INITIAL_BACKOFF=1.0
 export SPL_LLM_RETRY_MAX_BACKOFF=30.0
 export SPL_LLM_RETRY_BACKOFF_MULTIPLIER=2.0
 ```
+
+### File-Based Configuration
+The system also supports YAML and JSON configuration files, which can be specified using the `--config` flag.
+
+> **Note:** Example configuration files have been moved from `./examples` to `./site/examples` directory. The `./examples` directory has been deprecated and will be removed in a future version.
+
+Example YAML configuration (from `site/examples/architect.yaml`):
+
+```yaml
+agent:
+  name: "architect-speelka-agent"
+  version: "1.0.0"
+  tool:
+    name: "architect"
+    description: "Architecture design and assessment tool"
+    argument_name: "query"
+    argument_description: "Architecture query or task to process"
+  llm:
+    provider: "openai"
+    model: "gpt-4o"
+    # ... rest of configuration ...
+```
+
+Example JSON configuration:
+
+```json
+{
+  "agent": {
+    "name": "architect-speelka-agent",
+    "version": "1.0.0",
+    "tool": {
+      "name": "architect",
+      "description": "Architecture design and assessment tool",
+      "argument_name": "query",
+      "argument_description": "Architecture query or task to process"
+    },
+    "llm": {
+      "provider": "openai",
+      "model": "gpt-4o"
+      // ... rest of configuration ...
+    }
+  }
+}
+```
+
+### Configuration Loading Hierarchy
+The system follows this hierarchy when loading configuration:
+
+1. Command-line arguments (e.g., `--config`, `--daemon`)
+2. Environment variables (always take precedence over file-based configuration)
+3. Configuration file specified via `--config` flag
+4. Default values
+
+This hierarchy ensures that environment variables can override settings from configuration files, allowing for flexible deployment strategies.
+
+### Configuration Manager Implementation
+The configuration manager is responsible for:
+
+1. Loading configuration from files (YAML or JSON based on file extension)
+2. Loading configuration from environment variables
+3. Applying the configuration loading hierarchy
+4. Validating the loaded configuration
+5. Providing access to configuration through type-safe getters
 
 ### MCP Servers Configuration Format
 ```bash
@@ -394,6 +547,24 @@ if *daemonMode {
     log.SetLevel(logrus.DebugLevel)
     log.SetOutput(os.Stderr)
 }
+```
+
+### Missing API Keys in Example Configuration Files
+
+**Problem:** Example configuration files had empty API keys, causing 401 Unauthorized errors when trying to run examples without setting environment variables.
+
+**Solution:**
+- Added dummy API keys to all example configuration files in the `site/examples` directory
+- Added clear comments that these are for testing only and real keys should be set via environment variables
+- Updated documentation to emphasize the importance of setting the `SPL_LLM_API_KEY` environment variable in production
+
+```yaml
+# LLM configuration example
+llm:
+  provider: "openai"
+  api_key: "dummy-api-key"  # Set via environment variable SPL_LLM_API_KEY for security
+  model: "gpt-4o"
+  // ... other configuration ...
 ```
 
 ### Conditional LLM Parameters
@@ -437,9 +608,9 @@ The `run` script provides a unified interface for common operations:
 - `./run check`: Run all checks (test, lint, build)
 
 ### Interaction Commands
-- `./run call`: Test with simple "What time is it now?" request
-- `./run complex-call`: Test with complex file-finding request
-- `./run call-news`: Test news agent
+- `./run call`: Test with simple "What time is it now?" request using YAML config
+- `./run call-multistep`: Test with complex file-finding request using YAML config
+- `./run call-news`: Test news agent with YAML config
 - `./run fetch_url <url>`: Fetch URL using MCP
 
 ### Inspection Command

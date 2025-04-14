@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/korchasa/speelka-agent-go/internal/configuration"
 	"github.com/korchasa/speelka-agent-go/internal/llm_service"
 	"github.com/korchasa/speelka-agent-go/internal/mcp_connector"
 	"github.com/korchasa/speelka-agent-go/internal/mcp_server"
@@ -19,23 +18,12 @@ type App struct {
 	logger        types.LoggerSpec
 }
 
-// NewApp creates a new instance of App with the given logger
-func NewApp(logger types.LoggerSpec) (*App, error) {
+// NewApp creates a new instance of App with the given logger and configuration manager
+func NewApp(logger types.LoggerSpec, configManager types.ConfigurationManagerSpec) (*App, error) {
 	return &App{
-		logger: logger,
+		logger:        logger,
+		configManager: configManager,
 	}, nil
-}
-
-// LoadConfiguration loads the configuration from environment variables
-func (a *App) LoadConfiguration(ctx context.Context) error {
-	// Create and load configuration manager
-	configManager := configuration.NewConfigurationManager(a.logger)
-	err := configManager.LoadConfiguration(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
-	}
-	a.configManager = configManager
-	return nil
 }
 
 // Initialize creates and initializes all components needed by the Agent

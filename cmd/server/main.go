@@ -13,6 +13,7 @@ import (
     "syscall"
 
     "github.com/korchasa/speelka-agent-go/internal/agent"
+    "github.com/korchasa/speelka-agent-go/internal/configuration"
     "github.com/korchasa/speelka-agent-go/internal/logger"
     "github.com/sirupsen/logrus"
 )
@@ -27,6 +28,7 @@ var log *logger.Logger
 // Features: When true, the server runs as an HTTP daemon; otherwise, as a stdio server
 var (
     daemonMode = flag.Bool("daemon", false, "Run as a daemon with HTTP SSE MCP server (default: false, runs as stdio MCP server)")
+    configFile = flag.String("config", "", "Path to configuration file (YAML or JSON format)")
 )
 
 // panicHandler intercepts panics and logs them with a full call stack
@@ -73,27 +75,44 @@ func main() {
         cancel()
     }()
 
+    configManager, err := loadConfiguration(ctx)
+    if err != nil {
+        log.Fatalf("Failed to load configuration: %v", err)
+    }
+
     // Start the server and handle errors
-    if err := run(ctx); err != nil {
+    if err := run(ctx, configManager); err != nil {
         log.Fatalf("Main application failed: %v", err)
     }
+}
+
+func loadConfiguration(ctx context.Context) (*configuration.Manager, error) {
+    // Create configuration manager
+    configManager := configuration.NewConfigurationManager(log)
+
+    // Load configuration from file if specified, then from environment variables
+    // and validate the configuration
+    err := configManager.LoadConfiguration(ctx, *configFile)
+    if err != nil {
+        return nil, fmt.Errorf("failed to load configuration: %w", err)
+    }
+
+    return configManager, nil
 }
 
 // run contains the main application logic
 // Responsibility: Initialization and launch of all system components
 // Features: Sequentially initializes all necessary components
 // and launches the server in the required mode
-func run(ctx context.Context) error {
-    // Create the app with the logger
-    app, err := agent.NewApp(log)
+func run(ctx context.Context, configManager *configuration.Manager) error {
+
+    log.SetLevel(configManager.GetLogConfig().Level)
+    log.SetOutput(configManager.GetLogConfig().Output)
+
+    // Create the app with the logger and initialized configuration manager
+    app, err := agent.NewApp(log, configManager)
     if err != nil {
         return fmt.Errorf("failed to create agent app: %w", err)
-    }
-
-    // Load configuration from environment variables
-    err = app.LoadConfiguration(ctx)
-    if err != nil {
-        log.Fatalf("Failed to load configuration: %v", err)
     }
 
     // Initialize the app (creates the Agent and its dependencies)

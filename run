@@ -34,9 +34,10 @@ function help() {
     echo "  build                 Build the project"
     echo "  dev                   Run the application in development mode"
     echo "  call                  Call a process using MCP with default question"
-    echo "  complex-call          Call a complex process using MCP"
-    echo "  call-news          Call a ai news agent with a request"
+    echo "  call-multistep        Call a multi-step process using MCP"
+    echo "  call-news             Call a ai news agent with a request"
     echo "  check                 Run all checks in project (test, lint)"
+    echo "  site                  Run the site"
     echo "  fetch_url <url>       Fetch a URL using MCP"
     echo "  help                  Display this help message"
     echo ""
@@ -86,11 +87,6 @@ case $CMD in
         # Clean up the coverage file
         rm coverage.out
         ;;
-    acceptance-test)
-        echo -e "${BLUE}Running acceptance tests...${NC}"
-        load_env
-        go test -v -run TestHTTPRequest
-        ;;
     lint)
         echo -e "${BLUE}Running linter...${NC}"
         check_command "golangci-lint"
@@ -101,6 +97,12 @@ case $CMD in
         mkdir -p bin
         go build -o bin/speelka-agent ./cmd/server/main.go
         echo -e "${GREEN}Build complete: bin/speelka-agent${NC}"
+        ;;
+    build-mcp-call)
+        echo -e "${BLUE}Building mcp-call...${NC}"
+        mkdir -p bin
+        go build -o bin/mcp-call ./cmd/mcp-call/main.go
+        echo -e "${GREEN}Build complete: bin/mcp-call${NC}"
         ;;
     fetch_url)
         if [ -z "$1" ]; then
@@ -122,33 +124,27 @@ case $CMD in
         echo -e "${BLUE}Test agent with 'What time is it now?' request${NC}"
         (
             load_env
-            # Source environment variables from the simple.env file
-            source examples/simple.env
+            go build -o bin/mcp-call ./cmd/mcp-call/main.go
             check_command "mcp"
-            mcp tools go run -race ./cmd/server/main.go
-            mcp call process --params '{"input": "What time is it now?"}' go run -race ./cmd/server/main.go
+            ./bin/mcp-call --tool process --params '{"input": "What time is it now?"}' go run -race ./cmd/server/main.go --config ./site/examples/simple.yaml
         )
         ;;
-    complex-call)
+    call-multistep)
         echo -e "${BLUE}Test agent with 'What is in the oldest file in the directory, including all nested directories?' request${NC}"
         (
             load_env
-            # Source environment variables from the simple.env file
-            source examples/simple.env
+            go build -o bin/mcp-call ./cmd/mcp-call/main.go
             check_command "mcp"
-            mcp tools go run -race ./cmd/server/main.go
-            mcp call process --params '{"input": "What is in the oldest file in the directory, including all nested directories? Show only 10 first lines of the file."}' go run -race ./cmd/server/main.go
+            ./bin/mcp-call --tool process --params '{"input": "What is in the oldest file in the directory, including all nested directories? Show only 10 first lines of the file."}' go run -race ./cmd/server/main.go --config ./site/examples/simple.yaml
         )
         ;;
     call-news)
         echo -e "${BLUE}Test agent with 'What is the latest news in AI?' request${NC}"
         (
             load_env
-            # Source environment variables from the ai-news.env file
-            source examples/ai-news.env
+            go build -o bin/mcp-call ./cmd/mcp-call/main.go
             check_command "mcp"
-            mcp tools go run -race ./cmd/server/main.go
-            mcp call make-ai-digest --params "{\"query\": \"What is the latest news in AI?\"}" go run -race ./cmd/server/main.go
+            ./bin/mcp-call --tool make-ai-digest --params "{\"query\": \"What is the latest news in AI?\"}" go run -race ./cmd/server/main.go --config ./site/examples/ai-news.yaml
         )
         ;;
     inspect)
@@ -156,6 +152,8 @@ case $CMD in
         (
             load_env
             check_command "npx"
+            # Use YAML config instead of environment variables
+            # But still need to set environment variables for the inspector
             source examples/simple.env
 
             # Collect all SPL_ environment variables
@@ -170,7 +168,7 @@ case $CMD in
             done < <(env | grep "^SPL_")
 
             # Run inspector with all SPL_ environment variables
-            npx @modelcontextprotocol/inspector "${env_vars[@]}" -- go run -race ./cmd/server/main.go
+            npx @modelcontextprotocol/inspector "${env_vars[@]}" -- go run -race ./cmd/server/main.go --config examples/simple.yaml
         )
         ;;
     check)
@@ -191,10 +189,16 @@ case $CMD in
         echo -e "\n${YELLOW}5. Running call${NC}"
         ./run call
 
-        echo -e "\n${YELLOW}6. Running complex call${NC}"
-        ./run complex-call
+        echo -e "\n${YELLOW}6. Running multi-step call${NC}"
+        ./run call-multistep
 
         echo -e "\n${GREEN}✓ All checks passed!${NC}"
+        ;;
+    site)
+        echo -e "${BLUE}Running site...${NC}"
+        check_command "python3"
+        cd site
+        python3 -m http.server -b 127.0.0.1 8000
         ;;
     help)
         help

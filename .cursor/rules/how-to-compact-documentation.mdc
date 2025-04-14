@@ -3,7 +3,7 @@ description: How to write documentation in compact form
 globs: 
 alwaysApply: false
 ---
-# TEXT COMPACTION RULES
+Rewrite documents following the rules:
 - Remove history: Remove history, updates, and changelog.
 - Use only english in all files.
 - Use combined extractive & abstractive summarization: First, extract ALL facts, then compress them into concise, coherent content WITHOUT LOSING ANY FACTS.

@@ -14,7 +14,7 @@ func TestMCPLoggerCreation(t *testing.T) {
 
 	// Assert that the logger was created with the correct properties
 	assert.NotNil(t, mcpLogger.underlying)
-	assert.Equal(t, logrus.InfoLevel, mcpLogger.minLevel)
+	assert.Equal(t, logrus.DebugLevel, mcpLogger.minLevel)
 }
 
 func TestMCPLoggingWithoutServer(t *testing.T) {

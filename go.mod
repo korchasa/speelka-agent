@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/ghodss/yaml v1.0.0
-	github.com/mark3labs/mcp-go v0.19.0
+	github.com/mark3labs/mcp-go v0.20.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
 	github.com/tmc/langchaingo v0.1.13

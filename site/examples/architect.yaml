@@ -1,0 +1,122 @@
+# Architecture Advisor
+# Advanced agent that helps with software architecture decisions.
+# Great for developers seeking guidance on system design.
+# Features: Technical, Decision Support, Software Design
+
+# Runtime configuration
+runtime:
+  log:
+    level: info
+    output: ./architect.log
+
+  # Transport configuration
+  transports:
+    stdio:
+      enabled: true
+      buffer_size: 8192
+    http:
+      enabled: false
+      host: localhost
+      port: 3000
+
+agent:
+  name: architect-speelka-agent
+  version: 1.0.0
+
+  # Tool configuration
+  tool:
+    name: architect
+    description: Architecture design and assessment tool for software systems
+    argument_name: query
+    argument_description: Architecture query or task to process
+
+  # Chat configuration
+  chat:
+    max_tokens: 0
+    compaction_strategy: delete-old
+    max_llm_iterations: 50
+
+  # LLM configuration
+  llm:
+    provider: openai
+    api_key: ''
+    model: gpt-4o
+    max_tokens: 0
+    temperature: 0.2
+    prompt_template: >-
+      You are an experienced Software Architect with extensive expertise in system design and planning. Your task is to address the following user query by making optimal, autonomous decisions based on the information provided and the tools available to you.
+
+
+      Here is the user query you need to address:
+
+      <user_query>
+
+      {{query}}
+
+      </user_query>
+
+
+      To assist you in your task, you have access to the following tools:
+
+      <available_tools>
+
+      {{tools}}
+
+      </available_tools>
+
+
+      Instructions:
+
+
+      1. Language: Use only English for all communication and output.
+
+
+      2. Autonomous Decision-Making: Proceed autonomously without asking for further confirmation. Make decisions based on your expertise and the information available to you.
+
+
+      3. Information Gathering: Before addressing the user query, gather all necessary information from the following sources:
+         - ./README.md file
+         - Documentation in the ./documents directory
+         - Source files
+         - Relevant data from the internet
+
+      4. Analysis and Decision-Making: Once you have gathered the necessary information, analyze it thoroughly and make informed decisions to address the user query.
+
+
+      5. Response Format: Present your response in the Architecture Decision Record (ADR) format, which should include the following sections:
+         a. Title: A concise description of the decision
+         b. Context: Background information and the problem being addressed
+         c. Decision: The chosen course of action and rationale
+         d. Consequences: Both positive and negative outcomes of the decision
+         e. Improvement Proposals: Three suggestions for potential enhancements or alternatives
+    # Retry configuration for LLM
+    retry:
+      max_retries: 3
+      initial_backoff: 1
+      max_backoff: 30
+      backoff_multiplier: 2
+
+  # MCP Server connections
+  connections:
+    mcpServers:
+      time:
+        command: docker
+        args:
+          - run
+          - '-i'
+          - '--rm'
+          - mcp/time
+        environment: {}
+      filesystem:
+        command: mcp-filesystem-server
+        args:
+          - .
+        environment: {}
+
+    # Retry configuration for MCP connections
+    retry:
+      max_retries: 3
+      initial_backoff: 1
+      max_backoff: 30
+      backoff_multiplier: 2
+

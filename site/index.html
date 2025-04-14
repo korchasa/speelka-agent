@@ -27,6 +27,10 @@
 
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js" defer></script>
     <!-- Mermaid.js for diagrams -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js" defer></script>
     <!-- Favicon -->
@@ -59,6 +63,7 @@
 
     <!-- Scripts -->
     <script src="js/scripts.js" defer></script>
+
 </head>
 <body>
     <!-- Header -->
@@ -194,180 +199,81 @@ flowchart TB
     <!-- Usage Section (formerly Configuration) -->
     <section id="usage">
         <div class="container">
-            <h2 class="section-title">Usage</h2>
-            <p class="section-subtitle">Start using Speelka Agent with these example configurations</p>
+            <h2 class="section-title">Usage Guide</h2>
+            <p class="section-subtitle">Follow this simple step-by-step guide to set up your agent</p>
 
-            <div class="examples-section">
-                <h3>MCP stdio</h3>
-                <p>Add speelka-agent binary to your MCP client:</p>
-<pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>{
-    "mcpServers": {
-        "speelka-agent": {
-            "command": "speelka-agent",
-            "args": [],
-            "environment": {
-                "SPL_AGENT_NAME": "simple-speelka-agent",
-                "SPL_TOOL_NAME": "process",
-                "SPL_TOOL_DESCRIPTION": "Process tool for handling user queries with LLM",
-                "SPL_LLM_PROVIDER": "openai",
-                "SPL_LLM_API_KEY": "YOUR_API_KEY_HERE",
-                "SPL_LLM_MODEL": "gpt-4o",
-                "SPL_LLM_PROMPT_TEMPLATE": "You are a helpful AI assistant. Respond to the following request:\\n\\n{{input}}\\n\\nProvide a detailed and helpful response.\\n\\nAvailable tools:\\n{{tools}}",
-                "SPL_MCPS_0_ID": "time",
-                "SPL_MCPS_0_COMMAND": "docker",
-                "SPL_MCPS_0_ARGS": "run -i --rm mcp/time",
-                "SPL_MCPS_1_ID": "mcp-filesystem-server",
-                "SPL_MCPS_1_COMMAND": "mcp-filesystem-server",
-                "SPL_MCPS_1_ARGS": "/Users/korchasa/www/speelka/speelka-agent"
-            }
-        }
+            <div class="usage-steps">
+                <div class="step-container">
+                    <div class="step-number">1</div>
+                    <h3>Create Your API Key</h3>
+                    <p>For security and better management, it's recommended to create a dedicated API key for your LLM provider:</p>
+                    <div class="important-note">
+                        <h4><i class="fas fa-exclamation-circle"></i> Important Security Note</h4>
+                        <p>Create a new API key from your LLM provider and set it as an environment variable:</p>
+                        <pre class="code-block small-code"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>export SPL_LLM_API_KEY=your_llm_api_key_here</code></pre>
+                        <p>You can get an API key from <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI's website</a> or your preferred LLM provider.</p>
+                    </div>
+                </div>
+
+                <div class="step-container">
+                    <div class="step-number">2</div>
+                    <h3>Create Your Configuration File</h3>
+                    <p>First, decide what type of agent you want to create based on your needs:</p>
+
+                    <div class="agent-selection">
+                        <div class="tabs-navigation">
+                            <button class="tab-btn active" data-tab="simple">Simple Assistant</button>
+                            <button class="tab-btn" data-tab="ai-news">AI News Agent</button>
+                            <button class="tab-btn" data-tab="architect">Architecture Advisor</button>
+                        </div>
+
+                        <p>Create a file named <code>config.yaml</code> with the following content, depending on your chosen agent:</p>
+
+                        <div class="configuration-templates">
+                            <div class="tab-content active" id="simple-tab-config">
+                                <pre class="yaml-code"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code><!-- Content will be loaded from site/examples/simple.yaml --></code></pre>
+                            </div>
+
+                            <div class="tab-content" id="ai-news-tab-config">
+                                <pre class="yaml-code"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code><!-- Content will be loaded from site/examples/ai-news.yaml --></code></pre>
+                            </div>
+
+                            <div class="tab-content" id="architect-tab-config">
+                                <pre class="yaml-code"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code><!-- Content will be loaded from site/examples/architect.yaml --></code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-container">
+                    <div class="step-number">3</div>
+                    <h3>Set up your MCP Client</h3>
+                    <p>To interact with your Speelka Agent, you'll need an MCP-compatible client. </p>
+
+                    <div class="important-note">
+                        <h4>Claude Desktop</h4>
+                        <p>Check out the <a href="https://modelcontextprotocol.io/quickstart/user" target="_blank">Claude Desktop setup guide</a> for installation instructions.</p>
+                        <p>Configure Claude Desktop to use your Speelka Agent by editing the <code>claude_desktop_config.json</code> file:</p>
+
+                        <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>{
+  "mcpServers": {
+    "speelka": {
+      "command": "./speelka-agent",
+      "args": ["--config", "config.yaml"],
+      "env": {
+        "SPL_LLM_API_KEY": "your_llm_api_key_here"
+      }
     }
+  }
 }</code></pre>
+                    </div>
 
-                <h3>Docker Integration</h3>
-                <p>Add speelka-agent to your MCP client with Docker:</p>
-                <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>{
-    "mcpServers": {
-        "speelka-agent": {
-            "command": "docker",
-            "args": ["run", "-i", "--rm",
-                "-e", "SPL_AGENT_NAME=simple-speelka-agent",
-                "-e", "SPL_TOOL_NAME=process",
-                "-e", "SPL_TOOL_DESCRIPTION=Process tool for handling user queries with LLM",
-                "-e", "SPL_LLM_PROVIDER=openai",
-                "-e", "SPL_LLM_API_KEY=$SPL_LLM_API_KEY",
-                "-e", "SPL_LLM_MODEL=gpt-4o",
-                "-e", "SPL_LLM_PROMPT_TEMPLATE=You are a helpful AI assistant. Respond to the following request:\\n\\n{{input}}\\n\\nProvide a detailed and helpful response.\\n\\nAvailable tools:\\n{{tools}}",
-                "ghcr.io/korchasa/speelka-agent:latest",
-                "-e", "SPL_MCPS_0_ID=time",
-                "-e", "SPL_MCPS_0_COMMAND=docker",
-                "-e", "SPL_MCPS_0_ARGS=run -i --rm mcp/time",
-                "-e", "SPL_MCPS_1_ID=mcp-filesystem-server",
-                "-e", "SPL_MCPS_1_COMMAND=mcp-filesystem-server",
-                "-e", "SPL_MCPS_1_ARGS=/Users/korchasa/www/speelka/speelka-agent"
-            ],
-            "environment": {
-                "SPL_LLM_API_KEY": "YOUR_API_KEY_HERE"
-            }
-        }
-    }
-}</code></pre>
+                    <div class="mcp-client-setup">
 
-                <h3>Additional Examples</h3>
-                <p>More configuration examples to help you integrate Speelka Agent with various tools:</p>
 
-                <h4>1. Basic Playwright Integration</h4>
-                <p>Set up Speelka Agent with Playwright for browser automation:</p>
-                <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>{
-    "mcpServers": {
-        "playwright": {
-            "command": "npx",
-            "args": [
-                "@playwright/mcp@latest"
-            ]
-        },
-        "speelka-agent": {
-            "command": "speelka-agent",
-            "args": [],
-            "environment": {
-                "SPL_AGENT_NAME": "browser-automation-agent",
-                "SPL_TOOL_NAME": "web-navigation",
-                "SPL_TOOL_DESCRIPTION": "Tool for web browsing and interaction",
-                "SPL_LLM_PROVIDER": "openai",
-                "SPL_LLM_API_KEY": "YOUR_API_KEY_HERE",
-                "SPL_LLM_MODEL": "gpt-4o",
-                "SPL_LLM_PROMPT_TEMPLATE": "You are a web browsing assistant. Help the user navigate websites and perform tasks.\\n\\nUser request: {{input}}\\n\\nAvailable tools:\\n{{tools}}",
-                "SPL_MCPS_0_ID": "playwright",
-                "SPL_MCPS_0_COMMAND": "npx",
-                "SPL_MCPS_0_ARGS": "@playwright/mcp@latest"
-            }
-        }
-    }
-}</code></pre>
 
-                <h4>2. CI/CD Agent Integration</h4>
-                <p>Configure a specialized CI/CD pipeline management agent:</p>
-                <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>{
-    "mcpServers": {
-        "speelka-agent-for-CI-CD": {
-            "command": "speelka-agent",
-            "args": [],
-            "env": {
-                "SPL_AGENT_NAME": "ci/cd agent",
-                "SPL_TOOL_NAME": "change-ci-cd",
-                "SPL_TOOL_DESCRIPTION": "Tool for managing CI/CD pipelines",
-                "SPL_TOOL_ARGUMENT_NAME": "query",
-                "SPL_TOOL_ARGUMENT_DESCRIPTION": "CI/CD related issue or improvement query",
-                "SPL_LLM_PROVIDER": "openai",
-                "SPL_LLM_API_KEY": "YOUR_API_KEY_HERE",
-                "SPL_LLM_MODEL": "gpt-4o",
-                "SPL_LLM_PROMPT_TEMPLATE": "<system_prompt>\nYOU ARE A WORLD-CLASS CI/CD PIPELINES SPECIALIST, RECOGNIZED FOR DESIGNING, MAINTAINING, AND OPTIMIZING HIGHLY RELIABLE, SECURE, AND SCALABLE CONTINUOUS INTEGRATION AND CONTINUOUS DELIVERY PIPELINES.\n\n### USER REQUEST ###\nTHE USER REQUEST IS AS FOLLOWS:  \n**{{query}}**\n\n### OBJECTIVE ###\nYOU MUST DESIGN, IMPLEMENT, MONITOR, AND CONTINUOUSLY IMPROVE THE CI/CD PIPELINES THAT AUTOMATE CODE BUILDING, TESTING, SECURITY SCANNING, DEPLOYMENT, AND ROLLBACK OPERATIONS.\n\n### AVAILABLE TOOLS ###\n{{tools}}\n</system_prompt>",
-                "SPL_MCPS_0_ID": "mcp-filesystem-server",
-                "SPL_MCPS_0_COMMAND": "mcp-filesystem-server",
-                "SPL_MCPS_0_ARGS": "./project-root"
-            }
-        }
-    }
-}</code></pre>
-
-                <h4>3. Multi-Tool Configuration</h4>
-                <p>Combine Playwright and CI/CD capabilities in a comprehensive development environment:</p>
-                <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>{
-    "mcpServers": {
-        "playwright": {
-            "command": "npx",
-            "args": [
-                "@playwright/mcp@latest"
-            ]
-        },
-        "speelka-agent-dev": {
-            "command": "speelka-agent",
-            "args": [],
-            "environment": {
-                "SPL_AGENT_NAME": "development-assistant",
-                "SPL_TOOL_NAME": "dev-tools",
-                "SPL_TOOL_DESCRIPTION": "Development assistant with browser automation and CI/CD capabilities",
-                "SPL_LLM_PROVIDER": "openai",
-                "SPL_LLM_API_KEY": "YOUR_API_KEY_HERE",
-                "SPL_LLM_MODEL": "gpt-4o",
-                "SPL_LLM_PROMPT_TEMPLATE": "You are a full-stack developer assistant with expertise in both web automation and CI/CD pipelines.\\n\\nUser request: {{input}}\\n\\nUse the appropriate tools to help the user with their development and automation needs.\\n\\nAvailable tools:\\n{{tools}}",
-                "SPL_MCPS_0_ID": "playwright",
-                "SPL_MCPS_0_COMMAND": "npx",
-                "SPL_MCPS_0_ARGS": "@playwright/mcp@latest",
-                "SPL_MCPS_1_ID": "ci-cd-tools",
-                "SPL_MCPS_1_COMMAND": "speelka-agent",
-                "SPL_MCPS_1_ARGS": "--mode=ci-cd",
-                "SPL_MCPS_2_ID": "mcp-filesystem-server",
-                "SPL_MCPS_2_COMMAND": "mcp-filesystem-server",
-                "SPL_MCPS_2_ARGS": "./project-root",
-                "SPL_RUNTIME_STDIO_ENABLED": "true"
-            }
-        }
-    }
-}</code></pre>
-
-                <h4>4. Minimalist Configuration</h4>
-                <p>A simple, lightweight configuration for quick testing or development:</p>
-                <pre class="code-block"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>{
-    "mcpServers": {
-        "speelka-mini": {
-            "command": "speelka-agent",
-            "args": ["--minimal-mode"],
-            "env": {
-                "SPL_AGENT_NAME": "minimal-agent",
-                "SPL_TOOL_NAME": "basic-processing",
-                "SPL_TOOL_DESCRIPTION": "Basic processing tool with minimal configuration",
-                "SPL_LLM_PROVIDER": "openai",
-                "SPL_LLM_API_KEY": "YOUR_API_KEY_HERE",
-                "SPL_LLM_MODEL": "gpt-3.5-turbo",
-                "SPL_LLM_PROMPT_TEMPLATE": "You are a helpful assistant. Reply to: {{input}}",
-                "SPL_MCPS_0_ID": "mcp-filesystem-server",
-                "SPL_MCPS_0_COMMAND": "mcp-filesystem-server",
-                "SPL_MCPS_0_ARGS": "."
-            }
-        }
-    }
-}</code></pre>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -422,57 +328,7 @@ flowchart TB
         </div>
     </footer>
 
-    <script>
-        // Add clipboard functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const copyButtons = document.querySelectorAll('.copy-btn');
-            copyButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const codeBlock = this.nextElementSibling;
-                    const textToCopy = codeBlock.textContent;
-
-                    navigator.clipboard.writeText(textToCopy).then(() => {
-                        // Visual feedback
-                        const originalIcon = this.innerHTML;
-                        this.innerHTML = '<i class="fas fa-check"></i>';
-                        setTimeout(() => {
-                            this.innerHTML = originalIcon;
-                        }, 2000);
-                    }).catch(err => {
-                        console.error('Failed to copy text: ', err);
-                    });
-                });
-            });
-
-            // Initialize Mermaid diagrams
-            if (typeof mermaid !== 'undefined') {
-                mermaid.initialize({
-                    startOnLoad: true,
-                    theme: 'dark',
-                    securityLevel: 'loose',
-                    logLevel: 5,
-                    flowchart: {
-                        useMaxWidth: true,
-                        htmlLabels: true,
-                        curve: 'basis'
-                    }
-                });
-            }
-
-            // Mobile menu toggle
-            const hamburger = document.querySelector('.hamburger');
-            const navLinks = document.querySelector('.nav-links');
-
-            if (hamburger && navLinks) {
-                hamburger.addEventListener('click', () => {
-                    navLinks.classList.toggle('active');
-                    hamburger.classList.toggle('active');
-                    hamburger.setAttribute('aria-expanded',
-                        hamburger.getAttribute('aria-expanded') === 'false' ? 'true' : 'false'
-                    );
-                });
-            }
-        });
-    </script>
+    <!-- Load the external scripts.js file -->
+    <script src="js/scripts.js"></script>
 </body>
 </html>

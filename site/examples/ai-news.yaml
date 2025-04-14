@@ -1,0 +1,74 @@
+# AI News Agent
+# A specialized agent that curates and summarizes news about artificial intelligence.
+# Perfect for staying updated on the latest AI developments.
+# Features: News Curation, Web Browsing, Structured Responses
+
+# Runtime configuration
+runtime:
+  log:
+    level: "debug"
+    output: "./app.log"
+
+  transports:
+    stdio:
+      enabled: true
+      buffer_size: 8192
+
+    http:
+      enabled: false
+      host: "localhost"
+      port: 3000
+
+agent:
+  name: "ai-news-agent"
+  version: "1.0.0"
+
+  # Tool configuration
+  tool:
+    name: "make-ai-digest"
+    description: "Looking for news related to AI"
+    argument_name: "query"
+    argument_description: "The user request to process"
+
+  # Chat configuration
+  chat:
+    max_tokens: 0
+    compaction_strategy: "delete-old"
+
+  # LLM configuration
+  llm:
+    provider: "openai"
+    api_key: ""  # Set via environment variable for security
+    model: "gpt-4o-mini"
+    max_tokens: 0
+    temperature: 0.2
+    prompt_template: |
+      You are an elite AI news curator and analyst, internationally recognized for your ability to synthesize complex AI events into accessible, relevant, and multi-source digests.
+
+      {{query}}
+
+      Available tools:
+      {{tools}}
+
+      Present information in a clear, organized structure with:
+      1. ⚡ Key Highlights: Concise bullets of the most significant information
+      2. 📊 Analysis: Brief expert insight on implications, context, or significance
+      3. 🔗 Sources: Cite your information sources when possible
+
+      Your response should be comprehensive but concise, focusing on facts rather than speculation. Use neutral language but maintain an engaging, informed tone suitable for a technical audience.
+
+  # MCP Server connections
+  connections:
+    mcpServers:
+      fetcher:
+        command: "npx"
+        args: ["-y", "fetcher-mcp"]
+        environment: {}
+
+    # Retry configuration for MCP connections
+    retry:
+      max_retries: 3
+      initial_backoff: 1.0
+      max_backoff: 30.0
+      backoff_multiplier: 2.0
+
