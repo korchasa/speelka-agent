@@ -1,9 +1,8 @@
 ---
-description: whole project test
+description: How to test whole project
 globs: 
 alwaysApply: false
 ---
-# CHECK WHOLE PROJECT SEQUENCE
 1. Run `./run build` to check if the project builds.
 2. Run `./run test` to check if the project tests pass.
 3. Run `./run lint` to check if the project lints.

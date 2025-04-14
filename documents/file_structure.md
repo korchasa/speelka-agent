@@ -103,7 +103,12 @@ internal/
 │   ├── chat.go               # Chat history management
 │   └── compaction.go         # Token management strategies
 ├── configuration/
-│   └── manager.go            # Configuration manager
+│   ├── manager.go            # Configuration manager
+│   ├── default_loader.go     # Default configuration values
+│   ├── env_loader.go         # Environment variable loader
+│   ├── json_loader.go        # JSON configuration loader
+│   ├── yaml_loader.go        # YAML configuration loader
+│   └── loader_spec.go        # Common interface for configuration loaders
 ├── error_handling/
 │   └── *.go                  # Error handling utilities
 ├── llm_service/
@@ -114,14 +119,14 @@ internal/
 │   └── mcp_connector.go      # External MCP server client
 ├── mcp_server/
 │   └── mcp_server.go         # MCP protocol server
-├── acceptance_test/
-│   └── *.go                  # Acceptance tests
 ├── types/
 │   ├── call_tool_request.go  # Tool call request definitions
-│   ├── configuration_spec.go # Configuration interfaces
+│   ├── configuration.go      # Configuration structure
+│   ├── agent_spec.go         # Agent interfaces
+│   ├── logger_spec.go        # Logger interfaces
+│   ├── mcp_server_spec.go    # MCP server interfaces and types
 │   ├── convert_tool_to_llm.go # MCP/LLM tool conversion
 │   ├── llm_service_spec.go   # LLM service interfaces
-│   ├── mcp_server_spec.go    # MCP server interfaces
 │   └── metrics_spec.go       # Metrics collection interfaces
 └── utils/
     └── tokenization.go       # Token counting utilities
@@ -229,3 +234,61 @@ documents/
 ├── knowledge.md              # References and code examples
 └── remote_resources.md       # Links to external resources
 ```
+
+## Configuration Files
+
+- `config.yaml` - Main configuration file template
+- `examples/` - Directory containing example configurations
+  - `basic.yaml` - Basic agent configuration with dummy API key for testing
+  - `anthropic_agent.yaml` - Example configuration for Anthropic backend with dummy API key
+  - `local_agent.yaml` - Example configuration for local LLM backend with dummy API key
+  - `openai_agent.yaml` - Example configuration for OpenAI backend with dummy API key
+
+## Core Files
+
+```
+internal/
+├── agent/
+│   └── agent.go              # Agent implementation
+├── chat/
+│   ├── chat.go               # Chat history management
+│   └── compaction.go         # Token management strategies
+├── configuration/
+│   ├── manager.go            # Configuration manager
+│   ├── default_loader.go     # Default configuration values
+│   ├── env_loader.go         # Environment variable loader
+│   ├── json_loader.go        # JSON configuration loader
+│   ├── yaml_loader.go        # YAML configuration loader
+│   └── loader_spec.go        # Common interface for configuration loaders
+├── error_handling/
+│   └── *.go                  # Error handling utilities
+├── llm_service/
+│   └── llm_service.go        # LLM provider communication
+├── logger/
+│   └── logger.go             # MCP-compatible logger (replaces mcplogger)
+├── mcp_connector/
+│   └── mcp_connector.go      # External MCP server client
+├── mcp_server/
+│   └── mcp_server.go         # MCP protocol server
+├── types/
+│   ├── call_tool_request.go  # Tool call request definitions
+│   ├── configuration.go      # Configuration structure
+│   ├── agent_spec.go         # Agent interfaces
+│   ├── logger_spec.go        # Logger interfaces
+│   ├── mcp_server_spec.go    # MCP server interfaces and types
+│   ├── convert_tool_to_llm.go # MCP/LLM tool conversion
+│   ├── llm_service_spec.go   # LLM service interfaces
+│   └── metrics_spec.go       # Metrics collection interfaces
+└── utils/
+    └── tokenization.go       # Token counting utilities
+```
+
+## Internal Components
+
+- `internal/`
+  - `types/` - Core types and interfaces
+    - `configuration.go` - Configuration structure definitions
+    - `configuration_test.go` - Tests for configuration handling and validation
+    - `agent.go` - Agent interface definition
+    - `response.go` - Response structure definitions
+    - `request.go` - Request structure definitions

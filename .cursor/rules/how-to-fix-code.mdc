@@ -4,7 +4,6 @@ globs:
 alwaysApply: false
 ---
 # TESTS FIX ALGORITHM
-
 1. Analyze errors by reviewing logs and stack traces if they exist.
 2. Isolate failing tests to focus on the specific issues.
 3. Study the tests to understand the expected behavior.

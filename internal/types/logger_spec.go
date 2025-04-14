@@ -6,7 +6,22 @@ package types
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"io"
 )
+
+// LogConfig represents the configuration for logging.
+// Responsibility: Storing logging system settings
+// Features: Defines the level, format, and output location for logs
+type LogConfig struct {
+	// Level is the log level.
+	Level logrus.Level
+
+	// RawOutput is the raw output of the log level.
+	RawOutput string
+
+	// Output is the log output.
+	Output io.Writer
+}
 
 // LogEntrySpec defines the interface for a log entry with fields.
 // Responsibility: Providing a unified interface for log entries

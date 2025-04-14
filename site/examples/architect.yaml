@@ -34,11 +34,12 @@ agent:
   chat:
     max_tokens: 0
     compaction_strategy: delete-old
+    max_llm_iterations: 50
 
   # LLM configuration
   llm:
     provider: openai
-    api_key: ''
+    api_key: 'dummy-api-key'
     model: gpt-4o
     max_tokens: 0
     temperature: 0.2

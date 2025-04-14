@@ -57,8 +57,29 @@
   - Environment variables with `SPL_` prefix
   - Type-safe configuration access
   - Default value handling
+  - Strict validation with immediate error reporting for parsing failures
   - Configuration validation
   - Log file path handling (values other than stdout/stderr are treated as file paths)
+  - Dummy API keys in example files for testing purposes
+
+### Configuration Structure
+- **Base Structure**: `types.Configuration`
+- **Components**:
+  - `Runtime`: Runtime settings (logging, etc.)
+    - `Log`: Logging settings
+    - `Transports`: Transport configurations
+  - `Agent`: Agent-specific settings
+    - Basic properties: name, version
+    - Tool configuration
+    - LLM configuration
+    - Chat configuration
+    - External connection settings for MCP servers
+
+### Configuration Loaders
+- **DefaultLoader**: Provides sensible defaults for all configuration options
+- **EnvLoader**: Loads configuration from environment variables with SPL_ prefix
+- **YAMLLoader**: Loads configuration from YAML files (preferred file format)
+- **JSONLoader**: Loads configuration from JSON files
 
 ### Configuration Precedence
 1. Environment variables (highest precedence)
@@ -67,19 +88,55 @@
 
 ### Configuration Example (YAML)
 ```yaml
+# Runtime configuration
+runtime:
+  log:
+    level: debug
+    output: ./simple.log
+
+  transports:
+    stdio:
+      enabled: true
+      buffer_size: 8192
+    http:
+      enabled: false
+      host: localhost
+      port: 3000
+
+# Agent configuration
 agent:
-  name: "speelka-agent"
-  version: "1.0.0"
+  name: "simple-speelka-agent"
+
+  # Tool configuration
   tool:
     name: "process"
-    description: "Process user queries with LLM"
+    description: "Process tool for handling user queries with LLM"
     argument_name: "input"
     argument_description: "The user query to process"
+
+  # Chat configuration
+  chat:
+    max_tokens: 0
+    compaction_strategy: "delete-old"
+    max_llm_iterations: 25
+
+  # LLM configuration
   llm:
     provider: "openai"
-    api_key: ""  # Set via environment variable for security
+    api_key: "dummy-api-key"  # Set via environment variable for security
     model: "gpt-4o"
-    prompt_template: "You are a helpful assistant. {{input}}"
+    temperature: 0.7
+    prompt_template: "You are a helpful assistant. {{input}}. Available tools: {{tools}}"
+
+  # MCP Server connections
+  connections:
+    mcpServers:
+      time:
+        command: "docker"
+        args: ["run", "-i", "--rm", "mcp/time"]
+      filesystem:
+        command: "mcp-filesystem-server"
+        args: ["/path/to/directory"]
 ```
 
 ### LLM Service
@@ -484,6 +541,24 @@ if *daemonMode {
     log.SetLevel(logrus.DebugLevel)
     log.SetOutput(os.Stderr)
 }
+```
+
+### Missing API Keys in Example Configuration Files
+
+**Problem:** Example configuration files had empty API keys, causing 401 Unauthorized errors when trying to run examples without setting environment variables.
+
+**Solution:**
+- Added dummy API keys to all example configuration files in the `site/examples` directory
+- Added clear comments that these are for testing only and real keys should be set via environment variables
+- Updated documentation to emphasize the importance of setting the `SPL_LLM_API_KEY` environment variable in production
+
+```yaml
+# LLM configuration example
+llm:
+  provider: "openai"
+  api_key: "dummy-api-key"  # Set via environment variable SPL_LLM_API_KEY for security
+  model: "gpt-4o"
+  // ... other configuration ...
 ```
 
 ### Conditional LLM Parameters

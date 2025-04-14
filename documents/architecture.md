@@ -106,22 +106,37 @@ graph TD
 
 ```mermaid
 graph TD
-    A[Environment Variables] --> B[Configuration Manager]
+    A[Environment Variables/Config Files] --> B[Configuration Manager]
     B --> C[Agent Config]
     B --> D[Runtime Config]
-    C --> I[Tool Settings]
-    C --> J[LLM Settings]
-    C --> K[Connections Settings]
     D --> E[Log Config]
-    D --> F[Transports Config]
-    I --> L[Tool Name and Description]
-    J --> M[Provider Settings]
-    J --> N[Model Settings]
-    J --> O[Retry Settings]
-    K --> P[Server Connections]
-    K --> Q[Retry Settings]
-    F --> R[HTTP Settings]
-    F --> S[Stdio Settings]
+    D --> T[Transports Config]
+    T --> TS[Stdio Config]
+    T --> TH[HTTP Config]
+    C --> CV[Version]
+    C --> N[Name]
+    C --> I[Tool Settings]
+    C --> J[Chat Settings]
+    C --> K[LLM Settings]
+    C --> L[Connections Settings]
+    I --> M[Tool Name and Description]
+    J --> O[Max Tokens]
+    J --> P[Compaction Strategy]
+    J --> Q[Max LLM Iterations]
+    K --> KS[Provider Settings]
+    K --> KM[Model Settings]
+    K --> KP[Prompt Template]
+    K --> KR[Retry Settings]
+    L --> LS[Server Connections]
+    L --> LR[Retry Settings]
+    KR --> KRM[Max Retries]
+    KR --> KRI[Initial Backoff]
+    KR --> KRMX[Max Backoff]
+    KR --> KRBM[Backoff Multiplier]
+    LR --> LRM[Max Retries]
+    LR --> LRI[Initial Backoff]
+    LR --> LRMX[Max Backoff]
+    LR --> LRBM[Backoff Multiplier]
 ```
 
 ## Data Flow
@@ -162,3 +177,50 @@ graph TD
 - `langchaingo`: Go client for LLM interaction
 - `logrus`: Structured logging
 - Standard Go libraries
+
+## Configuration System
+
+### Core Principles
+- **Flexibility**: Multiple ways to configure (YAML, JSON, env vars)
+- **Type Safety**: Strong typing ensures configuration validation
+- **Defaults**: Sensible defaults with clear override mechanics
+- **Validation**: Immediate error reporting on configuration issues
+- **Security**: Sensitive values like API keys can be supplied via environment variables
+
+### Configuration Loading Process
+1. Load from default path
+2. Override with `--config` path if provided
+3. Apply environment variable overrides (with `SPL_` prefix)
+4. Validate configuration integrity
+5. Apply configuration to system components
+
+### Security Considerations
+- API keys should be provided via environment variables in production environments
+- Example files include dummy API keys for testing purposes only
+- Configuration files with real API keys should never be committed to version control
+
+## Transport Layer
+
+## Testing Strategy
+
+### Unit Testing
+- Each component has dedicated unit tests
+- Mock interfaces for dependencies
+- Test coverage requirements: minimum 75%
+
+### Configuration Testing
+- Test default values
+- Test overriding via different methods (file, env vars)
+- Test validation logic
+- Test for correct application of configuration to components
+- Test for proper handling of transport settings (HTTP, stdio)
+
+### Integration Testing
+- Tests interaction between components
+- Tests the full configuration pipeline
+- Tests the API endpoints
+
+### End-to-End Testing
+- Full agent test with mock LLM responses
+- Transport tests (HTTP, stdio)
+- Tool connection testing

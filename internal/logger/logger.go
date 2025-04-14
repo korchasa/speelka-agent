@@ -4,9 +4,10 @@ package logger
 import (
 	"context"
 	"fmt"
-	"github.com/korchasa/speelka-agent-go/internal/types"
 	"io"
 	"os"
+
+	"github.com/korchasa/speelka-agent-go/internal/types"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -32,7 +33,7 @@ func NewLogger() *Logger {
 	logger := &Logger{
 		underlying: underlying,
 		mcpServer:  nil,
-		minLevel:   logrus.InfoLevel, // Default level
+		minLevel:   logrus.DebugLevel, // Default level
 	}
 
 	return logger

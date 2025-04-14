@@ -75,35 +75,46 @@ func main() {
 		cancel()
 	}()
 
+	configManager, err := loadConfiguration(ctx)
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	fp, _ := os.OpenFile("/tmp/out.log", os.O_CREATE|os.O_WRONLY, 0644)
+	fmt.Fprintf(fp, "%s", logger.SDump(map[string]interface{}{
+		"config":    configManager.GetMCPServerConfig(),
+		"connector": configManager.GetMCPConnectorConfig(),
+		"llm":       configManager.GetLLMConfig(),
+		"log":       configManager.GetLogConfig(),
+		"agent":     configManager.GetAgentConfig(),
+		"env":       os.Environ(),
+	}))
+
 	// Start the server and handle errors
-	if err := run(ctx); err != nil {
+	if err := run(ctx, configManager); err != nil {
 		log.Fatalf("Main application failed: %v", err)
 	}
+}
+
+func loadConfiguration(ctx context.Context) (*configuration.Manager, error) {
+	// Create configuration manager
+	configManager := configuration.NewConfigurationManager(log)
+
+	// Load configuration from file if specified, then from environment variables
+	// and validate the configuration
+	err := configManager.LoadConfiguration(ctx, *configFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	return configManager, nil
 }
 
 // run contains the main application logic
 // Responsibility: Initialization and launch of all system components
 // Features: Sequentially initializes all necessary components
 // and launches the server in the required mode
-func run(ctx context.Context) error {
-	// Create configuration manager
-	configManager := configuration.NewConfigurationManager(log)
-
-	// Load configuration from file if specified, then from environment variables
-	if *configFile != "" {
-		log.Infof("Loading configuration from file: %s", *configFile)
-		err := configManager.LoadConfigurationFromFile(*configFile)
-		if err != nil {
-			log.Warnf("Failed to load configuration from file: %v", err)
-			// Continue with environment variables
-		}
-	}
-
-	// Load configuration from environment variables (overrides file settings)
-	err := configManager.LoadConfiguration(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
-	}
+func run(ctx context.Context, configManager *configuration.Manager) error {
 
 	// Create the app with the logger and initialized configuration manager
 	app, err := agent.NewApp(log, configManager)
