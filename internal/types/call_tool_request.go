@@ -1,9 +1,15 @@
+//go:build !exclude_calltoolrequest_string_test
+// +build !exclude_calltoolrequest_string_test
+
 package types
 
 import (
 	"encoding/json"
-	"github.com/mark3labs/mcp-go/mcp"
+	"fmt"
+
 	"github.com/tmc/langchaingo/llms"
+
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 type CallToolRequest struct {
@@ -40,6 +46,22 @@ func NewCallToolRequest(call llms.ToolCall) (CallToolRequest, error) {
 		CallToolRequest: req,
 		ID:              call.ID,
 	}, nil
+}
+
+func (c *CallToolRequest) String() string {
+	args := c.Params.Arguments
+	var argsStr string
+	if len(args) == 0 {
+		argsStr = "{}"
+	} else {
+		b, err := json.Marshal(args)
+		if err != nil {
+			argsStr = "{error}"
+		} else {
+			argsStr = string(b)
+		}
+	}
+	return fmt.Sprintf("%s(%s)", c.Params.Name, argsStr)
 }
 
 func (c *CallToolRequest) ToolName() string {

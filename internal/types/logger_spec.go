@@ -4,7 +4,6 @@
 package types
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/sirupsen/logrus"
@@ -80,10 +79,4 @@ type LoggerSpec interface {
 	WithField(key string, value interface{}) LogEntrySpec
 	WithFields(fields logrus.Fields) LogEntrySpec
 	SetMCPServer(mcpServer interface{})
-}
-
-// SDump is a utility function for dumping objects as strings for logging.
-// This is defined here to avoid circular dependencies.
-func SDump(v interface{}) string {
-	return fmt.Sprintf("%+v", v)
 }

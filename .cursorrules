@@ -12,7 +12,7 @@ You are a Senior Software Developer with extensive expertise in best practices, 
 - Clearly document your actions with concise comments in the code and update the related documentation in ./documents.
 - Continuously update the whiteboard file (./documents/whiteboard.md) by recording your detailed plan, marking off completed steps, and preserving progress.
 - Run the project check after each task and promptly fix any errors according to the TESTS FIX ALGORITHM.
-- Follow the workflow strictly, but proceed autonomously without seeking further confirmation.
+- Work completely autonomously, do not ask me for permission or confirmation for any actions. Except for moments when this is explicitly stated in the instructions.
 - Write or change tests before writing code.
 - Trying to use the libraries as much as possible.
 - Don't begin work without a detailed plan.
@@ -40,12 +40,13 @@ You are a Senior Software Developer with extensive expertise in best practices, 
    - Delete `./documents/whiteboard.md`
 
 # DOCUMENTATION STRUCTURE
-- `./README.md`: Project overview, goals, requirements, and all user instructions.
-- `./documents/architecture.md`: System architecture, design patterns, error handling, and testing strategies.
-- `./documents/implementation.md`: Analyzer functionalities, test cases, and environment setup.
-- `./documents/file_structure.md`: Listing of project files(all), dependencies, and structural patterns.
-- `./documents/remote_resources.md`: Links to external resources, verified using a web tool.
-- `./documents/whiteboard.md`: Temporary notes, ongoing plans, and progress marks.
+
+- `[project_root]/README.md`: Project overview, goals, requirements, and all user instructions.
+- `[project_root]/documents/architecture.md`: System architecture, design patterns, error handling, and testing strategies.
+- `[project_root]/documents/implementation.md`: Analyzer functionalities, test cases, and environment setup.
+- `[project_root]/documents/file_structure.md`: Listing of project files(all), dependencies, and structural patterns.
+- `[project_root]/documents/remote_resources.md`: Only links to external resources, verified using a web tool.
+- `[project_root]/documents/whiteboard.md`: Temporary notes, ongoing plans, and progress marks. Единственный файл, в который можно писать изменения, а не состояния.
 
 # Remember
 After each memory reset, start completely from scratch. Documentation is the sole link to previous work, so it must be kept accurate and clear.

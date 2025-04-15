@@ -339,11 +339,11 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 	if newConfig.Agent.LLM.APIKey != "" || c.Agent.LLM.APIKey == "" {
 		c.Agent.LLM.APIKey = newConfig.Agent.LLM.APIKey
 	}
-	if newConfig.Agent.LLM.MaxTokens != 0 || newConfig.Agent.LLM.IsMaxTokensSet {
+	if newConfig.Agent.LLM.IsMaxTokensSet {
 		c.Agent.LLM.MaxTokens = newConfig.Agent.LLM.MaxTokens
 		c.Agent.LLM.IsMaxTokensSet = true
 	}
-	if newConfig.Agent.LLM.Temperature != 0 || newConfig.Agent.LLM.IsTemperatureSet {
+	if newConfig.Agent.LLM.IsTemperatureSet {
 		c.Agent.LLM.Temperature = newConfig.Agent.LLM.Temperature
 		c.Agent.LLM.IsTemperatureSet = true
 	}

@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/korchasa/speelka-agent-go/internal/utils"
+
 	"github.com/korchasa/speelka-agent-go/internal/error_handling"
-	"github.com/korchasa/speelka-agent-go/internal/logger"
+	"github.com/korchasa/speelka-agent-go/internal/llm_models"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/tmc/langchaingo/llms"
@@ -21,9 +23,10 @@ import (
 // Responsibility: Providing a unified API for working with different LLM services
 // Features: Encapsulates settings and client for a specific LLM provider
 type LLMService struct {
-	config types.LLMConfig
-	client llms.Model
-	logger types.LoggerSpec
+	config     types.LLMConfig
+	client     llms.Model
+	logger     types.LoggerSpec
+	calculator types.CalculatorSpec
 }
 
 // NewLLMService creates a new instance of LLMService
@@ -88,6 +91,8 @@ func NewLLMService(cfg types.LLMConfig, logger types.LoggerSpec) (*LLMService, e
 		)
 	}
 
+	s.calculator = llm_models.NewCalculator()
+
 	return s, nil
 
 }
@@ -95,9 +100,9 @@ func NewLLMService(cfg types.LLMConfig, logger types.LoggerSpec) (*LLMService, e
 // SendRequest sends a request to the LLM with the given prompt and tools
 // Responsibility: Communication with the LLM API and getting a response
 // Features: Uses a retry strategy to handle transient errors
-func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageContent, tools []mcp.Tool) (string, []types.CallToolRequest, error) {
+func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageContent, tools []mcp.Tool) (types.LLMResponse, error) {
 	if s.client == nil {
-		return "", nil, error_handling.NewError(
+		return types.LLMResponse{}, error_handling.NewError(
 			"LLM service not initialized",
 			error_handling.ErrorCategoryValidation,
 		)
@@ -105,12 +110,15 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 
 	llmTools, err := types.ConvertToolsToLLM(tools)
 	if err != nil {
-		return "", nil, error_handling.WrapError(
+		return types.LLMResponse{}, error_handling.WrapError(
 			err,
 			"failed to convert tools to LLM tools",
 			error_handling.ErrorCategoryInternal,
 		)
 	}
+
+	// Measure duration
+	startTime := time.Now()
 
 	// Define a function that performs the request sending
 	var response *llms.ContentResponse
@@ -118,23 +126,18 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 	var llmsCalls []llms.ToolCall
 	sendFn := func() error {
 		var err error
-		s.logger.Infof("Send request to LLM with %d messages", len(messages))
-		s.logger.Debugf("Details: %s", logger.SDump(map[string]any{"messages": messages, "tools": llmTools}))
+		s.logger.Debugf(">> Send request to LLM with %d messages: %s", len(messages), utils.SDump(map[string]any{"messages": messages, "tools": llmTools}))
 		// Prepare options for LLM
 		options := []llms.CallOption{
 			llms.WithTools(llmTools),
 			llms.WithToolChoice("required"),
 		}
-
 		// Only add temperature if it was explicitly set in the environment
 		if s.config.IsTemperatureSet {
-			s.logger.Debugf("Using explicitly set temperature: %f", s.config.Temperature)
 			options = append(options, llms.WithTemperature(s.config.Temperature))
 		}
-
 		// Add max tokens if it was explicitly set and is greater than 0
 		if s.config.IsMaxTokensSet && s.config.MaxTokens > 0 {
-			s.logger.Debugf("Using explicitly set max tokens: %d", s.config.MaxTokens)
 			options = append(options, llms.WithMaxTokens(s.config.MaxTokens))
 		}
 
@@ -147,8 +150,7 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 				error_handling.ErrorCategoryTransient,
 			)
 		}
-		s.logger.Infof("LLM response received with %d choices", len(response.Choices))
-		s.logger.Debugf("Details: %s", logger.SDump(response))
+		s.logger.Debugf("<< LLM response received with %d choices: %s", len(response.Choices), utils.SDump(response))
 		if len(response.Choices) == 0 {
 			return error_handling.NewError(
 				"empty response from LLM",
@@ -174,17 +176,18 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 		BackoffMultiplier: s.config.RetryConfig.BackoffMultiplier,
 		MaxBackoff:        time.Duration(s.config.RetryConfig.MaxBackoff * float64(time.Second)),
 	})
+	durationMs := time.Since(startTime).Milliseconds()
 	if err != nil {
 		// Clean confidential information from the error
 		sanitizedErr := error_handling.SanitizeError(err)
-		return "", nil, sanitizedErr
+		return types.LLMResponse{}, sanitizedErr
 	}
 
 	calls := make([]types.CallToolRequest, len(llmsCalls))
 	for i, call := range llmsCalls {
 		calls[i], err = types.NewCallToolRequest(call)
 		if err != nil {
-			return "", nil, error_handling.WrapError(
+			return types.LLMResponse{}, error_handling.WrapError(
 				err,
 				"failed to create CallToolRequest",
 				error_handling.ErrorCategoryInternal,
@@ -192,5 +195,71 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 		}
 	}
 
-	return message, calls, nil
+	// Extract token usage from GenerationInfo if available
+	var completionTokens, promptTokens, reasoningTokens, totalTokens int
+	if response != nil && len(response.Choices) > 0 {
+		genInfo := response.Choices[0].GenerationInfo
+		if genInfo != nil {
+			if v, ok := genInfo["CompletionTokens"]; ok {
+				if n, ok := v.(int); ok {
+					completionTokens = n
+				} else if f, ok := v.(float64); ok {
+					completionTokens = int(f)
+				}
+			}
+			if v, ok := genInfo["PromptTokens"]; ok {
+				if n, ok := v.(int); ok {
+					promptTokens = n
+				} else if f, ok := v.(float64); ok {
+					promptTokens = int(f)
+				}
+			}
+			if v, ok := genInfo["ReasoningTokens"]; ok {
+				if n, ok := v.(int); ok {
+					reasoningTokens = n
+				} else if f, ok := v.(float64); ok {
+					reasoningTokens = int(f)
+				}
+			}
+			if v, ok := genInfo["TotalTokens"]; ok {
+				if n, ok := v.(int); ok {
+					totalTokens = n
+				} else if f, ok := v.(float64); ok {
+					totalTokens = int(f)
+				}
+			}
+		}
+	}
+
+	tokensMetadata := types.LLMResponseTokensMetadata{
+		CompletionTokens: completionTokens,
+		PromptTokens:     promptTokens,
+		ReasoningTokens:  reasoningTokens,
+		TotalTokens:      totalTokens,
+	}
+
+	// Compose and return the response
+	llmResp := types.LLMResponse{
+		RequestMessages: messages,
+		Text:            message,
+		Calls:           calls,
+		Metadata: types.LLMResponseMetadata{
+			Tokens:     tokensMetadata,
+			DurationMs: durationMs,
+		},
+	}
+	if s.calculator != nil {
+		_, cost, _, err := s.calculator.CalculateLLMResponse(s.config.Model, llmResp)
+		if err != nil {
+			s.logger.Warnf("Failed to calculate cost: %v", err)
+			cost = 0
+		}
+		llmResp.Metadata.Cost = cost
+	}
+	return llmResp, nil
+}
+
+// GetCalculator returns the cost calculator for use in other components (e.g., Chat)
+func (s *LLMService) GetCalculator() types.CalculatorSpec {
+	return s.calculator
 }

@@ -3,9 +3,8 @@ package configuration
 import (
 	"context"
 	"fmt"
+	"github.com/korchasa/speelka-agent-go/internal/utils"
 	"strings"
-
-	"github.com/korchasa/speelka-agent-go/internal/logger"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
 )
@@ -82,7 +81,7 @@ func (cm *Manager) LoadConfiguration(ctx context.Context, configFilePath string)
 	cm.logger.Debugf("Applying environment configurations...")
 	cm.config.Apply(envConfig)
 
-	cm.logger.Infof("Configuration: %s", logger.SDump(cm.config))
+	cm.logger.Infof("Configuration: %s", utils.SDump(cm.config))
 
 	// Validate the final configuration
 	cm.logger.Debugf("Validating configuration...")

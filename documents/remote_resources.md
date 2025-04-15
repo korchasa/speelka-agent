@@ -22,3 +22,7 @@
 
 ## Docker Resources
 - [speelka-agent Docker Image](https://github.com/korchasa/speelka-agent-go/pkgs/container/speelka-agent) - Official Docker image
+
+## LLM Token Counting
+- Refer to official OpenAI and Anthropic documentation for token counting details.
+- Project uses exact token counts from LLM responses by default, with fallback to a centralized estimation utility if needed.

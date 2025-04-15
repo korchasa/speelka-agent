@@ -3,10 +3,16 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/korchasa/speelka-agent-go/internal/chat"
+
+	"github.com/korchasa/speelka-agent-go/internal/utils"
+
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/sirupsen/logrus"
 )
 
 var ExitTool = mcp.NewTool("answer",
@@ -23,6 +29,7 @@ type Agent struct {
 	mcpServer    types.MCPServerSpec
 	mcpConnector types.MCPConnectorSpec
 	logger       types.LoggerSpec
+	chat         *chat.Chat // Injected chat instance
 }
 
 // GetMCPServer returns the MCP server instance for external use
@@ -37,6 +44,7 @@ func NewAgent(
 	mcpServer types.MCPServerSpec,
 	mcpConnector types.MCPConnectorSpec,
 	logger types.LoggerSpec,
+	chat *chat.Chat,
 ) types.AgentSpec {
 	return &Agent{
 		config:       config,
@@ -44,6 +52,7 @@ func NewAgent(
 		mcpServer:    mcpServer,
 		mcpConnector: mcpConnector,
 		logger:       logger,
+		chat:         chat,
 	}
 }
 
@@ -89,7 +98,7 @@ func (a *Agent) isExitCommand(call types.CallToolRequest) bool {
 
 // HandleRequest processes the incoming MCP request
 func (a *Agent) HandleRequest(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	a.logger.Debugf(">> HandleRequest: %s", types.SDump(map[string]any{"req": req}))
+	a.logger.Debugf("> HandleRequest: %s", utils.SDump(map[string]any{"req": req}))
 
 	toolConfig := a.config.Tool
 	if req.Params.Name != toolConfig.Name {
@@ -116,104 +125,114 @@ func (a *Agent) HandleRequest(ctx context.Context, req mcp.CallToolRequest) (*mc
 		return mcp.NewToolResultError("empty input variable"), nil
 	}
 
-	a.logger.Infof(">> Request from client: %s", userRequest)
+	a.logger.Infof("> Request from client: %s", userRequest)
 
-	return a.process(ctx, userRequest)
+	res, err := a.process(ctx, userRequest)
+	if err != nil {
+		a.logger.Error(err.Error())
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	return res, nil
 }
 
 // process processes user requests through the LLM and tool execution
 func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolResult, error) {
 	tools, err := a.GetAllTools(ctx)
 	if err != nil {
-		a.logger.Errorf("failed to get tools: %v", err)
-		return mcp.NewToolResultError(fmt.Sprintf("failed to get tools: %s", err)), nil
+		return nil, fmt.Errorf("failed to get tools: %w", err)
 	}
 
-	history := chat.NewChat(
-		a.config.Model,
-		a.config.SystemPromptTemplate,
-		a.config.Tool.ArgumentName,
-		a.logger,
-	)
-
-	// Configure chat compaction settings from configuration
-	history.SetMaxTokens(a.config.MaxTokens)
-	if err := history.SetCompactionStrategy(a.config.CompactionStrategy); err != nil {
-		a.logger.Warnf("Error setting chat compaction strategy: %v. Using default.", err)
-	}
-
-	a.logger.Infof("Chat configured with max tokens: %d, compaction strategy: %s",
-		a.config.MaxTokens, a.config.CompactionStrategy)
-
-	err = history.Begin(userRequest, tools)
+	session, err := a.beginSession(userRequest, tools)
 	if err != nil {
-		a.logger.Errorf("failed to begin chat: %v", err)
-		return mcp.NewToolResultError(fmt.Sprintf("failed to begin chat: %s", err)), nil
+		return nil, fmt.Errorf("failed to begin session: %w", err)
 	}
 
-	var finalMessage string
 	iteration := 0
-
 	// Main loop for LLM and tool interaction
 	for iteration < a.config.MaxLLMIterations {
 		iteration++
 
-		a.logger.WithField("iteration", iteration).Infof(">> Send request to LLM")
-		message, calls, err := a.llmService.SendRequest(ctx, history.GetLLMMessages(), tools)
+		a.logger.WithFields(logrus.Fields{
+			"messages": len(session.GetLLMMessages()),
+			"tools":    len(tools),
+		}).Infof(">> Start iteration %d: sending request to LLM", iteration)
+		resp, err := a.llmService.SendRequest(ctx, session.GetLLMMessages(), tools)
 		if err != nil {
-			a.logger.Errorf("failed to send request to LLM: %v", err)
-			return mcp.NewToolResultError(fmt.Sprintf("failed to send request to LLM: %s", err)), nil
+			return nil, fmt.Errorf("failed to send request to LLM: %w", err)
 		}
-		a.logger.Infof("<< LLM response received with %d choices", len(calls))
-		a.logger.Debugf("<< Details: %s", types.SDump(map[string]any{"message": message, "calls": calls}))
+		session.AddAssistantMessage(resp)
 
-		for _, call := range calls {
+		if len(resp.Calls) == 0 {
+			return nil, fmt.Errorf("LLM returned no tool calls")
+		}
+
+		for _, call := range resp.Calls {
 			if a.isExitCommand(call) {
-				finalMessage = call.Params.Arguments["text"].(string)
-				history.AddAssistantMessage(finalMessage)
-				a.logger.Infof("<< LLM response received with final message: %s", finalMessage)
-				a.logger.Infof("Chat ended with total tokens: %d", history.GetTotalTokens())
-				return mcp.NewToolResultText(finalMessage), nil
+				return a.handleLLMAnswerToolRequest(call, resp, session), nil
 			}
 		}
-
-		// Process tool calls
-		history.AddAssistantMessage(message)
-
-		// If there are no tool calls, assume we're done
-		if len(calls) == 0 {
-			a.logger.Infof("<< LLM response received with no tool calls, assuming final message: %s", message)
-			a.logger.Infof("Chat ended with total tokens: %d", history.GetTotalTokens())
-			return mcp.NewToolResultText(message), nil
-		}
-
-		// Execute tool calls
-		for _, call := range calls {
-			a.logger.Infof(">> Process tool call: %s", call.ToolName())
-			a.logger.Debugf(">> Details: %s", types.SDump(call))
-
-			// Add tool call to history
-			history.AddToolCall(call)
-
-			// Execute the tool
-			a.logger.Infof(">> Execute tool `%s` with args: %s", call.ToolName(), types.SDump(call.Params.Arguments))
-			result, err := a.mcpConnector.ExecuteTool(ctx, call)
-			if err != nil {
-				a.logger.Errorf("failed to execute tool %s: %v", call.ToolName(), err)
-				errorResult := mcp.NewToolResultError(fmt.Sprintf("Error: %v", err))
-				history.AddToolResult(call, errorResult)
-				continue
-			}
-
-			// Add result to history
-			history.AddToolResult(call, result)
-			a.logger.Infof("<< Tool %s execution complete", call.ToolName())
-		}
+		a.handleLLMToolCallRequest(ctx, resp, session, iteration)
 	}
 
+	return a.handleIterationLimit(session)
+}
+
+func (a *Agent) beginSession(userRequest string, tools []mcp.Tool) (*chat.Chat, error) {
+	session := a.chat
+	// Chat configuration is now constructor-based and immutable.
+	info := session.GetInfo()
+	a.logger.Infof("Chat configured with max tokens: %d, compaction strategy: %s", info.MaxTokens, session.CompactionStrategyName())
+
+	err := session.Begin(userRequest, tools)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin session: %w", err)
+	}
+	return session, nil
+}
+
+func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResponse, session *chat.Chat, iteration int) {
+	var toolCalls []string
+	for _, call := range resp.Calls {
+		toolCalls = append(toolCalls, call.String())
+	}
+	a.logger.WithFields(logrus.Fields{
+		"request_cost":     resp.Metadata.Cost,
+		"request_duration": resp.Metadata.DurationMs,
+	}).Infof("<< LLM asked to call tools: %s", strings.Join(toolCalls, "\n"))
+	for _, call := range resp.Calls {
+		session.AddToolCall(call)
+		a.logger.Infof(">>> Execute tool `%s`", call.String())
+		a.logger.Debugf(">>> Details: %s", call.Params.Arguments)
+		n := time.Now()
+		result, err := a.mcpConnector.ExecuteTool(ctx, call)
+		if err != nil {
+			a.logger.Errorf("failed to execute tool %s: %v", call.ToolName(), err)
+			errorResult := mcp.NewToolResultError(fmt.Sprintf("Error: %v", err))
+			session.AddToolResult(call, errorResult)
+			continue
+		}
+		session.AddToolResult(call, result)
+		duration := time.Since(n)
+		a.logger.Infof("<<< Tool execution complete in %s", duration)
+	}
+
+	a.logger.Infof("Iteration %d complete:", utils.SDump(session.GetInfo()))
+}
+
+func (a *Agent) handleIterationLimit(session *chat.Chat) (*mcp.CallToolResult, error) {
 	// If we reach here, we've exceeded the maximum number of iterations
 	errMsg := fmt.Sprintf("exceeded maximum number of LLM iterations (%d)", a.config.MaxLLMIterations)
 	a.logger.Errorf(errMsg)
-	a.logger.Infof("Chat ended with total tokens: %d", history.GetTotalTokens())
+	a.logger.Infof("Chat ended by exceeding max iterations: %s", utils.SDump(session.GetInfo()))
 	return mcp.NewToolResultError(errMsg), nil
+}
+
+func (a *Agent) handleLLMAnswerToolRequest(call types.CallToolRequest, resp types.LLMResponse, session *chat.Chat) *mcp.CallToolResult {
+	finalMessage := call.Params.Arguments["text"].(string)
+	a.logger.WithFields(logrus.Fields{
+		"request_cost":     resp.Metadata.Cost,
+		"request_duration": resp.Metadata.DurationMs,
+	}).Infof("<< LLM asked to answer the user with: %s", finalMessage)
+	a.logger.Infof("Chat ended by LLM with message: %s %s", finalMessage, utils.SDump(session.GetInfo()))
+	return mcp.NewToolResultText(finalMessage)
 }

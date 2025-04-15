@@ -7,11 +7,11 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/korchasa/speelka-agent-go/internal/utils"
 	"sync"
 	"time"
 
 	"github.com/korchasa/speelka-agent-go/internal/error_handling"
-	"github.com/korchasa/speelka-agent-go/internal/logger"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -51,7 +51,7 @@ func (mc *MCPConnector) InitAndConnectToMCPs(ctx context.Context) error {
 	// Connecting to all configured MCP servers
 	for serverID, srvCfg := range mc.config.McpServers {
 		mc.logger.Infof("Connecting to MCP server `%s`", serverID)
-		mc.logger.Debugf("Details: %s", logger.SDump(srvCfg))
+		mc.logger.Debugf("Details: %s", utils.SDump(srvCfg))
 		mcpClient, err := mc.ConnectServer(ctx, serverID, srvCfg)
 		if err != nil {
 			return error_handling.WrapError(
@@ -72,7 +72,7 @@ func (mc *MCPConnector) InitAndConnectToMCPs(ctx context.Context) error {
 		}
 		for _, tool := range toolsResp.Tools {
 			mc.logger.Infof("Tool `%s` found on server `%s`", tool.Name, serverID)
-			mc.logger.Debugf("Details: %s", logger.SDump(tool))
+			mc.logger.Debugf("Details: %s", utils.SDump(tool))
 		}
 		mc.logger.Infof("Received %d tools from server `%s`", len(toolsResp.Tools), serverID)
 

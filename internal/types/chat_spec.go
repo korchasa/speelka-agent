@@ -8,19 +8,24 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
+// ChatInfo provides a summary of the chat state for reporting and analytics.
+type ChatInfo struct {
+	TotalTokens     int
+	TotalCost       float64
+	IsApproximate   bool
+	MaxTokens       int
+	MessageStackLen int
+	LLMRequests     int    // Number of LLM responses (assistant messages)
+	ModelName       string // Name of the LLM model used for this chat
+	ToolCallCount   int    // Number of tool calls in the session
+}
+
 // ChatSpec represents the interface for the Chat component.
 // Responsibility: Defining the contract for the Chat component
 // Features: Defines methods for managing chat history and interactions
 type ChatSpec interface {
-	// SetMaxTokens sets the maximum number of tokens allowed in the chat history.
-	SetMaxTokens(maxTokens int)
-
-	// SetCompactionStrategy sets the strategy for compacting chat history when token limit is reached.
-	// It returns an error if the strategy is invalid.
-	SetCompactionStrategy(strategy string) error
-
-	// GetTotalTokens returns the total number of tokens in the chat history.
-	GetTotalTokens() int
+	// GetInfo returns a summary of the chat state (tokens, cost, etc.).
+	GetInfo() ChatInfo
 
 	// Begin starts a new chat with the given input and available tools.
 	// It returns an error if the chat initialization fails.
@@ -30,7 +35,7 @@ type ChatSpec interface {
 	GetLLMMessages() []llms.MessageContent
 
 	// AddAssistantMessage adds a message from the assistant to the chat history.
-	AddAssistantMessage(content string)
+	AddAssistantMessage(response LLMResponse)
 
 	// AddToolCall adds a tool call to the chat history.
 	AddToolCall(toolCall CallToolRequest)

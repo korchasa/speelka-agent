@@ -1,9 +1,12 @@
+// TODO: move to separate package
 package agent
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/korchasa/speelka-agent-go/internal/chat"
+	"github.com/korchasa/speelka-agent-go/internal/llm_models"
 	"github.com/korchasa/speelka-agent-go/internal/llm_service"
 	"github.com/korchasa/speelka-agent-go/internal/mcp_connector"
 	"github.com/korchasa/speelka-agent-go/internal/mcp_server"
@@ -54,6 +57,24 @@ func (a *App) Initialize(ctx context.Context) error {
 	// Get Agent configuration
 	agentConfig := a.configManager.GetAgentConfig()
 
+	// Create Calculator and CompactionStrategy
+	calculator := llm_models.NewCalculator()
+	compactionStrategy, err := chat.GetCompactionStrategy(agentConfig.CompactionStrategy, agentConfig.Model, a.logger)
+	if err != nil {
+		return fmt.Errorf("failed to create compaction strategy: %w", err)
+	}
+
+	// Create Chat
+	chatInstance := chat.NewChat(
+		agentConfig.Model,
+		agentConfig.SystemPromptTemplate,
+		agentConfig.Tool.ArgumentName,
+		a.logger,
+		calculator,
+		compactionStrategy,
+		agentConfig.MaxTokens,
+	)
+
 	// Create Agent
 	agent := NewAgent(
 		agentConfig,
@@ -61,6 +82,7 @@ func (a *App) Initialize(ctx context.Context) error {
 		a.mcpServer,
 		mcpConnector,
 		a.logger,
+		chatInstance,
 	)
 	a.logger.Info("Agent instance created")
 

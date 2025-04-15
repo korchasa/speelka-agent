@@ -17,6 +17,8 @@ speelka-agent/
 ├── internal/                # Internal packages
 │   ├── agent/               # Agent implementation
 │   ├── chat/                # Chat session management
+│   │   ├── chat.go               # Chat history management (stores LLMResponse objects for assistant messages, unified chatInfo struct for all state)
+│   │   └── compaction.go         # Token management strategies, uses centralized fallback estimation utility
 │   ├── config/              # Configuration loading and parsing
 │   ├── connector/           # MCP connector for tool execution
 │   ├── log/                 # Logging utilities
@@ -126,7 +128,7 @@ internal/
 │   ├── logger_spec.go        # Logger interfaces
 │   ├── mcp_server_spec.go    # MCP server interfaces and types
 │   ├── convert_tool_to_llm.go # MCP/LLM tool conversion
-│   ├── llm_service_spec.go   # LLM service interfaces
+│   ├── llm_service_spec.go   # LLM service interfaces (LLMResponse includes LLMResponses field)
 │   └── metrics_spec.go       # Metrics collection interfaces
 └── utils/
     └── tokenization.go       # Token counting utilities
@@ -277,7 +279,7 @@ internal/
 │   ├── logger_spec.go        # Logger interfaces
 │   ├── mcp_server_spec.go    # MCP server interfaces and types
 │   ├── convert_tool_to_llm.go # MCP/LLM tool conversion
-│   ├── llm_service_spec.go   # LLM service interfaces
+│   ├── llm_service_spec.go   # LLM service interfaces (LLMResponse includes LLMResponses field)
 │   └── metrics_spec.go       # Metrics collection interfaces
 └── utils/
     └── tokenization.go       # Token counting utilities
@@ -292,3 +294,5 @@ internal/
     - `agent.go` - Agent interface definition
     - `response.go` - Response structure definitions
     - `request.go` - Request structure definitions
+
+- Chat configuration (maxTokens, compactionStrategy) is now immutable and set via the constructor. No setters are available.
