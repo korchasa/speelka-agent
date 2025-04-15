@@ -31,16 +31,14 @@ flowchart TB
 - Processes user requests via MCP server
 - Controls LLM interaction loop
 - Delegates tool execution to MCP connector
-- Maintains conversation state via Chat component
+- Maintains conversation state via the Chat component, which stores LLMResponse objects for assistant messages and uses exact token counts from LLMResponseTokensMetadata by default, falling back to estimation only if necessary. Chat provides GetTotalTokens and GetTotalCost methods, both returning a value and an approximation flag. AddAssistantMessage precomputes and stores total tokens and cost, using a calculator if set, and falls back to estimation (character count divided by 4) if token metadata is missing, setting the approximation flag accordingly.
 
 ### Configuration Manager
 - Centralized configuration access point
 - Loads configuration from environment variables or files
 - Provides typed access to configuration subsets
 - Implements `ConfigurationManagerSpec` interface
-- **Log configuration flow:**
-  - All configuration loaders (DefaultLoader, EnvLoader, YAMLLoader, JSONLoader) set only `RawLevel` and `RawOutput` as strings.
-  - The `Apply` method of `types.Configuration` is solely responsible for parsing these fields into `LogLevel` and `Output`.
+- Log configuration flow: All configuration loaders (DefaultLoader, EnvLoader, YAMLLoader, JSONLoader) set only `RawLevel` and `RawOutput` as strings. The `Apply` method of `types.Configuration` is solely responsible for parsing these fields into `LogLevel` and `Output`.
 
 ### LLM Service
 - Handles communication with LLM providers
@@ -48,6 +46,9 @@ flowchart TB
 - Formats and sends requests to LLMs
 - Processes responses and extracts tool calls
 - Implements retry logic for transient errors
+- Returns: `LLMResponse` struct (response text, tool calls, token usage: CompletionTokens, PromptTokens, ReasoningTokens, TotalTokens, and the original messages array as `LLMResponses`).
+- Interface: `SendRequest(ctx, messages, tools) (LLMResponse, error)`
+- Token usage and cost are available to the agent for advanced budgeting and analytics.
 
 ### MCP Server
 - Exposes agent functionality to clients
@@ -69,9 +70,15 @@ flowchart TB
 - Formats prompts with templates
 - Provides conversation context for LLM requests
 - Tracks tool calls and results
-- Implements token counting and history compaction
+- Implements token counting, cost calculation, and history compaction
+- All chat state is managed via a single `chatInfo` struct (type `types.ChatInfo`), updated on every state change. Fields: `TotalTokens`, `TotalCost`, `IsApproximate`, `MaxTokens`, `MessageStackLen`, `LLMRequests`, `ModelName`, `ToolCallCount`, `LastMessageTime`, `SystemPrompt`.
+- All mutating methods update `chatInfo`. `GetInfo()` returns a copy of `chatInfo`.
+- Tests verify all fields in `ChatInfo`, including model name, tool call count, last message time, and system prompt.
+- Token counting (totalTokens, totalCost, isApproximate) is based only on llmResponses (assistant messages), not on messageStack.
+- Uses LLMResponseTokensMetadata for token counting by default, falling back to a centralized estimation utility if those fields are empty. Cost is calculated using a calculator if set, otherwise zero, and the approximation flag is set if fallback is used.
 - Supports multiple compaction strategies to reduce context size
 - Ensures conversations remain within LLM token limits
+- The Chat component is configured entirely via its constructor. All runtime configuration (such as maxTokens and compactionStrategy) must be provided at instantiation. There are no setter methods for these properties.
 
 ### MCPLogger
 - Wraps logrus logging library with MCP capabilities
@@ -228,3 +235,5 @@ graph TD
 - Full agent test with mock LLM responses
 - Transport tests (HTTP, stdio)
 - Tool connection testing
+
+- Tests now cover both total tokens and total cost, including the approximation flag for fallback estimation.

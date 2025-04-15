@@ -10,15 +10,31 @@
   - Component coordination
   - Tool execution orchestration
   - State and context management
-- **Technical Improvements**:
+  - Tool execution logging uses the format: '>> Execute tool `toolName(args)`' (see CallToolRequest.String()), e.g., '>> Execute tool `read_file(path: /path/to/file)`'.
   - Robust null checking for interface values
   - Safer type assertion pattern
   - Graceful nil value handling
 
 ### Chat
-- **Purpose**: Conversation and prompt management
+- **Purpose**: Manage conversation history, token usage, and message formatting for LLMs
 - **File**: `internal/chat/chat.go`
 - **Implementation Features**:
+  - Stores message history and tool calls
+  - Tracks token usage and cost
+  - Supports pluggable compaction strategies
+  - Configuration is constructor-based: `maxTokens` and `compactionStrategy` are set at construction time and are immutable after construction
+  - Example usage:
+    ```go
+    chatInstance := chat.NewChat(
+        model,
+        promptTemplate,
+        argName,
+        logger,
+        calculator,
+        compactionStrategy,
+        maxTokens, // Pass max tokens here
+    )
+    ```
   - Message history tracking
   - System prompt formatting
   - Tool description building
@@ -26,6 +42,19 @@
   - Token counting and context size management
   - Chat history compaction with multiple strategies
   - Automatic compaction when token limits are exceeded
+  - Stores LLMResponse objects for assistant messages in a dedicated history
+  - All chat state is managed via a single `chatInfo` struct (type `types.ChatInfo`), which is updated on every state change. The struct includes: `TotalTokens`, `TotalCost`, `IsApproximate`, `MaxTokens`, `MessageStackLen`, `LLMRequests`, `ModelName`, `ToolCallCount`, `LastMessageTime`, `SystemPrompt`.
+  - All mutating methods (`Begin`, `AddAssistantMessage`, `AddToolCall`, `AddToolResult`, etc.) update `chatInfo`.
+  - `GetInfo()` returns a copy of `chatInfo`.
+  - This approach eliminates state drift and makes it easy to audit and extend chat state.
+  - Tests verify all fields in `ChatInfo`, including model name, tool call count, last message time, and system prompt.
+  - Token counting (totalTokens, totalCost, isApproximate) is based only on llmResponses (assistant messages), not on messageStack.
+  - AddAssistantMessage in ChatSpec accepts LLMResponse
+  - LLMResponse includes a field `LLMResponses` for the original messages array
+  - Centralized fallback estimation utility is used for token counting if LLMResponseTokensMetadata is empty
+  - Provides GetTotalTokens and GetTotalCost methods, both returning a value and an approximation flag
+  - AddAssistantMessage precomputes and stores total tokens and cost, using a calculator if set, and falls back to estimation (character count divided by 4) if token metadata is missing, setting the approximation flag accordingly
+  - Cost is zero if no calculator is set, otherwise calculated by the calculator
 
 ### TokenCounter
 - **Purpose**: Token counting for LLM messages
@@ -42,8 +71,14 @@
 - **File**: `internal/chat/compaction.go`
 - **Implementation Features**:
   - Interface for pluggable compaction strategies
+  - Strategy is now set at construction time of Chat
+  - No runtime mutation of compaction strategy; use the constructor to select the strategy
   - Current implementation:
     - **DeleteOld**: Removes oldest messages first (preserving system prompt)
+      - Preserves system prompt (first message, if present)
+      - Collects as many recent messages as possible (excluding system prompt) without exceeding the token limit
+      - Restores chronological order by reversing the collected messages
+      - Returns compacted list: system prompt (if any) + most recent messages within limit
   - Preserves system prompts and critical conversation context
   - Integration with TokenCounter for accurate token estimation
   - Detailed logging of compaction operations
@@ -153,6 +188,23 @@ agent:
   - Request and response handling
   - Retry logic with configurable backoff
   - Error categorization
+  - **New**: Returns `LLMResponse` struct with fields: `Text`, `Calls`, `Metadata` (includes `Tokens`, `Cost`, and `DurationMs`).
+  - **Duration**: The duration of each LLM request (in milliseconds) is measured in `llm_service.go` and included as `DurationMs` in `LLMResponseMetadata`.
+  - **Interface**: `LLMServiceSpec.SendRequest(ctx, messages, tools) (LLMResponse, error)`
+  - **Old signature replaced**: `(string, []CallToolRequest, error)`
+
+#### LLMResponse Struct
+- `Text`: Main LLM response
+- `Calls`: List of tool/function calls
+- `Metadata`: Includes:
+  - `Tokens`: Token usage stats (`CompletionTokens`, `PromptTokens`, `ReasoningTokens`, `TotalTokens`)
+  - `Cost`: Calculated cost for the request
+  - `DurationMs`: Duration of the LLM request in milliseconds
+
+#### Testing
+- **File**: `internal/llm_service/llm_service_test.go`
+- **Test**: Verifies that `SendRequest` returns all fields correctly, using a mock LLM client and a no-op logger.
+- **Chat tests**: Now cover both total tokens and total cost, including the approximation flag for fallback estimation.
 
 ### MCP Server
 - **Purpose**: MCP protocol implementation
@@ -553,67 +605,17 @@ if *daemonMode {
 
 **Problem:** Example configuration files had empty API keys, causing 401 Unauthorized errors when trying to run examples without setting environment variables.
 
-**Solution:**
-- Added dummy API keys to all example configuration files in the `site/examples` directory
-- Added clear comments that these are for testing only and real keys should be set via environment variables
-- Updated documentation to emphasize the importance of setting the `SPL_LLM_API_KEY` environment variable in production
+## Chat Struct Test Coverage (2025-04-15)
 
-```yaml
-# LLM configuration example
-llm:
-  provider: "openai"
-  api_key: "dummy-api-key"  # Set via environment variable SPL_LLM_API_KEY for security
-  model: "gpt-4o"
-  // ... other configuration ...
-```
+Comprehensive tests for the Chat struct (internal/chat/chat.go) have been implemented in internal/chat/chat_test.go. These tests cover:
+- Initialization and state reporting (GetInfo)
+- System prompt and tool description formatting (Begin)
+- Assistant message handling, token/cost/approximation logic (AddAssistantMessage)
+- Tool call and result message handling (AddToolCall, AddToolResult)
+- Prompt part building for tool descriptions (BuildPromptPartForToolsDescription)
+- Message stack correctness (GetLLMMessages)
+- All fields in types.ChatInfo are asserted after each mutating operation
+- Tests use real logger, calculator, and compaction strategy for realistic coverage
+- Edge cases and error handling are included
 
-### Conditional LLM Parameters
-
-**Problem:** The LLM service was always including `temperature` and `maxTokens` parameters in requests regardless of whether they were explicitly configured.
-
-**Solution:**
-- Added tracking flags in `LLMConfig` to record whether parameters were explicitly set
-- Modified configuration loading to set these flags when environment variables are present
-- Updated request creation to conditionally include parameters only when explicitly configured
-
-```go
-// Configuration flags
-type LLMConfig struct {
-    // ... existing fields ...
-    MaxTokens int
-    Temperature float64
-    TemperatureIsSet bool
-    MaxTokensIsSet bool
-    // ... existing fields ...
-}
-
-// In request creation
-if s.config.MaxTokensIsSet {
-    requestBody["max_tokens"] = s.config.MaxTokens
-}
-if s.config.TemperatureIsSet {
-    requestBody["temperature"] = s.config.Temperature
-}
-```
-
-## Run Script Commands
-
-The `run` script provides a unified interface for common operations:
-
-### Development Commands
-- `./run dev`: Run in development mode
-- `./run build`: Build the project
-- `./run test`: Run tests with coverage
-- `./run lint`: Run linting
-- `./run check`: Run all checks (test, lint, build)
-
-### Interaction Commands
-- `./run call`: Test with simple "What time is it now?" request using YAML config
-- `./run call-multistep`: Test with complex file-finding request using YAML config
-- `./run call-news`: Test news agent with YAML config
-- `./run fetch_url <url>`: Fetch URL using MCP
-
-### Inspection Command
-- `./run inspect`: Run with MCP inspector
-  - Collects environment variables with `SPL_` prefix
-  - Passes them to the inspector with proper handling
+All tests pass as of 2025-04-15.

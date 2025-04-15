@@ -25,6 +25,11 @@ flowchart TB
 - **MCP-Aware Logging**: Structured logging with MCP notifications
 - **Token Management**: Automatic token counting and history compaction
 - **Flexible Configuration**: Support for environment variables, YAML, and JSON configuration files
+- **LLMService.SendRequest** now returns an `LLMResponse` struct with:
+  - Response text
+  - List of tool calls
+  - CompletionTokens, PromptTokens, ReasoningTokens, TotalTokens (token usage)
+- **Interface**: `SendRequest(ctx, messages, tools) (LLMResponse, error)`
 
 ## Getting Started
 
