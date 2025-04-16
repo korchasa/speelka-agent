@@ -652,6 +652,37 @@ func TestConfiguration_Apply_McpServerToolFilters(t *testing.T) {
 	assert.Equal(t, []string{"c"}, base.Agent.Connections.McpServers["srv"].ExcludeTools)
 }
 
+func TestConfiguration_RedactedCopy(t *testing.T) {
+	orig := &Configuration{
+		Agent: ConfigAgent{
+			LLM: AgentLLMConfig{
+				APIKey: "super-secret-llm-key",
+			},
+			Connections: AgentConnectionsConfig{
+				McpServers: map[string]MCPServerConnection{
+					"server1": {
+						APIKey: "server1-key",
+						URL:    "http://server1",
+					},
+					"server2": {
+						APIKey: "server2-key",
+						URL:    "http://server2",
+					},
+				},
+			},
+		},
+	}
+
+	redacted := orig.RedactedCopy()
+	assert.Equal(t, "***REDACTED***", redacted.Agent.LLM.APIKey)
+	for k, v := range redacted.Agent.Connections.McpServers {
+		assert.Equal(t, "***REDACTED***", v.APIKey, "APIKey for %s should be redacted", k)
+	}
+	// Ensure other fields are unchanged
+	assert.Equal(t, orig.Agent.LLM.Model, redacted.Agent.LLM.Model)
+	assert.Equal(t, orig.Agent.Connections.McpServers["server1"].URL, redacted.Agent.Connections.McpServers["server1"].URL)
+}
+
 /* These functions might be defined elsewhere or have been removed
 func TestLoadLevelFromName(t *testing.T) {
 	tests := []struct {

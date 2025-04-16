@@ -433,3 +433,21 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 
 	return c
 }
+
+// RedactedCopy returns a copy of the configuration with all sensitive/private data redacted for safe logging.
+func (c *Configuration) RedactedCopy() *Configuration {
+	copy := *c // shallow copy
+	// Redact LLM API key
+	copy.Agent.LLM.APIKey = "***REDACTED***"
+	// Redact MCP server API keys
+	if copy.Agent.Connections.McpServers != nil {
+		redactedServers := make(map[string]MCPServerConnection, len(copy.Agent.Connections.McpServers))
+		for k, v := range copy.Agent.Connections.McpServers {
+			redacted := v
+			redacted.APIKey = "***REDACTED***"
+			redactedServers[k] = redacted
+		}
+		copy.Agent.Connections.McpServers = redactedServers
+	}
+	return &copy
+}

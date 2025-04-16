@@ -27,7 +27,7 @@ func NewLogger() *Logger {
 	underlying := logrus.New()
 	underlying.SetLevel(logrus.DebugLevel)
 	underlying.SetOutput(os.Stderr)
-	underlying.SetReportCaller(true)
+	underlying.SetReportCaller(false)
 
 	// Create the Logger instance
 	logger := &Logger{
