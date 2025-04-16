@@ -71,46 +71,19 @@ func (mc *MCPConnector) InitAndConnectToMCPs(ctx context.Context) error {
 				error_handling.ErrorCategoryExternal,
 			)
 		}
+		filteredTools := make([]mcp.Tool, 0)
 		for _, tool := range toolsResp.Tools {
-			mc.logger.Infof("Tool `%s` found on server `%s`", tool.Name, serverID)
-			mc.logger.Debugf("Details: %s", utils.SDump(tool))
-		}
-		mc.logger.Infof("Received %d tools from server `%s`", len(toolsResp.Tools), serverID)
-
-		// Filter tools according to includeTools and excludeTools
-		filteredTools := toolsResp.Tools
-		mc.logger.Infof("Srv configs: %s", utils.SDump(srvCfg))
-		if len(srvCfg.IncludeTools) > 0 {
-			// Only include tools listed in IncludeTools
-			includeSet := make(map[string]struct{}, len(srvCfg.IncludeTools))
-			for _, name := range srvCfg.IncludeTools {
-				includeSet[name] = struct{}{}
+			if srvCfg.IsToolAllowed(tool.Name) {
+				mc.logger.Infof("`%s:%s` tool added", serverID, tool.Name)
+				mc.logger.Debugf("Details: %s", utils.SDump(tool))
+				filteredTools = append(filteredTools, tool)
+			} else {
+				mc.logger.Infof("`%s:%s` tool not allowed", serverID, tool.Name)
 			}
-			tmp := make([]mcp.Tool, 0, len(filteredTools))
-			for _, tool := range filteredTools {
-				if _, ok := includeSet[tool.Name]; ok {
-					tmp = append(tmp, tool)
-				}
-			}
-			filteredTools = tmp
-		}
-		if len(srvCfg.ExcludeTools) > 0 {
-			// Exclude tools listed in ExcludeTools
-			excludeSet := make(map[string]struct{}, len(srvCfg.ExcludeTools))
-			for _, name := range srvCfg.ExcludeTools {
-				excludeSet[name] = struct{}{}
-			}
-			tmp := make([]mcp.Tool, 0, len(filteredTools))
-			for _, tool := range filteredTools {
-				if _, ok := excludeSet[tool.Name]; !ok {
-					tmp = append(tmp, tool)
-				}
-			}
-			filteredTools = tmp
 		}
 		mc.clients[serverID] = mcpClient
 		mc.tools[serverID] = filteredTools
-		mc.logger.Infof("Connected to MCP server `%s` with %d tools after filtering", serverID, len(filteredTools))
+		mc.logger.Infof("Connected to MCP server `%s` with %d tools", serverID, len(filteredTools))
 	}
 	mc.logger.Infof("Connected to %d MCP servers", len(mc.clients))
 	return nil
@@ -151,7 +124,7 @@ func (mc *MCPConnector) ConnectServer(ctx context.Context, serverID string, serv
 						if err != nil {
 							return
 						}
-						mc.logger.Warnf("MCP server %s stderr: %s", serverID, line)
+						mc.logger.Infof("`%s` stderr: %s", serverID, line)
 					}
 				}()
 			}
@@ -219,16 +192,8 @@ func (mc *MCPConnector) GetAllTools(ctx context.Context) ([]mcp.Tool, error) {
 	defer mc.dataLock.RUnlock()
 
 	allTools := make([]mcp.Tool, 0)
-	for id, cl := range mc.clients {
-		tools, err := cl.ListTools(ctx, mcp.ListToolsRequest{})
-		if err != nil {
-			return nil, error_handling.WrapError(
-				err,
-				fmt.Sprintf("failed to list tools from MCP server %s", id),
-				error_handling.ErrorCategoryExternal,
-			)
-		}
-		allTools = append(allTools, tools.Tools...)
+	for _, tools := range mc.tools {
+		allTools = append(allTools, tools...)
 	}
 	return allTools, nil
 }

@@ -144,7 +144,7 @@ case $CMD in
             load_env
             go build -o bin/mcp-call ./cmd/mcp-call/main.go
             check_command "mcp"
-            ./bin/mcp-call --tool make-ai-digest --params "{\"query\": \"What is the latest news in AI?\"}" go run -race ./cmd/server/main.go --config ./site/examples/ai-news.yaml
+            ./bin/mcp-call --call-timeout 900 --tool make-ai-digest --params "{\"query\": \"What is the latest news in AI?\"}" go run -race ./cmd/server/main.go --config ./site/examples/ai-news.yaml
         )
         ;;
     inspect)

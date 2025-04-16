@@ -1,0 +1,65 @@
+# AI News Subagent Extractor
+# A specialized agent that extracts news from a given URL.
+# Perfect for staying updated on the latest AI developments.
+# Features: News Extraction, Web Browsing, Structured Responses
+
+# Runtime configuration
+runtime:
+  log:
+    level: "info"
+
+  transports:
+    stdio:
+      enabled: true
+      buffer_size: 8192
+
+agent:
+  name: "ai-news-subagent-extractor"
+  version: "1.0.0"
+
+  # Tool configuration
+  tool:
+    name: "extract-news"
+    description: "Extract news from a given URL"
+    argument_name: "url"
+    argument_description: "The URL of the page to extract news from"
+
+  # Chat configuration
+  chat:
+    max_tokens: 150000
+    request_budget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
+
+  # LLM configuration
+  llm:
+    provider: "openai"
+    api_key: ""  # Set via environment variable for security
+    model: "gpt-4.1-mini"
+    temperature: 0.2
+    prompt_template: |
+      You are an elite AI news curator and analyst, internationally recognized for your ability to extract news from HTML pages. Your goal is to collect news from the user-given URL, extract the text from the page, and return it as a markdown-formatted string.
+
+      ### URL
+      {{url}}
+
+      ### Available tools
+      {{tools}}
+
+  # MCP Server connections
+  connections:
+    mcpServers:
+      playwright:
+        command: "npx"
+        args: ["@playwright/mcp@latest", "--headless"]
+        exclude_tools:
+          - browser_tab_list
+          - browser_tab_new
+          - browser_tab_select
+          - browser_tab_close
+          - browser_drag
+          - browser_pdf_save
+          - browser_install
+          - browser_file_upload
+          - browser_resize
+          - browser_navigate_back
+          - browser_navigate_forward
+

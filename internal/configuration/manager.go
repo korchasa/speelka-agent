@@ -3,8 +3,9 @@ package configuration
 import (
 	"context"
 	"fmt"
-	"github.com/korchasa/speelka-agent-go/internal/utils"
 	"strings"
+
+	"github.com/korchasa/speelka-agent-go/internal/utils"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
 )
@@ -81,7 +82,7 @@ func (cm *Manager) LoadConfiguration(ctx context.Context, configFilePath string)
 	cm.logger.Debugf("Applying environment configurations...")
 	cm.config.Apply(envConfig)
 
-	cm.logger.Infof("Configuration: %s", utils.SDump(cm.config))
+	cm.logger.Infof("Configuration: %s", utils.SDump(cm.config.RedactedCopy()))
 
 	// Validate the final configuration
 	cm.logger.Debugf("Validating configuration...")
@@ -153,11 +154,13 @@ func (cm *Manager) GetMCPConnectorConfig() types.MCPConnectorConfig {
 	// Convert MCP server connections
 	for id, conn := range cm.config.Agent.Connections.McpServers {
 		mcpConnectorConfig.McpServers[id] = types.MCPServerConnection{
-			URL:         conn.URL,
-			APIKey:      conn.APIKey,
-			Command:     conn.Command,
-			Args:        conn.Args,
-			Environment: conn.Environment,
+			URL:          conn.URL,
+			APIKey:       conn.APIKey,
+			Command:      conn.Command,
+			Args:         conn.Args,
+			Environment:  conn.Environment,
+			IncludeTools: conn.IncludeTools,
+			ExcludeTools: conn.ExcludeTools,
 		}
 	}
 

@@ -66,8 +66,8 @@ agent:
         environment: []         # Environment variables for the command
         url: ""                 # HTTP URL for MCP server (if not using command)
         api_key: ""             # API key for HTTP MCP server
-        include_tools:           # List of tool names to include (optional)
-          - get_current_time
+        exclude_tools:           # List of tool names to include (optional)
+          - convert_time
       filesystem:
         command: "mcp-filesystem-server"
         args:
@@ -76,8 +76,12 @@ agent:
           - "EXAMPLE_ENV=value"
         url: ""
         api_key: ""
-        exclude_tools:
-          - "delete_file"
+        include_tools:
+          - get_file_info
+          - list_allowed_directories
+          - list_directory
+          - read_file
+          - search_files
     retry:
       max_retries: 3           # Max retries for MCP connections
       initial_backoff: 1.0     # Initial backoff (seconds)
