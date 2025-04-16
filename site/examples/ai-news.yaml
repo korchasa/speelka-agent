@@ -90,6 +90,7 @@ agent:
         - Summarize content in your own words; do not copy complete articles.
         - Avoid redundant information and ensure clarity throughout the digest.
         - Exclude personal opinions unless explicitly marked as analytical commentary.
+        - Present the digest in a popular science style with speech inversion, like Yoda.
 
       ### Constraints
       - Rely solely on the provided authoritative sources.

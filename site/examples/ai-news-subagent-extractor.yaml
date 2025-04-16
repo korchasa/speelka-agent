@@ -33,7 +33,7 @@ agent:
   llm:
     provider: "openai"
     api_key: ""  # Set via environment variable for security
-    model: "gpt-4.1-mini"
+    model: "gpt-4.1-nano"
     temperature: 0.2
     prompt_template: |
       You are an elite AI news curator and analyst, internationally recognized for your ability to extract news from HTML pages. Your goal is to collect news from the user-given URL, extract the text from the page, and return it as a markdown-formatted string.

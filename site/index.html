@@ -103,45 +103,55 @@
         </div>
     </section>
 
-    <!-- Features Section -->
-    <section id="features">
+    <!-- Use Cases Section -->
+    <section id="use-cases">
         <div class="container">
-            <h2 class="section-title">Key Features</h2>
+            <h2 class="section-title">Use Cases</h2>
             <div class="features-grid">
                 <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-compress-alt"></i></div>
-                    <h3>Context Size Optimization</h3>
-                    <p>Reduce client-side context size for more efficient processing and lower token consumption.</p>
+                    <div class="feature-icon"><i class="fas fa-filter"></i></div>
+                    <h3>Improving Accuracy</h3>
+                    <p>Splitting large, complex instructions into specialized, focused tasks to improve response accuracy.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-dollar-sign"></i></div>
+                    <h3>Cost Reduction</h3>
+                    <p>Using different models to handle different parts of a task, reducing overall operational costs.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-code-branch"></i></div>
+                    <h3>Response Customization</h3>
+                    <p>Extending, narrowing down, or modifying the structure of third-party MCP server responses.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-random"></i></div>
+                    <h3>Implementation Switching</h3>
+                    <p>Easily switch between real and LLM-based implementations of a given tool.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-lock"></i></div>
+                    <h3>Capability Constraints</h3>
+                    <p>Restrict the list of available tools in an MCP server to constrain system capabilities.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-project-diagram"></i></div>
+                    <h3>Workflow Orchestration</h3>
+                    <p>Orchestrate multi-step workflows across multiple MCP tools within a single agent session.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-wallet"></i></div>
+                    <h3>Budget Enforcement</h3>
+                    <p>Enforce per-request token and cost budgets to ensure predictable usage.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-redo-alt"></i></div>
+                    <h3>Automatic Retry</h3>
+                    <p>Automatic retry and exponential backoff handling for transient LLM or MCP server errors.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fas fa-exchange-alt"></i></div>
-                    <h3>Flexible LLM Configuration</h3>
-                    <p>Use different LLM providers and settings between client-side and agent for optimized cost and performance.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-file-alt"></i></div>
-                    <h3>Precise Agent Definition</h3>
-                    <p>Precisely describe agent functionality in prompts for better control and more predictable behavior.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-tools"></i></div>
-                    <h3>Centralized Tool Management</h3>
-                    <p>Manage and orchestrate all tools from a central location for better consistency and control.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-code"></i></div>
-                    <h3>Flexible Integration Options</h3>
-                    <p>Integrate via MCP stdio, MCP HTTP*, or Simple HTTP API* depending on your system requirements. (*planned)</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-sync"></i></div>
-                    <h3>Built-in Retry Mechanism</h3>
-                    <p>Ensure reliability with automatic retries for transient failures and network issues.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-expand-alt"></i></div>
-                    <h3>Extensible Architecture</h3>
-                    <p>Extend and modify system behavior without requiring changes to client-side implementations.</p>
+                    <h3>Provider Switching</h3>
+                    <p>Seamlessly switch between different LLM services (e.g., OpenAI, Anthropic) with unified configuration.</p>
                 </div>
             </div>
         </div>
@@ -164,7 +174,8 @@
       'primaryBorderColor': '#8a5cf6',
       'lineColor': '#8a5cf6',
       'secondaryColor': '#6d28d9',
-      'tertiaryColor': '#131525'
+      'tertiaryColor': '#131525',
+      'edgeLabelBackground': '#131525'
     }
   }
 }%%

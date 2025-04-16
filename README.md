@@ -4,14 +4,25 @@ Universal LLM agent based on the Model Context Protocol (MCP), with the ability 
 
 ```mermaid
 flowchart TB
-    User["Any MCP Client"] --> |"1. Request"| Agent["Speelka Agent"]
-    Agent --> |"2. Format prompt"| LLM["LLM Service"]
-    LLM --> |"3. Tool calls"| Agent
-    Agent --> |"4. Execute tools"| Tools["External MCP Tools"]
-    Tools --> |"5. Return results"| Agent
-    Agent --> |"6. Process repeat"| LLM
-    Agent --> |"7. Final answer"| User
+    User["Any MCP Client"] --> |"1.Request"| Agent["Speelka Agent"]
+    Agent --> |"2.Format prompt"| LLM["LLM Service"]
+    LLM --> |"3.Tool calls"| Agent
+    Agent --> |"4.Execute tools"| Tools["External MCP Tools"]
+    Tools --> |"5.Return results"| Agent
+    Agent --> |"6.Process repeat"| LLM
+    Agent --> |"7.Final answer"| User
 ```
+
+## Use Cases
+- Improving accuracy by splitting large, complex instructions into specialized, focused tasks.
+- Reducing cost by using different models to handle different parts of a task.
+- Extending, narrowing down, or modifying the structure of third-party MCP server responses.
+- Easily switching between "real" and LLM-based implementations of a given tool.
+- Constraining capabilities by restricting the list of available tools in an MCP server.
+- Orchestrating multi-step workflows across multiple MCP tools within a single agent session.
+- Enforcing per-request token and cost budgets to ensure predictable usage.
+- Automatic retry and exponential backoff handling for transient LLM or MCP server errors.
+- Seamless provider switching between different LLM services (e.g., OpenAI, Anthropic) through unified configuration.
 
 ## Key Features
 
