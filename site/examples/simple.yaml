@@ -34,3 +34,7 @@ agent:
       filesystem:
         command: "mcp-filesystem-server"
         args: ["/Users/korchasa/www/speelka/speelka-agent"]
+
+  # Chat configuration
+  chat:
+    request_budget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)

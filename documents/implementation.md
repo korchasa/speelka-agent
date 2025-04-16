@@ -2,7 +2,7 @@
 
 ## Core Components
 - **Agent**: Orchestrates request lifecycle, tool exec, state, logs tool calls as `>> Execute tool toolName(args)`
-- **Chat**: Manages history, token/cost, compaction; config immutable (constructor only); all state in `chatInfo` struct; supports multiple compaction strategies; token/cost tracked via LLMResponse, fallback estimation if needed
+- **Chat**: Manages history, token/cost, compaction; config immutable (constructor only); all state in `chatInfo` struct; supports multiple compaction strategies; token/cost tracked via LLMResponse, fallback estimation if needed. **TotalTokens** and **TotalCost** are cumulative (monotonically increasing) and never decrease, regardless of compaction. Compaction only affects the message stack/context, not cumulative accounting.
 - **TokenCounter**: Approximates tokens (4 chars ≈ 1 token), type-specific, fallback for unknowns
 - **Compaction**: Pluggable strategies (DeleteOld, DeleteMiddle, PartialSummary, NoCompaction); preserves system prompt, context; auto-triggers on token limit
 - **Config Manager**: Loads/validates config (YAML, JSON, env), type-safe, strict validation, only `Apply` parses log/output
@@ -36,6 +36,7 @@ agent:
     max_tokens: 0
     compaction_strategy: "delete-old"
     max_llm_iterations: 25
+    request_budget: 0.0
   llm:
     provider: "openai"
     api_key: "dummy-api-key"
@@ -60,10 +61,13 @@ agent:
 | PartialSummary  | System, recent    | Middle (summary)| LLM summary (future)    |
 | NoCompaction    | All               | None            | Small context           |
 
+> **Note:** Compaction only affects the message stack/context. It does **not** decrease or reset `TotalTokens` or `TotalCost`, which are always cumulative for the session.
+
 ## Token Counting
 - 4 chars ≈ 1 token (fallback)
 - Type-specific for text/tool calls
 - Overhead for message format
+- **TotalTokens** and **TotalCost** are cumulative for the session and never decrease, even if compaction removes messages from the stack.
 
 ## Request Processing
 1. Receive (HTTP/stdio)
@@ -83,12 +87,14 @@ agent:
 - Categories: Validation, Transient, Internal, External
 - Retry: Backoff config
 - Safe assertions, descriptive errors, no panics
+- **Orphaned tool_call auto-cleanup:** If a tool_call is found in the message stack without a matching tool result (e.g., due to error or interruption), it is now automatically removed from the stack and a warning is logged. This prevents protocol errors and improves robustness.
 
 ## Test Coverage
 - Chat: All `chatInfo` fields, compaction, token/cost/approximation, edge cases
 - LLM Service: All `LLMResponse` fields, mock LLM, logger
 - Config: Defaults, overrides, validation, transport
 - E2E: Agent, transport, tools, token/cost
+- **Orphaned tool_call detection:** Tests simulate a tool_call without a result and verify that the system detects and auto-cleans it, logging a warning.
 
 ## Example Env Vars
 ```env
@@ -103,4 +109,5 @@ SPL_LLM_RETRY_MAX_RETRIES=3
 SPL_LLM_RETRY_INITIAL_BACKOFF=1.0
 SPL_LLM_RETRY_MAX_BACKOFF=30.0
 SPL_LLM_RETRY_BACKOFF_MULTIPLIER=2.0
+SPL_CHAT_REQUEST_BUDGET=0.0
 ```

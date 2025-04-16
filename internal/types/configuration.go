@@ -63,9 +63,10 @@ type ConfigAgent struct {
 
 // AgentChatConfig represents the chat configuration section
 type AgentChatConfig struct {
-	MaxTokens          int    `json:"max_tokens" yaml:"max_tokens"`
-	CompactionStrategy string `json:"compaction_strategy" yaml:"compaction_strategy"`
-	MaxLLMIterations   int    `json:"max_llm_iterations" yaml:"max_llm_iterations"`
+	MaxTokens          int     `json:"max_tokens" yaml:"max_tokens"`
+	CompactionStrategy string  `json:"compaction_strategy" yaml:"compaction_strategy"`
+	MaxLLMIterations   int     `json:"max_llm_iterations" yaml:"max_llm_iterations"`
+	RequestBudget      float64 `json:"request_budget" yaml:"request_budget"`
 }
 
 // AgentToolConfig represents the tool configuration section
@@ -374,6 +375,9 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 	}
 	if newConfig.Agent.Chat.MaxLLMIterations != 0 {
 		c.Agent.Chat.MaxLLMIterations = newConfig.Agent.Chat.MaxLLMIterations
+	}
+	if newConfig.Agent.Chat.RequestBudget != 0 {
+		c.Agent.Chat.RequestBudget = newConfig.Agent.Chat.RequestBudget
 	}
 
 	// Apply Connections configuration if any MCP servers are defined

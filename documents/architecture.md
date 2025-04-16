@@ -29,7 +29,8 @@ flowchart TB
 - **LLM Service**: Handles LLM requests, retry logic, returns `LLMResponse` (text, tool calls, token/cost)
 - **MCP Server**: Exposes agent (HTTP, stdio), manages tools, processes requests
 - **MCP Connector**: Connects to external MCP servers, routes tool calls, manages connections
-- **Chat**: Manages history, formatting, compaction, token/cost, context, all state in `chatInfo` struct, immutable config
+- **Chat**: Manages history, formatting, compaction, token/cost, context, all state in `chatInfo` struct, immutable config, enforces `request_budget` (limits total cost per request). **TotalTokens** and **TotalCost** are cumulative (monotonically increasing) and never decrease, regardless of compaction. Compaction only affects the message stack/context, not cumulative accounting.
+  - **Tool call/result contract:** Every tool_call (function/tool request) must be followed by a tool result (response) before the next LLM request. If a tool_call is found without a result (orphaned), it is now automatically removed from the message stack and a warning is logged.
 - **Logger**: Wraps logrus, MCP protocol logging, client notifications
 
 ## Data Flow
@@ -40,6 +41,7 @@ flowchart TB
 5. MCP Connector → tool exec
 6. Tool results → Chat
 7. Token check/compaction
+   - Compaction only affects the message stack/context. It does **not** decrease or reset `TotalTokens` or `TotalCost`, which are always cumulative for the session.
 8. Repeat until answer
 9. Response → User
 
@@ -49,6 +51,7 @@ flowchart TB
 - Context-rich, sanitized messages
 - Graceful degradation
 - Principles: Always check nil, safe assertions, descriptive errors, no panics
+- **Orphaned tool_call auto-cleanup:** The system detects and removes orphaned tool calls (calls without results) from the message stack before sending to the LLM, logging a warning. This prevents protocol errors and ensures robust operation even if an error or interruption occurs after a tool call is issued.
 
 ## Security
 - API keys: env/secure storage
@@ -121,6 +124,7 @@ graph TD
     J --> O[Max Tokens]
     J --> P[Compaction]
     J --> Q[Max LLM Iter]
+    J --> R[Request Budget]
     K --> KS[Provider]
     K --> KM[Model]
     K --> KP[Prompt]

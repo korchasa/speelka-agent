@@ -15,9 +15,10 @@ type ChatInfo struct {
 	IsApproximate   bool
 	MaxTokens       int
 	MessageStackLen int
-	LLMRequests     int    // Number of LLM responses (assistant messages)
-	ModelName       string // Name of the LLM model used for this chat
-	ToolCallCount   int    // Number of tool calls in the session
+	LLMRequests     int     // Number of LLM responses (assistant messages)
+	ModelName       string  // Name of the LLM model used for this chat
+	ToolCallCount   int     // Number of tool calls in the session
+	RequestBudget   float64 // Configured cost budget for this chat (USD or token-equivalent)
 }
 
 // ChatSpec represents the interface for the Chat component.

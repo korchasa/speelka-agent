@@ -49,10 +49,13 @@ type Chat struct {
 
 	// Cost calculator (should be set from llm_models)
 	calculator types.CalculatorSpec
+
+	// Request budget (USD or token-equivalent)
+	requestBudget float64
 }
 
-// NewChat creates a new Chat with the given prompt template, argument name, calculator, compaction strategy, and max tokens
-func NewChat(model string, promptTemplate, argName string, logger types.LoggerSpec, calculator types.CalculatorSpec, compactionStrategy CompactionStrategy, maxTokens int) *Chat {
+// NewChat creates a new Chat with the given prompt template, argument name, calculator, compaction strategy, max tokens, and request budget
+func NewChat(model string, promptTemplate, argName string, logger types.LoggerSpec, calculator types.CalculatorSpec, compactionStrategy CompactionStrategy, maxTokens int, requestBudget float64) *Chat {
 	if calculator == nil {
 		calculator = llm_models.NewCalculator()
 	}
@@ -69,11 +72,13 @@ func NewChat(model string, promptTemplate, argName string, logger types.LoggerSp
 		messagesStack:  make([]llms.MessageContent, 0),
 		logger:         logger,
 		info: types.ChatInfo{
-			ModelName: model,
-			MaxTokens: maxTokens,
+			ModelName:     model,
+			MaxTokens:     maxTokens,
+			RequestBudget: requestBudget,
 		},
 		calculator:         calculator,
 		compactionStrategy: compactionStrategy,
+		requestBudget:      requestBudget,
 	}
 }
 
@@ -126,36 +131,29 @@ func (c *Chat) AddAssistantMessage(response types.LLMResponse) {
 	message := llms.TextParts(llms.ChatMessageTypeAI, response.Text)
 
 	tokens := response.Metadata.Tokens.TotalTokens
+	cost := response.Metadata.Cost
+	isApprox := false
+	if tokens == 0 {
+		// Fallback to calculator if no token info
+		tokens, cost, isApprox, _ = c.calculator.CalculateLLMResponse(c.info.ModelName, response)
+	}
 
 	if c.info.MaxTokens > 0 && c.info.TotalTokens+tokens > c.info.MaxTokens {
 		c.logger.Infof("Token limit of %d would be exceeded by adding assistant message with %d tokens. Compacting history...",
 			c.info.MaxTokens, tokens)
-		c.messagesStack, c.info.TotalTokens = c.compactionStrategy.Compact(c.messagesStack, c.info.TotalTokens, c.info.MaxTokens-tokens)
+		c.messagesStack, _ = c.compactionStrategy.Compact(c.messagesStack, c.info.TotalTokens, c.info.MaxTokens-tokens)
 		// System prompt restoration is now handled by the compaction strategy
 	}
 
 	c.messagesStack = append(c.messagesStack, message)
 	c.llmMessagesHistory = append(c.llmMessagesHistory, response)
 
-	// Recalculate totals and approximation flag based ONLY on llmResponses
-	totalTokens := 0
-	totalCost := 0.0
-	isApprox := false
-	for _, resp := range c.llmMessagesHistory {
-		tokens, cost, approx, err := c.calculator.CalculateLLMResponse(c.info.ModelName, resp)
-		if err == nil {
-			totalTokens += tokens
-			totalCost += cost
-			if approx {
-				isApprox = true
-			}
-		} else {
-			c.logger.Warnf("Failed to calculate cost/tokens: %v", err)
-		}
+	// Only increment, never decrease
+	c.info.TotalTokens += tokens
+	c.info.TotalCost += cost
+	if isApprox {
+		c.info.IsApproximate = true
 	}
-	c.info.TotalTokens = totalTokens
-	c.info.TotalCost = totalCost
-	c.info.IsApproximate = isApprox
 	c.info.LLMRequests = len(c.llmMessagesHistory)
 	c.info.MessageStackLen = len(c.messagesStack)
 
@@ -262,4 +260,13 @@ func (c *Chat) CompactionStrategyName() string {
 		return c.compactionStrategy.Name()
 	}
 	return "unknown"
+}
+
+// ExceededRequestBudget returns true if the total cost exceeds the configured request budget (if > 0)
+func (c *Chat) ExceededRequestBudget() bool {
+	if c.requestBudget > 0 && c.info.TotalCost > c.requestBudget {
+		c.logger.Warnf("Request budget exceeded: total cost %.4f > budget %.4f", c.info.TotalCost, c.requestBudget)
+		return true
+	}
+	return false
 }

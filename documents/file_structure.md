@@ -51,7 +51,7 @@ flowchart TD
 ```
 
 ## Examples (site/examples/)
-- `simple.yaml`, `ai-news.yaml`, `architect.yaml`: Agent configs (YAML, preferred)
+- `simple.yaml`, `ai-news.yaml`, `architect.yaml`: Agent configs (YAML, preferred), include `agent.chat.request_budget` (limit on total cost per request)
 
 ## Dependencies
 | Package | Use |

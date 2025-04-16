@@ -156,11 +156,17 @@ func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolR
 			"messages": len(session.GetLLMMessages()),
 			"tools":    len(tools),
 		}).Infof(">> Start iteration %d: sending request to LLM", iteration)
+
 		resp, err := a.llmService.SendRequest(ctx, session.GetLLMMessages(), tools)
 		if err != nil {
 			return nil, fmt.Errorf("failed to send request to LLM: %w", err)
 		}
 		session.AddAssistantMessage(resp)
+
+		// Enforce request budget after each LLM response
+		if session.ExceededRequestBudget() {
+			return a.handleRequestBudgetExceeded(session)
+		}
 
 		if len(resp.Calls) == 0 {
 			return nil, fmt.Errorf("LLM returned no tool calls")
@@ -177,11 +183,33 @@ func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolR
 	return a.handleIterationLimit(session)
 }
 
-func (a *Agent) beginSession(userRequest string, tools []mcp.Tool) (*chat.Chat, error) {
-	session := a.chat
-	// Chat configuration is now constructor-based and immutable.
+// handleRequestBudgetExceeded returns a tool result error when the request budget is exceeded
+func (a *Agent) handleRequestBudgetExceeded(session *chat.Chat) (*mcp.CallToolResult, error) {
 	info := session.GetInfo()
-	a.logger.Infof("Chat configured with max tokens: %d, compaction strategy: %s", info.MaxTokens, session.CompactionStrategyName())
+	errMsg := fmt.Sprintf("exceeded request budget: total cost %.4f > budget %.4f", info.TotalCost, info.RequestBudget)
+	a.logger.Errorf(errMsg)
+	a.logger.Infof("Chat ended by exceeding request budget: %s", utils.SDump(info))
+	return mcp.NewToolResultError(errMsg), nil
+}
+
+func (a *Agent) beginSession(userRequest string, tools []mcp.Tool) (*chat.Chat, error) {
+	// Create a new Chat instance for each session, passing request budget
+	var calculator types.CalculatorSpec = nil
+	if svc, ok := a.llmService.(interface{ GetCalculator() types.CalculatorSpec }); ok {
+		calculator = svc.GetCalculator()
+	}
+	session := chat.NewChat(
+		a.config.Model,
+		a.config.SystemPromptTemplate,
+		a.config.Tool.ArgumentName,
+		a.logger,
+		calculator,
+		nil, // Compaction strategy: use default for now
+		a.config.MaxTokens,
+		0.0, // No request budget in AgentConfig, use 0.0 (unlimited)
+	)
+	info := session.GetInfo()
+	a.logger.Infof("Chat configured with max tokens: %d, compaction strategy: %s, request budget: %.4f", info.MaxTokens, session.CompactionStrategyName(), info.RequestBudget)
 
 	err := session.Begin(userRequest, tools)
 	if err != nil {
@@ -190,7 +218,7 @@ func (a *Agent) beginSession(userRequest string, tools []mcp.Tool) (*chat.Chat, 
 	return session, nil
 }
 
-func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResponse, session *chat.Chat, iteration int) {
+func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResponse, session *chat.Chat, _ int) {
 	var toolCalls []string
 	for _, call := range resp.Calls {
 		toolCalls = append(toolCalls, call.String())

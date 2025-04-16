@@ -61,6 +61,7 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{..
 | Chat     | SPL_CHAT_MAX_TOKENS | Max hist tokens | 0 |
 |          | SPL_CHAT_COMPACTION_STRATEGY | Compaction | delete-old |
 |          | SPL_CHAT_MAX_ITERATIONS | Max LLM iters | 25 |
+|          | SPL_CHAT_REQUEST_BUDGET | Max cost per request (USD or token-equivalent, 0 = unlimited) | 0.0 |
 | Retry    | SPL_LLM_RETRY_MAX_RETRIES | Max retries | 3 |
 |          | SPL_LLM_RETRY_INITIAL_BACKOFF | Init backoff | 1.0 |
 |          | SPL_LLM_RETRY_MAX_BACKOFF | Max backoff | 30.0 |

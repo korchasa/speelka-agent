@@ -73,6 +73,7 @@ func (a *App) Initialize(ctx context.Context) error {
 		calculator,
 		compactionStrategy,
 		agentConfig.MaxTokens,
+		0.0,
 	)
 
 	// Create Agent
