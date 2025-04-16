@@ -154,11 +154,13 @@ func (cm *Manager) GetMCPConnectorConfig() types.MCPConnectorConfig {
 	// Convert MCP server connections
 	for id, conn := range cm.config.Agent.Connections.McpServers {
 		mcpConnectorConfig.McpServers[id] = types.MCPServerConnection{
-			URL:         conn.URL,
-			APIKey:      conn.APIKey,
-			Command:     conn.Command,
-			Args:        conn.Args,
-			Environment: conn.Environment,
+			URL:          conn.URL,
+			APIKey:       conn.APIKey,
+			Command:      conn.Command,
+			Args:         conn.Args,
+			Environment:  conn.Environment,
+			IncludeTools: conn.IncludeTools,
+			ExcludeTools: conn.ExcludeTools,
 		}
 	}
 

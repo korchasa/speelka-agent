@@ -152,3 +152,30 @@ type MCPServerConnection struct {
 	// ExcludeTools is an optional blacklist of tool names to exclude from this server. If set, these tools will not be available.
 	ExcludeTools []string `json:"exclude_tools,omitempty" yaml:"exclude_tools,omitempty"`
 }
+
+// IsToolAllowed determines if a tool is allowed based on IncludeTools and ExcludeTools.
+//
+// Logic:
+//   - If IncludeTools is non-empty, only tools in this list are allowed.
+//   - If ExcludeTools is non-empty, tools in this list are disallowed, even if present in IncludeTools.
+//   - If both lists are empty, all tools are allowed.
+//   - Returns true if allowed, false if not.
+func (c *MCPServerConnection) IsToolAllowed(name string) bool {
+	// Check ExcludeTools first (blacklist has priority)
+	for _, ex := range c.ExcludeTools {
+		if ex == name {
+			return false
+		}
+	}
+	// If IncludeTools is set, only allow if present
+	if len(c.IncludeTools) > 0 {
+		for _, inc := range c.IncludeTools {
+			if inc == name {
+				return true
+			}
+		}
+		return false
+	}
+	// If neither list is set, allow all
+	return true
+}

@@ -102,7 +102,7 @@ agent:
   # MCP Server connections
   connections:
     mcpServers:
-      ai-news-subagent-extractor:
+      extractor:
         command: "go"
         args: ["run", "cmd/server/main.go", "--config", "site/examples/ai-news-subagent-extractor.yaml"]
 

@@ -110,3 +110,10 @@ SPL_CHAT_REQUEST_BUDGET=0.0
   - If the overlay config provides a non-nil value for `IncludeTools` or `ExcludeTools`, it replaces the previous value.
   - If the overlay config provides nil, the previous value is preserved.
 - Comprehensive tests cover all edge cases for loading and merging these fields.
+
+## MCPConnector Tool Discovery
+
+- The `GetAllTools` method of `MCPConnector` now returns the union of all tools from the cached, filtered `mc.tools[serverID]` map, rather than querying each MCP client for its tools.
+- This ensures that only tools allowed by the server's configuration (IncludeTools/ExcludeTools) are ever returned, and improves performance by avoiding unnecessary network calls.
+- The cache is populated during `InitAndConnectToMCPs` and is always up-to-date with the allowed tools for each server.
+- **Bugfix (2024-06):** Previously, tool filtering was not respected because `IncludeTools` and `ExcludeTools` were not copied into the connector config. This is now fixed: only allowed tools are available as expected.
