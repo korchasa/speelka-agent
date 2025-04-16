@@ -1,15 +1,10 @@
-# Simple Assistant
+# Minimal Assistant
 # A general-purpose agent that can answer questions and perform basic tasks.
 # Perfect for beginners or when you need a straightforward assistant.
 # Features: General Purpose, Easy Setup, Question Answering
 
-runtime:
-  log:
-    level: info
-    output: stderr
-
 agent:
-  name: "simple-speelka-agent"
+  name: "minimal-speelka-agent"
 
   # Tool configuration
   tool:
