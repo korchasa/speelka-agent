@@ -6,7 +6,7 @@
 # Runtime configuration
 runtime:
   log:
-    level: "debug"
+    level: "info"
 
   transports:
     stdio:
@@ -105,6 +105,18 @@ agent:
       playwright:
         command: "npx"
         args: ["@playwright/mcp@latest", "--headless"]
+        exclude_tools:
+          - browser_tab_list
+          - browser_tab_new
+          - browser_tab_select
+          - browser_tab_close
+          - browser_drag
+          - browser_pdf_save
+          - browser_install
+          - browser_file_upload
+          - browser_resize
+          - browser_navigate_back
+          - browser_navigate_forward
 
     # Retry configuration for MCP connections
     retry:

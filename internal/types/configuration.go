@@ -388,8 +388,36 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 		}
 
 		// Merge MCP servers
-		for name, server := range newConfig.Agent.Connections.McpServers {
-			c.Agent.Connections.McpServers[name] = server
+		for name, newServer := range newConfig.Agent.Connections.McpServers {
+			oldServer, exists := c.Agent.Connections.McpServers[name]
+			if !exists {
+				c.Agent.Connections.McpServers[name] = newServer
+				continue
+			}
+
+			// Overlay fields for each server
+			if newServer.URL != "" {
+				oldServer.URL = newServer.URL
+			}
+			if newServer.APIKey != "" {
+				oldServer.APIKey = newServer.APIKey
+			}
+			if newServer.Command != "" {
+				oldServer.Command = newServer.Command
+			}
+			if len(newServer.Args) > 0 {
+				oldServer.Args = newServer.Args
+			}
+			if len(newServer.Environment) > 0 {
+				oldServer.Environment = newServer.Environment
+			}
+			if newServer.IncludeTools != nil {
+				oldServer.IncludeTools = newServer.IncludeTools
+			}
+			if newServer.ExcludeTools != nil {
+				oldServer.ExcludeTools = newServer.ExcludeTools
+			}
+			c.Agent.Connections.McpServers[name] = oldServer
 		}
 	}
 

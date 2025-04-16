@@ -111,3 +111,14 @@ SPL_LLM_RETRY_MAX_BACKOFF=30.0
 SPL_LLM_RETRY_BACKOFF_MULTIPLIER=2.0
 SPL_CHAT_REQUEST_BUDGET=0.0
 ```
+
+## MCPServerConnection Tool Filtering
+
+- The fields `IncludeTools` and `ExcludeTools` in `MCPServerConnection` allow fine-grained control over which tools are available from each MCP server.
+- These fields can be set in YAML/JSON configuration files, and now also via environment variables:
+  - `SPL_MCPS_<N>_INCLUDE_TOOLS` (comma- or space-separated list)
+  - `SPL_MCPS_<N>_EXCLUDE_TOOLS` (comma- or space-separated list)
+- The configuration overlay logic (Apply) merges these fields as follows:
+  - If the overlay config provides a non-nil value for `IncludeTools` or `ExcludeTools`, it replaces the previous value.
+  - If the overlay config provides nil, the previous value is preserved.
+- Comprehensive tests cover all edge cases for loading and merging these fields.

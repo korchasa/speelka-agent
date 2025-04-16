@@ -5,6 +5,7 @@ package types
 
 import (
 	"context"
+
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -124,7 +125,11 @@ type MCPConnectorConfig struct {
 
 // MCPServerConnection represents a connection to an MCP server.
 // Responsibility: Storing parameters for establishing a connection to a specific MCP server
-// Features: Contains all necessary information for connection configuration
+// Features: Contains all necessary information for connection configuration, including tool filtering options
+//
+// Optional fields:
+//   - IncludeTools: If set, only these tool names will be exported from this server.
+//   - ExcludeTools: If set, these tool names will be excluded from export from this server.
 type MCPServerConnection struct {
 	// URL is the URL of the MCP server (for HTTP transport).
 	URL string `json:"url" yaml:"url"`
@@ -140,4 +145,10 @@ type MCPServerConnection struct {
 
 	// Environment is a list of environment variables to set for the stdio transport command in the format "KEY=VALUE".
 	Environment []string `json:"environment" yaml:"environment"`
+
+	// IncludeTools is an optional whitelist of tool names to export from this server. If set, only these tools will be available.
+	IncludeTools []string `json:"include_tools,omitempty" yaml:"include_tools,omitempty"`
+
+	// ExcludeTools is an optional blacklist of tool names to exclude from this server. If set, these tools will not be available.
+	ExcludeTools []string `json:"exclude_tools,omitempty" yaml:"exclude_tools,omitempty"`
 }

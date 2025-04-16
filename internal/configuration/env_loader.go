@@ -228,9 +228,30 @@ func (l *EnvLoader) loadMCPServersFromEnv(config *types.Configuration) {
 
 		// Add the server to the config
 		config.Agent.Connections.McpServers[id] = types.MCPServerConnection{
-			Command:     command,
-			Args:        args,
-			Environment: env,
+			Command:      command,
+			Args:         args,
+			Environment:  env,
+			IncludeTools: parseEnvList(os.Getenv(prefix + "INCLUDE_TOOLS")),
+			ExcludeTools: parseEnvList(os.Getenv(prefix + "EXCLUDE_TOOLS")),
 		}
 	}
+}
+
+// parseEnvList parses a comma- or space-separated environment variable into a string slice.
+func parseEnvList(val string) []string {
+	if val == "" {
+		return nil
+	}
+	// Support both comma and space as separators
+	var out []string
+	for _, part := range strings.FieldsFunc(val, func(r rune) bool { return r == ',' || r == ' ' }) {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }

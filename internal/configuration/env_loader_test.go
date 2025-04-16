@@ -156,6 +156,13 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		os.Setenv("SPL_MCPS_1_COMMAND", "mcp-filesystem-server")
 		os.Setenv("SPL_MCPS_1_ARGS", "/path/to/directory")
 
+		// Test: Only IncludeTools (comma-separated)
+		os.Setenv("SPL_MCPS_0_INCLUDE_TOOLS", "foo,bar,baz")
+		os.Unsetenv("SPL_MCPS_0_EXCLUDE_TOOLS")
+		// Test: Only ExcludeTools (space-separated)
+		os.Unsetenv("SPL_MCPS_1_INCLUDE_TOOLS")
+		os.Setenv("SPL_MCPS_1_EXCLUDE_TOOLS", "qux quux")
+
 		loader := NewEnvLoader()
 		config, err := loader.LoadConfiguration()
 
@@ -165,18 +172,48 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		// Assert MCP server configurations
 		assert.Len(t, config.Agent.Connections.McpServers, 2)
 
-		// Check first server
+		// Check first server (IncludeTools only)
 		timeServer, exists := config.Agent.Connections.McpServers["time"]
 		assert.True(t, exists, "Time server should exist")
 		assert.Equal(t, "docker", timeServer.Command)
 		assert.Equal(t, []string{"run", "-i", "--rm", "mcp/time"}, timeServer.Args)
 		assert.Contains(t, timeServer.Environment, "TEST_VAR=test_value")
+		assert.Equal(t, []string{"foo", "bar", "baz"}, timeServer.IncludeTools)
+		assert.Nil(t, timeServer.ExcludeTools)
 
-		// Check second server
+		// Check second server (ExcludeTools only)
 		fsServer, exists := config.Agent.Connections.McpServers["filesystem"]
 		assert.True(t, exists, "Filesystem server should exist")
 		assert.Equal(t, "mcp-filesystem-server", fsServer.Command)
 		assert.Equal(t, []string{"/path/to/directory"}, fsServer.Args)
+		assert.Nil(t, fsServer.IncludeTools)
+		assert.Equal(t, []string{"qux", "quux"}, fsServer.ExcludeTools)
+
+		// Test: Both IncludeTools and ExcludeTools (space and comma)
+		os.Setenv("SPL_MCPS_2_ID", "hybrid")
+		os.Setenv("SPL_MCPS_2_COMMAND", "hybrid-server")
+		os.Setenv("SPL_MCPS_2_INCLUDE_TOOLS", "alpha beta,gamma")
+		os.Setenv("SPL_MCPS_2_EXCLUDE_TOOLS", "delta, epsilon zeta")
+		loader2 := NewEnvLoader()
+		config2, err2 := loader2.LoadConfiguration()
+		require.NoError(t, err2)
+		hybridServer, exists := config2.Agent.Connections.McpServers["hybrid"]
+		assert.True(t, exists, "Hybrid server should exist")
+		assert.Equal(t, []string{"alpha", "beta", "gamma"}, hybridServer.IncludeTools)
+		assert.Equal(t, []string{"delta", "epsilon", "zeta"}, hybridServer.ExcludeTools)
+
+		// Test: Neither IncludeTools nor ExcludeTools
+		os.Setenv("SPL_MCPS_3_ID", "plain")
+		os.Setenv("SPL_MCPS_3_COMMAND", "plain-server")
+		os.Unsetenv("SPL_MCPS_3_INCLUDE_TOOLS")
+		os.Unsetenv("SPL_MCPS_3_EXCLUDE_TOOLS")
+		loader3 := NewEnvLoader()
+		config3, err3 := loader3.LoadConfiguration()
+		require.NoError(t, err3)
+		plainServer, exists := config3.Agent.Connections.McpServers["plain"]
+		assert.True(t, exists, "Plain server should exist")
+		assert.Nil(t, plainServer.IncludeTools)
+		assert.Nil(t, plainServer.ExcludeTools)
 	})
 }
 

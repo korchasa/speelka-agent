@@ -54,7 +54,7 @@ Configuration can be provided using YAML, JSON, or environment variables.
 > **Note:** The `./examples` directory is deprecated and will be removed in a future version. Please use the examples in the `./site/examples` directory instead.
 
 Example configuration files are available in the `site/examples` directory:
-- `site/examples/simple.yaml`: Basic agent configuration in YAML format
+- `site/examples/minimal.yaml`: Basic agent configuration in YAML format
 - `site/examples/ai-news.yaml`: AI news agent configuration in YAML format
 - `site/examples/architect.yaml`: Architect agent configuration in YAML format
 
@@ -93,10 +93,15 @@ agent:
       time:
         command: "docker"
         args: ["run", "-i", "--rm", "mcp/time"]
+        includeTools:
+          - now
+          - utc
 
       filesystem:
         command: "mcp-filesystem-server"
         args: ["/path/to/directory"]
+        excludeTools:
+          - delete
 
 # Runtime configuration
 runtime:
@@ -277,3 +282,29 @@ See [Command Reference](documents/knowledge.md#command-reference) for more optio
 ## License
 
 [MIT License](LICENSE)
+
+### MCP Server Tool Filtering
+
+You can control which tools are exported from each MCP server using the following options in the `mcpServers` section:
+
+- `includeTools`: (optional) List of tool names to include. Only these tools will be available from the server.
+- `excludeTools`: (optional) List of tool names to exclude. These tools will not be available from the server.
+- If both are set, `includeTools` is applied first, then `excludeTools`.
+- Tool names are case-sensitive.
+
+Example:
+```yaml
+connections:
+  mcpServers:
+    time:
+      command: "docker"
+      args: ["run", "-i", "--rm", "mcp/time"]
+      includeTools:
+        - now
+        - utc
+    filesystem:
+      command: "mcp-filesystem-server"
+      args: ["/path/to/directory"]
+      excludeTools:
+        - delete
+```

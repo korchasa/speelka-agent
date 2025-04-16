@@ -33,7 +33,7 @@ agent:
         args: ["run", "-i", "--rm", "mcp/time"]
       filesystem:
         command: "mcp-filesystem-server"
-        args: ["/Users/korchasa/www/speelka/speelka-agent"]
+        args: ["./"]
 
   # Chat configuration
   chat:
