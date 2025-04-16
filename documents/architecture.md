@@ -29,7 +29,7 @@ flowchart TB
 - **LLM Service**: Handles LLM requests, retry logic, returns `LLMResponse` (text, tool calls, token/cost)
 - **MCP Server**: Exposes agent (HTTP, stdio), manages tools, processes requests
 - **MCP Connector**: Connects to external MCP servers, routes tool calls, manages connections
-- **Chat**: Manages history, formatting, compaction, token/cost, context, all state in `chatInfo` struct, immutable config, enforces `request_budget` (limits total cost per request). **TotalTokens** and **TotalCost** are cumulative (monotonically increasing) and never decrease, regardless of compaction. Compaction only affects the message stack/context, not cumulative accounting.
+- **Chat**: Manages history, formatting, token/cost, context, all state in `chatInfo` struct, immutable config, enforces `request_budget` (limits total cost per request). **TotalTokens** and **TotalCost** are cumulative (monotonically increasing) and never decrease. Chat history is not compacted or compressed.
   - **Tool call/result contract:** Every tool_call (function/tool request) must be followed by a tool result (response) before the next LLM request. If a tool_call is found without a result (orphaned), it is now automatically removed from the message stack and a warning is logged.
 - **Logger**: Wraps logrus, MCP protocol logging, client notifications
 
@@ -40,8 +40,7 @@ flowchart TB
 4. LLM → text/tool calls
 5. MCP Connector → tool exec
 6. Tool results → Chat
-7. Token check/compaction
-   - Compaction only affects the message stack/context. It does **not** decrease or reset `TotalTokens` or `TotalCost`, which are always cumulative for the session.
+7. Token check
 8. Repeat until answer
 9. Response → User
 
@@ -89,8 +88,7 @@ graph TD
     B --> C[Agent]
     C --> D[Chat]
     D --> DA[Token Counter]
-    DA --> DB[Compaction]
-    DB --> D
+    DA --> D
     D --> E[LLM Service]
     E --> F[LLM Provider]
     F --> E
@@ -122,7 +120,6 @@ graph TD
     C --> L[Connections]
     I --> M[Tool Name/Desc]
     J --> O[Max Tokens]
-    J --> P[Compaction]
     J --> Q[Max LLM Iter]
     J --> R[Request Budget]
     K --> KS[Provider]

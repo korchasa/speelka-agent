@@ -41,9 +41,6 @@ type Chat struct {
 	// Unified chat info struct
 	info types.ChatInfo
 
-	// Compaction strategy
-	compactionStrategy CompactionStrategy
-
 	// Store LLMResponse objects for assistant messages
 	llmMessagesHistory []types.LLMResponse
 
@@ -54,13 +51,10 @@ type Chat struct {
 	requestBudget float64
 }
 
-// NewChat creates a new Chat with the given prompt template, argument name, calculator, compaction strategy, max tokens, and request budget
-func NewChat(model string, promptTemplate, argName string, logger types.LoggerSpec, calculator types.CalculatorSpec, compactionStrategy CompactionStrategy, maxTokens int, requestBudget float64) *Chat {
+// NewChat creates a new Chat with the given prompt template, argument name, calculator, max tokens, and request budget
+func NewChat(model string, promptTemplate, argName string, logger types.LoggerSpec, calculator types.CalculatorSpec, maxTokens int, requestBudget float64) *Chat {
 	if calculator == nil {
 		calculator = llm_models.NewCalculator()
-	}
-	if compactionStrategy == nil {
-		compactionStrategy = NewDeleteOldStrategy(model, logger)
 	}
 	if maxTokens < 0 {
 		logger.Warnf("Invalid max tokens value %d, using default %d", maxTokens, DefaultMaxTokens)
@@ -76,9 +70,8 @@ func NewChat(model string, promptTemplate, argName string, logger types.LoggerSp
 			MaxTokens:     maxTokens,
 			RequestBudget: requestBudget,
 		},
-		calculator:         calculator,
-		compactionStrategy: compactionStrategy,
-		requestBudget:      requestBudget,
+		calculator:    calculator,
+		requestBudget: requestBudget,
 	}
 }
 
@@ -138,13 +131,6 @@ func (c *Chat) AddAssistantMessage(response types.LLMResponse) {
 		tokens, cost, isApprox, _ = c.calculator.CalculateLLMResponse(c.info.ModelName, response)
 	}
 
-	if c.info.MaxTokens > 0 && c.info.TotalTokens+tokens > c.info.MaxTokens {
-		c.logger.Infof("Token limit of %d would be exceeded by adding assistant message with %d tokens. Compacting history...",
-			c.info.MaxTokens, tokens)
-		c.messagesStack, _ = c.compactionStrategy.Compact(c.messagesStack, c.info.TotalTokens, c.info.MaxTokens-tokens)
-		// System prompt restoration is now handled by the compaction strategy
-	}
-
 	c.messagesStack = append(c.messagesStack, message)
 	c.llmMessagesHistory = append(c.llmMessagesHistory, response)
 
@@ -160,39 +146,6 @@ func (c *Chat) AddAssistantMessage(response types.LLMResponse) {
 	c.logger.Debugf("Added assistant message, total tokens: %d, cost: %f, approx: %v", c.info.TotalTokens, c.info.TotalCost, c.info.IsApproximate)
 }
 
-// AddToolCall adds a tool call to the chat history.
-func (c *Chat) AddToolCall(toolCall types.CallToolRequest) {
-	message := llms.MessageContent{
-		Role: llms.ChatMessageTypeAI,
-		Parts: []llms.ContentPart{
-			llms.ToolCall{
-				ID:   toolCall.ID,
-				Type: toolCall.ToLLM().Type,
-				FunctionCall: &llms.FunctionCall{
-					Name:      toolCall.ToLLM().FunctionCall.Name,
-					Arguments: toolCall.ToLLM().FunctionCall.Arguments,
-				},
-			},
-		},
-	}
-
-	tokenEstimator := llm_models.TokenEstimator{}
-	messageTokens := tokenEstimator.CountTokens(message)
-
-	if c.info.MaxTokens > 0 && c.info.TotalTokens+messageTokens > c.info.MaxTokens {
-		c.logger.Infof("Token limit of %d would be exceeded by adding tool call with %d tokens. Compacting history...",
-			c.info.MaxTokens, messageTokens)
-		c.messagesStack, c.info.TotalTokens = c.compactionStrategy.Compact(c.messagesStack, c.info.TotalTokens, c.info.MaxTokens-messageTokens)
-	}
-
-	c.messagesStack = append(c.messagesStack, message)
-	c.info.TotalTokens += messageTokens
-	c.info.MessageStackLen = len(c.messagesStack)
-	c.info.ToolCallCount++
-
-	c.logger.Debugf("Added tool call with %d tokens, total now %d", messageTokens, c.info.TotalTokens)
-}
-
 // AddToolResult adds the result of a tool execution to the chat history.
 func (c *Chat) AddToolResult(toolCall types.CallToolRequest, result *mcp.CallToolResult) {
 	resultStr := "Result: "
@@ -201,6 +154,7 @@ func (c *Chat) AddToolResult(toolCall types.CallToolRequest, result *mcp.CallToo
 	} else {
 		resultStr += fmt.Sprintf("%v", result.Content)
 	}
+	c.info.ToolCallCount++
 
 	message := llms.MessageContent{
 		Role: llms.ChatMessageTypeTool,
@@ -215,12 +169,6 @@ func (c *Chat) AddToolResult(toolCall types.CallToolRequest, result *mcp.CallToo
 
 	tokenEstimator := llm_models.TokenEstimator{}
 	messageTokens := tokenEstimator.CountTokens(message)
-
-	if c.info.MaxTokens > 0 && c.info.TotalTokens+messageTokens > c.info.MaxTokens {
-		c.logger.Infof("Token limit of %d would be exceeded by adding tool result with %d tokens. Compacting history...",
-			c.info.MaxTokens, messageTokens)
-		c.messagesStack, c.info.TotalTokens = c.compactionStrategy.Compact(c.messagesStack, c.info.TotalTokens, c.info.MaxTokens-messageTokens)
-	}
 
 	c.messagesStack = append(c.messagesStack, message)
 	c.info.TotalTokens += messageTokens
@@ -252,14 +200,6 @@ func (c *Chat) BuildPromptPartForToolsDescription(tools []mcp.Tool, template str
 		return "", fmt.Errorf("failed to format tools description: %v", err)
 	}
 	return strings.Trim(result, " \n"), nil
-}
-
-// CompactionStrategyName returns the name of the configured compaction strategy
-func (c *Chat) CompactionStrategyName() string {
-	if c.compactionStrategy != nil {
-		return c.compactionStrategy.Name()
-	}
-	return "unknown"
 }
 
 // ExceededRequestBudget returns true if the total cost exceeds the configured request budget (if > 0)

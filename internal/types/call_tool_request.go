@@ -61,7 +61,7 @@ func (c *CallToolRequest) String() string {
 			argsStr = string(b)
 		}
 	}
-	return fmt.Sprintf("%s(%s)", c.Params.Name, argsStr)
+	return fmt.Sprintf("%s(%s)#%s", c.Params.Name, argsStr, c.ID)
 }
 
 func (c *CallToolRequest) ToolName() string {

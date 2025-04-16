@@ -23,7 +23,7 @@ flowchart TB
 - **Built-in Reliability**: Retry mechanisms for handling transient failures
 - **Extensibility**: System behavior extensions without client-side changes
 - **MCP-Aware Logging**: Structured logging with MCP notifications
-- **Token Management**: Automatic token counting and history compaction
+- **Token Management**: Automatic token counting
 - **Flexible Configuration**: Support for environment variables, YAML, and JSON configuration files
 - **LLMService.SendRequest** now returns an `LLMResponse` struct with:
   - Response text
@@ -83,7 +83,6 @@ agent:
   # Chat configuration
   chat:
     max_tokens: 0
-    compaction_strategy: "delete-old"
     max_llm_iterations: 25
     request_budget: 0.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
 
@@ -137,7 +136,6 @@ All environment variables are prefixed with `SPL_`:
 | **Chat Configuration**              |               |                                                                                                                    |
 | `SPL_CHAT_MAX_ITERATIONS`           | 100           | Maximum number of LLM iterations                                                                                   |
 | `SPL_CHAT_MAX_TOKENS`               | 0             | Maximum tokens in chat history (0 means based on model)                                                            |
-| `SPL_CHAT_COMPACTION_STRATEGY`      | "delete-old"  | Strategy for compacting chat history ("delete-old", "delete-middle")                                               |
 | `SPL_CHAT_REQUEST_BUDGET`           | 1.0           | Maximum cost (USD or token-equivalent) per request (0 = unlimited)                                                 |
 | **LLM Retry Configuration**         |               |                                                                                                                    |
 | `SPL_LLM_RETRY_MAX_RETRIES`         | 3             | Maximum number of retry attempts for LLM API calls                                                                 |

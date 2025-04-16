@@ -33,7 +33,6 @@ agent:
   # Chat configuration
   chat:
     max_tokens: 0              # Max tokens in chat history (0 = unlimited)
-    compaction_strategy: delete-old
     max_llm_iterations: 25     # Max LLM calls per request (0 = unlimited)
     request_budget: 1.0        # Max cost per request (USD or token-equivalent, 0 = unlimited)
 

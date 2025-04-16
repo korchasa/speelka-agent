@@ -1,5 +1,5 @@
 ---
-description: How to test whole project
+description: Project testing
 globs: 
 alwaysApply: false
 ---

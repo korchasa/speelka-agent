@@ -204,12 +204,11 @@ func (a *Agent) beginSession(userRequest string, tools []mcp.Tool) (*chat.Chat, 
 		a.config.Tool.ArgumentName,
 		a.logger,
 		calculator,
-		nil, // Compaction strategy: use default for now
 		a.config.MaxTokens,
 		0.0, // No request budget in AgentConfig, use 0.0 (unlimited)
 	)
 	info := session.GetInfo()
-	a.logger.Infof("Chat configured with max tokens: %d, compaction strategy: %s, request budget: %.4f", info.MaxTokens, session.CompactionStrategyName(), info.RequestBudget)
+	a.logger.Infof("Chat configured with max tokens: %d, request budget: %.4f", info.MaxTokens, info.RequestBudget)
 
 	err := session.Begin(userRequest, tools)
 	if err != nil {
@@ -226,9 +225,8 @@ func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResp
 	a.logger.WithFields(logrus.Fields{
 		"request_cost":     resp.Metadata.Cost,
 		"request_duration": resp.Metadata.DurationMs,
-	}).Infof("<< LLM asked to call tools: %s", strings.Join(toolCalls, "\n"))
+	}).Infof("<< LLM asked to call tools:\n%s", strings.Join(toolCalls, "\n"))
 	for _, call := range resp.Calls {
-		session.AddToolCall(call)
 		a.logger.Infof(">>> Execute tool `%s`", call.String())
 		a.logger.Debugf(">>> Details: %s", call.Params.Arguments)
 		n := time.Now()
@@ -244,7 +242,7 @@ func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResp
 		a.logger.Infof("<<< Tool execution complete in %s", duration)
 	}
 
-	a.logger.Infof("Iteration %d complete:", utils.SDump(session.GetInfo()))
+	a.logger.Infof("Iteration complete: %s", utils.SDump(session.GetInfo()))
 }
 
 func (a *Agent) handleIterationLimit(session *chat.Chat) (*mcp.CallToolResult, error) {

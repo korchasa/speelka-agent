@@ -31,14 +31,14 @@ agent:
 
   # Chat configuration
   chat:
-    max_tokens: 800000
+    max_tokens: 150000
     request_budget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
 
   # LLM configuration
   llm:
     provider: "openai"
     api_key: ""  # Set via environment variable for security
-    model: "gpt-4o-mini"
+    model: "gpt-4.1-mini"
     temperature: 0.2
     prompt_template: |
       You are an elite AI news curator and analyst, internationally recognized for your ability to synthesize complex AI events into clear, multi-source digests. You work as part of an intelligence analysis team tasked with providing daily overviews of the latest developments in artificial intelligence.

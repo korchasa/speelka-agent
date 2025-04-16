@@ -57,12 +57,8 @@ func (a *App) Initialize(ctx context.Context) error {
 	// Get Agent configuration
 	agentConfig := a.configManager.GetAgentConfig()
 
-	// Create Calculator and CompactionStrategy
+	// Create Calculator
 	calculator := llm_models.NewCalculator()
-	compactionStrategy, err := chat.GetCompactionStrategy(agentConfig.CompactionStrategy, agentConfig.Model, a.logger)
-	if err != nil {
-		return fmt.Errorf("failed to create compaction strategy: %w", err)
-	}
 
 	// Create Chat
 	chatInstance := chat.NewChat(
@@ -71,7 +67,6 @@ func (a *App) Initialize(ctx context.Context) error {
 		agentConfig.Tool.ArgumentName,
 		a.logger,
 		calculator,
-		compactionStrategy,
 		agentConfig.MaxTokens,
 		0.0,
 	)

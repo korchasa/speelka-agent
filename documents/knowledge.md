@@ -33,11 +33,6 @@ c.history = append(c.history, llms.MessageContent{
 tokenCounter := utils.NewTokenCounter(logger, "")
 tokens := tokenCounter.EstimateTokenCount(message)
 ```
-### Compaction
-```go
-strategy, _ := GetCompactionStrategy("delete-old")
-compacted, _ := strategy.Compact(messages, currentTokens, targetTokens)
-```
 ### Error Handling
 ```go
 err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{...})
@@ -59,7 +54,6 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{..
 |          | SPL_LLM_TEMPERATURE | Temp | 0.7 |
 |          | SPL_LLM_PROMPT_TEMPLATE | Prompt | *req* |
 | Chat     | SPL_CHAT_MAX_TOKENS | Max hist tokens | 0 |
-|          | SPL_CHAT_COMPACTION_STRATEGY | Compaction | delete-old |
 |          | SPL_CHAT_MAX_ITERATIONS | Max LLM iters | 25 |
 |          | SPL_CHAT_REQUEST_BUDGET | Max cost per request (USD or token-equivalent, 0 = unlimited) | 0.0 |
 | Retry    | SPL_LLM_RETRY_MAX_RETRIES | Max retries | 3 |

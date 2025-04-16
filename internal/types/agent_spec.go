@@ -20,8 +20,7 @@ type AgentConfig struct {
 	SystemPromptTemplate string
 
 	// Chat configuration
-	MaxTokens          int
-	CompactionStrategy string
+	MaxTokens int
 
 	// Agent behavior configuration
 	MaxLLMIterations int

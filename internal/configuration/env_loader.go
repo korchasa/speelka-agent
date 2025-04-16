@@ -158,10 +158,6 @@ func (l *EnvLoader) LoadConfiguration() (*types.Configuration, error) {
 		}
 	}
 
-	if os.Getenv("SPL_CHAT_COMPACTION_STRATEGY") != "" {
-		config.Agent.Chat.CompactionStrategy = os.Getenv("SPL_CHAT_COMPACTION_STRATEGY")
-	}
-
 	// Connection retry configuration
 	if os.Getenv("SPL_CONNECTIONS_RETRY_MAX_RETRIES") != "" {
 		maxRetries, err := strconv.Atoi(os.Getenv("SPL_CONNECTIONS_RETRY_MAX_RETRIES"))

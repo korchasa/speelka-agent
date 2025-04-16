@@ -38,9 +38,6 @@ type ChatSpec interface {
 	// AddAssistantMessage adds a message from the assistant to the chat history.
 	AddAssistantMessage(response LLMResponse)
 
-	// AddToolCall adds a tool call to the chat history.
-	AddToolCall(toolCall CallToolRequest)
-
 	// AddToolResult adds a tool result to the chat history.
 	AddToolResult(toolCall CallToolRequest, result *mcp.CallToolResult)
 

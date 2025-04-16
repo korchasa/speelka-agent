@@ -1,7 +1,6 @@
 package chat_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -17,9 +16,8 @@ import (
 func TestChat_InitializationAndGetInfo(t *testing.T) {
 	log := logger.NewLogger()
 	calculator := llm_models.NewCalculator()
-	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
 	maxTokens := 2048
-	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, maxTokens, 0.0)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, maxTokens, 0.0)
 
 	info := ch.GetInfo()
 	assert.Equal(t, "gpt-4o", info.ModelName)
@@ -34,8 +32,7 @@ func TestChat_InitializationAndGetInfo(t *testing.T) {
 func TestChat_Begin_SystemPromptAndToolDescription(t *testing.T) {
 	log := logger.NewLogger()
 	calculator := llm_models.NewCalculator()
-	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
-	ch := chat.NewChat("gpt-4o", "System: {{query}}. Tools: {{tools}}", "query", log, calculator, compaction, 2048, 0.0)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}. Tools: {{tools}}", "query", log, calculator, 2048, 0.0)
 
 	tools := []mcp.Tool{
 		mcp.NewTool("echo", mcp.WithString("msg", mcp.Required(), mcp.Description("Message to echo"))),
@@ -65,8 +62,7 @@ func TestChat_Begin_SystemPromptAndToolDescription(t *testing.T) {
 func TestChat_AddAssistantMessage_TokenCostApproximation(t *testing.T) {
 	log := logger.NewLogger()
 	calculator := llm_models.NewCalculator()
-	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
-	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
 
 	resp := types.LLMResponse{
@@ -92,8 +88,7 @@ func TestChat_AddAssistantMessage_TokenCostApproximation(t *testing.T) {
 func TestChat_AddAssistantMessage_FallbackEstimation(t *testing.T) {
 	log := logger.NewLogger()
 	calculator := llm_models.NewCalculator()
-	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
-	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
 
 	resp := types.LLMResponse{
@@ -113,8 +108,7 @@ func TestChat_AddAssistantMessage_FallbackEstimation(t *testing.T) {
 func TestChat_AddToolCall_And_AddToolResult(t *testing.T) {
 	log := logger.NewLogger()
 	calculator := llm_models.NewCalculator()
-	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
-	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
 
 	// Tool call
@@ -128,11 +122,10 @@ func TestChat_AddToolCall_And_AddToolResult(t *testing.T) {
 	}
 	callReq, err := types.NewCallToolRequest(toolCall)
 	assert.NoError(t, err)
-	ch.AddToolCall(callReq)
 
 	info := ch.GetInfo()
-	assert.Equal(t, 1, info.ToolCallCount)
-	assert.Equal(t, 2, info.MessageStackLen)
+	assert.Equal(t, 0, info.ToolCallCount)
+	assert.Equal(t, 1, info.MessageStackLen)
 	assert.Greater(t, info.TotalTokens, 0)
 
 	// Tool result
@@ -143,15 +136,15 @@ func TestChat_AddToolCall_And_AddToolResult(t *testing.T) {
 	ch.AddToolResult(callReq, result)
 
 	info2 := ch.GetInfo()
-	assert.Equal(t, 3, info2.MessageStackLen)
+	assert.Equal(t, 1, info2.ToolCallCount)
+	assert.Equal(t, 2, info2.MessageStackLen)
 	assert.Greater(t, info2.TotalTokens, 0)
 }
 
 func TestChat_AddToolResult_ErrorHandling(t *testing.T) {
 	log := logger.NewLogger()
 	calculator := llm_models.NewCalculator()
-	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
-	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
 
 	toolCall := llms.ToolCall{
@@ -164,7 +157,6 @@ func TestChat_AddToolResult_ErrorHandling(t *testing.T) {
 	}
 	callReq, err := types.NewCallToolRequest(toolCall)
 	assert.NoError(t, err)
-	ch.AddToolCall(callReq)
 
 	errorResult := &mcp.CallToolResult{
 		Content: []mcp.Content{mcp.NewTextContent("Something went wrong!")},
@@ -173,7 +165,7 @@ func TestChat_AddToolResult_ErrorHandling(t *testing.T) {
 	ch.AddToolResult(callReq, errorResult)
 
 	info := ch.GetInfo()
-	assert.Equal(t, 3, info.MessageStackLen)
+	assert.Equal(t, 2, info.MessageStackLen)
 
 	msgs := ch.GetLLMMessages()
 	found := false
@@ -198,8 +190,7 @@ func TestChat_AddToolResult_ErrorHandling(t *testing.T) {
 func TestChat_BuildPromptPartForToolsDescription(t *testing.T) {
 	log := logger.NewLogger()
 	calculator := llm_models.NewCalculator()
-	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
-	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 
 	tools := []mcp.Tool{
 		mcp.NewTool("echo", mcp.WithString("msg", mcp.Required(), mcp.Description("Message to echo"))),
@@ -213,8 +204,7 @@ func TestChat_BuildPromptPartForToolsDescription(t *testing.T) {
 func TestChat_GetLLMMessages_StackCorrectness(t *testing.T) {
 	log := logger.NewLogger()
 	calculator := llm_models.NewCalculator()
-	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
-	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
 
 	resp := types.LLMResponse{
@@ -236,9 +226,8 @@ func TestChat_GetLLMMessages_StackCorrectness(t *testing.T) {
 func TestChat_RequestBudgetEnforcement(t *testing.T) {
 	log := logger.NewLogger()
 	calculator := llm_models.NewCalculator()
-	compaction := chat.NewDeleteOldStrategy("gpt-4", log)
 	budget := 0.0015 // Budget for two messages (each 0.001)
-	ch := chat.NewChat("gpt-4", "System: {{query}}", "query", log, calculator, compaction, 2048, budget)
+	ch := chat.NewChat("gpt-4", "System: {{query}}", "query", log, calculator, 2048, budget)
 	_ = ch.Begin("Hi", nil)
 
 	resp := types.LLMResponse{
@@ -258,89 +247,4 @@ func TestChat_RequestBudgetEnforcement(t *testing.T) {
 	// Add another message to exceed the budget
 	ch.AddAssistantMessage(resp)
 	assert.True(t, ch.ExceededRequestBudget(), "Should exceed budget after second message")
-}
-
-func TestChat_OrphanedToolCallDetection(t *testing.T) {
-	log := logger.NewLogger()
-	calculator := llm_models.NewCalculator()
-	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
-	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
-	_ = ch.Begin("Hi", nil)
-
-	// Add a tool call but do NOT add a tool result (simulate error between call and result)
-	toolCall := llms.ToolCall{
-		ID:   "orphan-tool-1",
-		Type: "function",
-		FunctionCall: &llms.FunctionCall{
-			Name:      "echo",
-			Arguments: `{"msg":"hello"}`,
-		},
-	}
-	callReq, err := types.NewCallToolRequest(toolCall)
-	assert.NoError(t, err)
-	ch.AddToolCall(callReq)
-
-	msgs := ch.GetLLMMessages()
-
-	// Use the same validation as the agent
-	var validateToolCallResponses = func(messages []llms.MessageContent, logger types.LoggerSpec) error {
-		toolCallIDs := map[string]struct{}{}
-		toolResponseIDs := map[string]struct{}{}
-		for _, msg := range messages {
-			for _, part := range msg.Parts {
-				if tc, ok := part.(llms.ToolCall); ok {
-					toolCallIDs[tc.ID] = struct{}{}
-				}
-				if tr, ok := part.(llms.ToolCallResponse); ok {
-					toolResponseIDs[tr.ToolCallID] = struct{}{}
-				}
-			}
-		}
-		for id := range toolCallIDs {
-			if _, ok := toolResponseIDs[id]; !ok {
-				logger.Warnf("Orphaned tool_call: %s", id)
-				return fmt.Errorf("Orphaned tool_call: %s", id)
-			}
-		}
-		return nil
-	}
-
-	err = validateToolCallResponses(msgs, log)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Orphaned tool_call: orphan-tool-1")
-}
-
-func TestChat_TotalTokensAndCost_NeverDecreaseOnCompaction(t *testing.T) {
-	log := logger.NewLogger()
-	calculator := llm_models.NewCalculator()
-	maxTokens := 20 // Low limit to force compaction quickly
-	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
-	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, maxTokens, 0.0)
-	_ = ch.Begin("Hi", nil)
-
-	resp := types.LLMResponse{
-		Text: "0123456789", // 10 chars, ~2 tokens
-		Metadata: types.LLMResponseMetadata{
-			Tokens: types.LLMResponseTokensMetadata{
-				PromptTokens:     2,
-				CompletionTokens: 2,
-				TotalTokens:      4,
-			},
-			Cost: 0.001,
-		},
-	}
-
-	totalTokensPrev := ch.GetInfo().TotalTokens
-	totalCostPrev := ch.GetInfo().TotalCost
-
-	// Add enough messages to exceed maxTokens and trigger compaction
-	for i := 0; i < 10; i++ {
-		ch.AddAssistantMessage(resp)
-		info := ch.GetInfo()
-		// Save previous values for next iteration
-		assert.GreaterOrEqual(t, info.TotalTokens, totalTokensPrev, "TotalTokens decreased after compaction!")
-		assert.GreaterOrEqual(t, info.TotalCost, totalCostPrev, "TotalCost decreased after compaction!")
-		totalTokensPrev = info.TotalTokens
-		totalCostPrev = info.TotalCost
-	}
 }

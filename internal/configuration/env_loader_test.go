@@ -107,7 +107,6 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		os.Setenv("SPL_LLM_RETRY_BACKOFF_MULTIPLIER", "3.0")
 		os.Setenv("SPL_CHAT_MAX_ITERATIONS", "50")
 		os.Setenv("SPL_CHAT_MAX_TOKENS", "2000")
-		os.Setenv("SPL_CHAT_COMPACTION_STRATEGY", "delete-middle")
 
 		loader := NewEnvLoader()
 		config, err := loader.LoadConfiguration()
@@ -130,7 +129,6 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		assert.Equal(t, 3.0, config.Agent.LLM.Retry.BackoffMultiplier)
 		assert.Equal(t, 50, config.Agent.Chat.MaxLLMIterations)
 		assert.Equal(t, 2000, config.Agent.Chat.MaxTokens)
-		assert.Equal(t, "delete-middle", config.Agent.Chat.CompactionStrategy)
 	})
 
 	// Test scenario: MCP Server configuration

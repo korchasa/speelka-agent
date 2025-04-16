@@ -41,7 +41,6 @@ func (l *DefaultLoader) LoadConfiguration() (*types.Configuration, error) {
 
 	// Set default values for Chat configuration
 	config.Agent.Chat.MaxTokens = 8192
-	config.Agent.Chat.CompactionStrategy = "delete-old"
 	config.Agent.Chat.MaxLLMIterations = 100
 	config.Agent.Chat.RequestBudget = 1.0
 

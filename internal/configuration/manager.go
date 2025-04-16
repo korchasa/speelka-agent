@@ -235,7 +235,6 @@ func (cm *Manager) GetAgentConfig() types.AgentConfig {
 		Model:                cm.config.Agent.LLM.Model,
 		SystemPromptTemplate: cm.config.Agent.LLM.PromptTemplate,
 		MaxTokens:            cm.config.Agent.Chat.MaxTokens,
-		CompactionStrategy:   cm.config.Agent.Chat.CompactionStrategy,
 		MaxLLMIterations:     cm.config.Agent.Chat.MaxLLMIterations,
 	}
 

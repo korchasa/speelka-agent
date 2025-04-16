@@ -301,9 +301,8 @@ func TestConfiguration_Apply(t *testing.T) {
 				ArgumentDescription: "Base query description",
 			},
 			Chat: AgentChatConfig{
-				MaxTokens:          2000,
-				CompactionStrategy: "delete-old",
-				MaxLLMIterations:   10,
+				MaxTokens:        2000,
+				MaxLLMIterations: 10,
 			},
 			LLM: AgentLLMConfig{
 				Provider:       "openai",
@@ -366,7 +365,6 @@ func TestConfiguration_Apply(t *testing.T) {
 			},
 			Chat: AgentChatConfig{
 				MaxTokens: 2500,
-				// CompactionStrategy not specified, should keep delete-old
 				// MaxLLMIterations not specified, should keep 10
 			},
 			LLM: AgentLLMConfig{
@@ -457,7 +455,6 @@ func TestConfiguration_Apply(t *testing.T) {
 
 	// Verify Chat values
 	assert.Equal(t, 2500, baseConfig.Agent.Chat.MaxTokens)
-	assert.Equal(t, "delete-old", baseConfig.Agent.Chat.CompactionStrategy)
 	assert.Equal(t, 10, baseConfig.Agent.Chat.MaxLLMIterations)
 
 	// Verify LLM Retry values

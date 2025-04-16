@@ -53,7 +53,6 @@ func TestDefaultLoader_LoadConfiguration(t *testing.T) {
 
 	// Verify default Chat values
 	assert.Equal(t, 8192, config.Agent.Chat.MaxTokens)
-	assert.Equal(t, "delete-old", config.Agent.Chat.CompactionStrategy)
 	assert.Equal(t, 100, config.Agent.Chat.MaxLLMIterations)
 	assert.Equal(t, 1.0, config.Agent.Chat.RequestBudget)
 

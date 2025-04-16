@@ -2,9 +2,8 @@
 
 ## Core Components
 - **Agent**: Orchestrates request lifecycle, tool exec, state, logs tool calls as `>> Execute tool toolName(args)`
-- **Chat**: Manages history, token/cost, compaction; config immutable (constructor only); all state in `chatInfo` struct; supports multiple compaction strategies; token/cost tracked via LLMResponse, fallback estimation if needed. **TotalTokens** and **TotalCost** are cumulative (monotonically increasing) and never decrease, regardless of compaction. Compaction only affects the message stack/context, not cumulative accounting.
+- **Chat**: Manages history, token/cost; config immutable (constructor only); all state in `chatInfo` struct; token/cost tracked via LLMResponse, fallback estimation if needed. **TotalTokens** and **TotalCost** are cumulative (monotonically increasing) and never decrease. Chat history is not compacted or compressed.
 - **TokenCounter**: Approximates tokens (4 chars ≈ 1 token), type-specific, fallback for unknowns
-- **Compaction**: Pluggable strategies (DeleteOld, DeleteMiddle, PartialSummary, NoCompaction); preserves system prompt, context; auto-triggers on token limit
 - **Config Manager**: Loads/validates config (YAML, JSON, env), type-safe, strict validation, only `Apply` parses log/output
 - **LLM Service**: Integrates OpenAI/Anthropic, returns `LLMResponse` (text, tool calls, token/cost, duration), retry/backoff logic
 - **MCP Server**: HTTP/stdio, routes requests, SSE for real-time
@@ -34,7 +33,6 @@ agent:
     argument_description: "The user query to process"
   chat:
     max_tokens: 0
-    compaction_strategy: "delete-old"
     max_llm_iterations: 25
     request_budget: 0.0
   llm:
@@ -53,21 +51,11 @@ agent:
         args: ["/path/to/directory"]
 ```
 
-## Compaction Strategies
-| Strategy        | Preserves         | Removes         | Use Case                |
-|-----------------|------------------|-----------------|-------------------------|
-| DeleteOld       | System prompt, recent | Oldest first   | General, recent context |
-| DeleteMiddle    | System, first/last N | Middle         | Early/recent context    |
-| PartialSummary  | System, recent    | Middle (summary)| LLM summary (future)    |
-| NoCompaction    | All               | None            | Small context           |
-
-> **Note:** Compaction only affects the message stack/context. It does **not** decrease or reset `TotalTokens` or `TotalCost`, which are always cumulative for the session.
-
 ## Token Counting
 - 4 chars ≈ 1 token (fallback)
 - Type-specific for text/tool calls
 - Overhead for message format
-- **TotalTokens** and **TotalCost** are cumulative for the session and never decrease, even if compaction removes messages from the stack.
+- **TotalTokens** and **TotalCost** are cumulative for the session and never decrease.
 
 ## Request Processing
 1. Receive (HTTP/stdio)
@@ -90,7 +78,7 @@ agent:
 - **Orphaned tool_call auto-cleanup:** If a tool_call is found in the message stack without a matching tool result (e.g., due to error or interruption), it is now automatically removed from the stack and a warning is logged. This prevents protocol errors and improves robustness.
 
 ## Test Coverage
-- Chat: All `chatInfo` fields, compaction, token/cost/approximation, edge cases
+- Chat: All `chatInfo` fields, token/cost/approximation, edge cases
 - LLM Service: All `LLMResponse` fields, mock LLM, logger
 - Config: Defaults, overrides, validation, transport
 - E2E: Agent, transport, tools, token/cost
