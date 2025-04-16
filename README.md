@@ -25,6 +25,11 @@ flowchart TB
 - **MCP-Aware Logging**: Structured logging with MCP notifications
 - **Token Management**: Automatic token counting and history compaction
 - **Flexible Configuration**: Support for environment variables, YAML, and JSON configuration files
+- **LLMService.SendRequest** now returns an `LLMResponse` struct with:
+  - Response text
+  - List of tool calls
+  - CompletionTokens, PromptTokens, ReasoningTokens, TotalTokens (token usage)
+- **Interface**: `SendRequest(ctx, messages, tools) (LLMResponse, error)`
 
 ## Getting Started
 
@@ -49,10 +54,9 @@ Configuration can be provided using YAML, JSON, or environment variables.
 > **Note:** The `./examples` directory is deprecated and will be removed in a future version. Please use the examples in the `./site/examples` directory instead.
 
 Example configuration files are available in the `site/examples` directory:
-- `site/examples/simple.yaml`: Basic agent configuration in YAML format (preferred)
-- `site/examples/ai-news.yaml`: AI news agent configuration in YAML format (preferred)
-- `site/examples/simple.json`: Basic agent configuration in JSON format
-- `site/examples/simple.env`: Basic agent configuration as environment variables
+- `site/examples/minimal.yaml`: Basic agent configuration in YAML format
+- `site/examples/ai-news.yaml`: AI news agent configuration in YAML format
+- `site/examples/architect.yaml`: Architect agent configuration in YAML format
 
 Here's a simple YAML configuration example:
 
@@ -76,16 +80,28 @@ agent:
     temperature: 0.7
     prompt_template: "You are a helpful AI assistant. Respond to the following request: {{input}}. Provide a detailed and helpful response. Available tools: {{tools}}"
 
+  # Chat configuration
+  chat:
+    max_tokens: 0
+    compaction_strategy: "delete-old"
+    max_llm_iterations: 25
+    request_budget: 0.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
+
   # MCP Server connections
   connections:
     mcpServers:
       time:
         command: "docker"
         args: ["run", "-i", "--rm", "mcp/time"]
+        includeTools:
+          - now
+          - utc
 
       filesystem:
         command: "mcp-filesystem-server"
         args: ["/path/to/directory"]
+        excludeTools:
+          - delete
 
 # Runtime configuration
 runtime:
@@ -119,9 +135,10 @@ All environment variables are prefixed with `SPL_`:
 | `SPL_LLM_TEMPERATURE`               | 0.7           | Temperature parameter for randomness in generation                                                                 |
 | `SPL_LLM_PROMPT_TEMPLATE`           | *Required*    | Template for system prompts (must include placeholder matching the `SPL_TOOL_ARGUMENT_NAME` value and `{{tools}}`) |
 | **Chat Configuration**              |               |                                                                                                                    |
-| `SPL_CHAT_MAX_ITERATIONS`           | 25            | Maximum number of LLM iterations                                                                                   |
+| `SPL_CHAT_MAX_ITERATIONS`           | 100           | Maximum number of LLM iterations                                                                                   |
 | `SPL_CHAT_MAX_TOKENS`               | 0             | Maximum tokens in chat history (0 means based on model)                                                            |
 | `SPL_CHAT_COMPACTION_STRATEGY`      | "delete-old"  | Strategy for compacting chat history ("delete-old", "delete-middle")                                               |
+| `SPL_CHAT_REQUEST_BUDGET`           | 1.0           | Maximum cost (USD or token-equivalent) per request (0 = unlimited)                                                 |
 | **LLM Retry Configuration**         |               |                                                                                                                    |
 | `SPL_LLM_RETRY_MAX_RETRIES`         | 3             | Maximum number of retry attempts for LLM API calls                                                                 |
 | `SPL_LLM_RETRY_INITIAL_BACKOFF`     | 1.0           | Initial backoff time in seconds                                                                                    |
@@ -265,3 +282,29 @@ See [Command Reference](documents/knowledge.md#command-reference) for more optio
 ## License
 
 [MIT License](LICENSE)
+
+### MCP Server Tool Filtering
+
+You can control which tools are exported from each MCP server using the following options in the `mcpServers` section:
+
+- `includeTools`: (optional) List of tool names to include. Only these tools will be available from the server.
+- `excludeTools`: (optional) List of tool names to exclude. These tools will not be available from the server.
+- If both are set, `includeTools` is applied first, then `excludeTools`.
+- Tool names are case-sensitive.
+
+Example:
+```yaml
+connections:
+  mcpServers:
+    time:
+      command: "docker"
+      args: ["run", "-i", "--rm", "mcp/time"]
+      includeTools:
+        - now
+        - utc
+    filesystem:
+      command: "mcp-filesystem-server"
+      args: ["/path/to/directory"]
+      excludeTools:
+        - delete
+```

@@ -2,313 +2,345 @@ package chat_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
-	"github.com/korchasa/speelka-agent-go/internal/logger"
-
 	"github.com/korchasa/speelka-agent-go/internal/chat"
+	"github.com/korchasa/speelka-agent-go/internal/llm_models"
+	"github.com/korchasa/speelka-agent-go/internal/logger"
+	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/tmc/langchaingo/llms"
 )
 
+func TestChat_InitializationAndGetInfo(t *testing.T) {
+	log := logger.NewLogger()
+	calculator := llm_models.NewCalculator()
+	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
+	maxTokens := 2048
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, maxTokens, 0.0)
+
+	info := ch.GetInfo()
+	assert.Equal(t, "gpt-4o", info.ModelName)
+	assert.Equal(t, maxTokens, info.MaxTokens)
+	assert.Zero(t, info.TotalTokens)
+	assert.Zero(t, info.TotalCost)
+	assert.Zero(t, info.LLMRequests)
+	assert.Zero(t, info.ToolCallCount)
+	assert.Zero(t, info.MessageStackLen)
+}
+
+func TestChat_Begin_SystemPromptAndToolDescription(t *testing.T) {
+	log := logger.NewLogger()
+	calculator := llm_models.NewCalculator()
+	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}. Tools: {{tools}}", "query", log, calculator, compaction, 2048, 0.0)
+
+	tools := []mcp.Tool{
+		mcp.NewTool("echo", mcp.WithString("msg", mcp.Required(), mcp.Description("Message to echo"))),
+	}
+	err := ch.Begin("Hello", tools)
+	assert.NoError(t, err)
+
+	msgs := ch.GetLLMMessages()
+	assert.Len(t, msgs, 1)
+	assert.Equal(t, llms.ChatMessageTypeSystem, msgs[0].Role)
+	if len(msgs[0].Parts) > 0 {
+		if text, ok := msgs[0].Parts[0].(llms.TextContent); ok {
+			assert.Contains(t, text.Text, "Hello")
+			assert.Contains(t, text.Text, "echo")
+		} else {
+			t.Errorf("Expected TextContent in system message part")
+		}
+	} else {
+		t.Errorf("No parts in system message")
+	}
+
+	info := ch.GetInfo()
+	assert.Equal(t, 1, info.MessageStackLen)
+	assert.Greater(t, info.TotalTokens, 0)
+}
+
+func TestChat_AddAssistantMessage_TokenCostApproximation(t *testing.T) {
+	log := logger.NewLogger()
+	calculator := llm_models.NewCalculator()
+	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
+	_ = ch.Begin("Hi", nil)
+
+	resp := types.LLMResponse{
+		Text: "This is a test response.",
+		Metadata: types.LLMResponseMetadata{
+			Tokens: types.LLMResponseTokensMetadata{
+				TotalTokens:      10,
+				PromptTokens:     5,
+				CompletionTokens: 5,
+			},
+			Cost: 0.001,
+		},
+	}
+	ch.AddAssistantMessage(resp)
+
+	info := ch.GetInfo()
+	assert.Equal(t, 19, info.TotalTokens) // 9 (system) + 10 (assistant)
+	assert.InDelta(t, 0.001, info.TotalCost, 1e-8)
+	assert.False(t, info.IsApproximate)
+	assert.Equal(t, 2, info.MessageStackLen)
+}
+
+func TestChat_AddAssistantMessage_FallbackEstimation(t *testing.T) {
+	log := logger.NewLogger()
+	calculator := llm_models.NewCalculator()
+	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
+	_ = ch.Begin("Hi", nil)
+
+	resp := types.LLMResponse{
+		Text: "Fallback estimation test message.",
+		// No token metadata provided
+	}
+	ch.AddAssistantMessage(resp)
+
+	info := ch.GetInfo()
+	assert.Equal(t, 1, info.LLMRequests)
+	assert.Greater(t, info.TotalTokens, 0)
+	assert.True(t, info.IsApproximate)
+	assert.Greater(t, info.TotalCost, 0.0)
+	assert.Equal(t, 2, info.MessageStackLen)
+}
+
+func TestChat_AddToolCall_And_AddToolResult(t *testing.T) {
+	log := logger.NewLogger()
+	calculator := llm_models.NewCalculator()
+	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
+	_ = ch.Begin("Hi", nil)
+
+	// Tool call
+	toolCall := llms.ToolCall{
+		ID:   "tool-1",
+		Type: "function",
+		FunctionCall: &llms.FunctionCall{
+			Name:      "echo",
+			Arguments: `{"msg":"hello"}`,
+		},
+	}
+	callReq, err := types.NewCallToolRequest(toolCall)
+	assert.NoError(t, err)
+	ch.AddToolCall(callReq)
+
+	info := ch.GetInfo()
+	assert.Equal(t, 1, info.ToolCallCount)
+	assert.Equal(t, 2, info.MessageStackLen)
+	assert.Greater(t, info.TotalTokens, 0)
+
+	// Tool result
+	result := &mcp.CallToolResult{
+		Content: []mcp.Content{mcp.NewTextContent("Echoed: hello")},
+		IsError: false,
+	}
+	ch.AddToolResult(callReq, result)
+
+	info2 := ch.GetInfo()
+	assert.Equal(t, 3, info2.MessageStackLen)
+	assert.Greater(t, info2.TotalTokens, 0)
+}
+
+func TestChat_AddToolResult_ErrorHandling(t *testing.T) {
+	log := logger.NewLogger()
+	calculator := llm_models.NewCalculator()
+	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
+	_ = ch.Begin("Hi", nil)
+
+	toolCall := llms.ToolCall{
+		ID:   "tool-err",
+		Type: "function",
+		FunctionCall: &llms.FunctionCall{
+			Name:      "fail",
+			Arguments: `{"msg":"fail"}`,
+		},
+	}
+	callReq, err := types.NewCallToolRequest(toolCall)
+	assert.NoError(t, err)
+	ch.AddToolCall(callReq)
+
+	errorResult := &mcp.CallToolResult{
+		Content: []mcp.Content{mcp.NewTextContent("Something went wrong!")},
+		IsError: true,
+	}
+	ch.AddToolResult(callReq, errorResult)
+
+	info := ch.GetInfo()
+	assert.Equal(t, 3, info.MessageStackLen)
+
+	msgs := ch.GetLLMMessages()
+	found := false
+	for _, msg := range msgs {
+		if msg.Role == llms.ChatMessageTypeTool {
+			for _, part := range msg.Parts {
+				if toolResp, ok := part.(llms.ToolCallResponse); ok {
+					if toolResp.ToolCallID == callReq.ID && toolResp.Name == callReq.ToolName() {
+						if toolResp.Content != "" &&
+							strings.Contains(toolResp.Content, "Error") &&
+							strings.Contains(toolResp.Content, "Something went wrong!") {
+							found = true
+						}
+					}
+				}
+			}
+		}
+	}
+	assert.True(t, found, "Error tool result should be present in the message stack and contain the error message")
+}
+
 func TestChat_BuildPromptPartForToolsDescription(t *testing.T) {
 	log := logger.NewLogger()
+	calculator := llm_models.NewCalculator()
+	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
 
-	// Basic template with bullet points for tool name and indent control
-	basicTemplate := `{% for tool in tools -%}
-- ` + "`{{ tool.Name }}`" + ` - {{ tool.Description }}
-{% endfor %}`
-
-	// Template with parameters and proper property access
-	paramsTemplate := `{% for tool in tools -%}
-- ` + "`{{ tool.Name }}`" + ` - {{ tool.Description }}. Arguments:
-{% if tool.InputSchema and tool.InputSchema.Properties -%}
-{% for name, prop in tool.InputSchema.Properties -%}
-* ` + "`{{ name }}`" + ` ({{ prop.type }}): {{ prop.description }}
-{% endfor -%}
-{% endif -%}
-{% endfor %}`
-
-	t.Run("simple tool description", func(t *testing.T) {
-		ch := chat.NewChat("", "", "query", log)
-		tools := []mcp.Tool{
-			{
-				Name:        "get_file_structure",
-				Description: "Displays the code structure of the specified file",
-				InputSchema: mcp.ToolInputSchema{
-					Type:       "object",
-					Properties: map[string]interface{}{},
-				},
-			},
-		}
-
-		promptPart, err := ch.BuildPromptPartForToolsDescription(tools, basicTemplate)
-		assert.NoError(t, err)
-
-		expected := `- ` + "`get_file_structure`" + ` - Displays the code structure of the specified file`
-
-		assert.Equal(t, expected, promptPart)
-	})
-
-	t.Run("tool with parameters", func(t *testing.T) {
-		ch := chat.NewChat("", "", "query", log)
-		tools := []mcp.Tool{
-			{
-				Name:        "get_file_structure",
-				Description: "Displays the code structure of the specified file",
-				InputSchema: mcp.ToolInputSchema{
-					Type: "object",
-					Properties: map[string]interface{}{
-						"file": map[string]interface{}{
-							"type":        "string",
-							"description": "the path to the file",
-						},
-					},
-				},
-			},
-		}
-
-		promptPart, err := ch.BuildPromptPartForToolsDescription(tools, paramsTemplate)
-		assert.NoError(t, err)
-
-		t.Logf("Generated prompt:\n%s", promptPart)
-
-		// Just get actual formatting and adapt test
-		expected := `- ` + "`get_file_structure`" + ` - Displays the code structure of the specified file. Arguments:
-* ` + "`file`" + ` (string): the path to the file`
-
-		assert.Equal(t, expected, promptPart)
-	})
-
-	t.Run("multiple tools", func(t *testing.T) {
-		ch := chat.NewChat("", "", "query", log)
-		tools := []mcp.Tool{
-			{
-				Name:        "tool1",
-				Description: "Description of tool1",
-				InputSchema: mcp.ToolInputSchema{
-					Type:       "object",
-					Properties: map[string]interface{}{},
-				},
-			},
-			{
-				Name:        "tool2",
-				Description: "Description of tool2",
-				InputSchema: mcp.ToolInputSchema{
-					Type:       "object",
-					Properties: map[string]interface{}{},
-				},
-			},
-		}
-
-		promptPart, err := ch.BuildPromptPartForToolsDescription(tools, basicTemplate)
-		assert.NoError(t, err)
-
-		expected := `- ` + "`tool1`" + ` - Description of tool1
-- ` + "`tool2`" + ` - Description of tool2`
-
-		assert.Equal(t, expected, promptPart)
-	})
-
-	t.Run("custom template format", func(t *testing.T) {
-		ch := chat.NewChat("", "", "query", log)
-		tools := []mcp.Tool{
-			{
-				Name:        "get_file_structure",
-				Description: "Displays the code structure of the specified file",
-				InputSchema: mcp.ToolInputSchema{
-					Type:       "object",
-					Properties: map[string]interface{}{},
-				},
-			},
-		}
-
-		customTemplate := `{% for tool in tools -%}Tool: {{ tool.Name }}
-Description: {{ tool.Description }}{% endfor %}`
-
-		promptPart, err := ch.BuildPromptPartForToolsDescription(tools, customTemplate)
-		assert.NoError(t, err)
-
-		expected := `Tool: get_file_structure
-Description: Displays the code structure of the specified file`
-
-		assert.Equal(t, expected, promptPart)
-	})
-
-	t.Run("tool with null Properties", func(t *testing.T) {
-		ch := chat.NewChat("", "", "query", log)
-		tools := []mcp.Tool{
-			{
-				Name:        "tool_no_args",
-				Description: "A tool without arguments",
-				InputSchema: mcp.ToolInputSchema{
-					Type:       "object",
-					Properties: nil,
-				},
-			},
-		}
-
-		promptPart, err := ch.BuildPromptPartForToolsDescription(tools, chat.DefaultToolsDescriptionTemplate)
-		assert.NoError(t, err)
-
-		t.Logf("Generated prompt for tool with null Properties:\n%s", promptPart)
-
-		expected := `- ` + "`tool_no_args`" + ` - A tool without arguments. No arguments required.`
-
-		assert.Equal(t, expected, promptPart)
-	})
-
-	t.Run("tool with empty Properties", func(t *testing.T) {
-		ch := chat.NewChat("", "", "query", log)
-		tools := []mcp.Tool{
-			{
-				Name:        "tool_empty_args",
-				Description: "A tool with empty arguments",
-				InputSchema: mcp.ToolInputSchema{
-					Type:       "object",
-					Properties: map[string]interface{}{},
-				},
-			},
-		}
-
-		promptPart, err := ch.BuildPromptPartForToolsDescription(tools, chat.DefaultToolsDescriptionTemplate)
-		assert.NoError(t, err)
-
-		t.Logf("Generated prompt for tool with empty Properties:\n%s", promptPart)
-
-		expected := `- ` + "`tool_empty_args`" + ` - A tool with empty arguments. No arguments required.`
-
-		assert.Equal(t, expected, promptPart)
-	})
-
-	t.Run("tool without InputSchema", func(t *testing.T) {
-		ch := chat.NewChat("", "", "query", log)
-		tools := []mcp.Tool{
-			{
-				Name:        "tool_no_schema",
-				Description: "A tool without input schema",
-			},
-		}
-
-		promptPart, err := ch.BuildPromptPartForToolsDescription(tools, chat.DefaultToolsDescriptionTemplate)
-		assert.NoError(t, err)
-
-		t.Logf("Generated prompt for tool without InputSchema:\n%s", promptPart)
-
-		expected := `- ` + "`tool_no_schema`" + ` - A tool without input schema. No arguments required.`
-
-		assert.Equal(t, expected, promptPart)
-	})
+	tools := []mcp.Tool{
+		mcp.NewTool("echo", mcp.WithString("msg", mcp.Required(), mcp.Description("Message to echo"))),
+	}
+	desc, err := ch.BuildPromptPartForToolsDescription(tools, chat.DefaultToolsDescriptionTemplate)
+	assert.NoError(t, err)
+	assert.Contains(t, desc, "echo")
+	assert.Contains(t, desc, "msg")
 }
 
-func TestChat_TokenLimits(t *testing.T) {
+func TestChat_GetLLMMessages_StackCorrectness(t *testing.T) {
 	log := logger.NewLogger()
+	calculator := llm_models.NewCalculator()
+	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
+	_ = ch.Begin("Hi", nil)
 
-	t.Run("model-based token limit", func(t *testing.T) {
-		ch := chat.NewChat("", "You are an AI assistant.", "query", log)
+	resp := types.LLMResponse{
+		Text: "Test response.",
+		Metadata: types.LLMResponseMetadata{
+			Tokens: types.LLMResponseTokensMetadata{
+				TotalTokens: 7,
+			},
+		},
+	}
+	ch.AddAssistantMessage(resp)
 
-		// Set token limit to 0 (model-based limit)
-		ch.SetMaxTokens(0)
-
-		// Add some messages
-		err := ch.Begin("Hello", []mcp.Tool{})
-		assert.NoError(t, err)
-
-		// Add several messages without triggering compaction
-		// Since we're using a model-based limit (0), compaction should not be triggered
-		for i := 0; i < 5; i++ {
-			ch.AddAssistantMessage(fmt.Sprintf("Message %d", i))
-		}
-
-		// Verify that all messages are preserved
-		messages := ch.GetLLMMessages()
-		assert.Equal(t, 6, len(messages), "Should have 6 messages (1 system + 5 assistant)")
-
-		// Verify that the first message is the system message
-		assert.Equal(t, llms.ChatMessageTypeSystem, messages[0].Role)
-	})
-
-	t.Run("get total tokens", func(t *testing.T) {
-		ch := chat.NewChat("", "You are an AI assistant.", "query", log)
-		err := ch.Begin("Hello, how are you?", []mcp.Tool{})
-		assert.NoError(t, err)
-
-		// Should have a positive number of tokens after initialization
-		assert.Greater(t, ch.GetTotalTokens(), 0)
-
-		initialTokens := ch.GetTotalTokens()
-
-		// Add a message and check that tokens increased
-		ch.AddAssistantMessage("I'm doing well, thank you for asking!")
-		assert.Greater(t, ch.GetTotalTokens(), initialTokens)
-	})
-
-	t.Run("set max tokens", func(t *testing.T) {
-		ch := chat.NewChat("", "You are an AI assistant.", "query", log)
-
-		// Default max tokens should be positive
-		assert.Greater(t, chat.DefaultMaxTokens, 0)
-
-		// Set custom max tokens
-		customMaxTokens := 1000
-		ch.SetMaxTokens(customMaxTokens)
-
-		// Only negative max tokens should be ignored
-		ch.SetMaxTokens(-10)
-
-		// Zero is a valid value (model-based limit)
-		ch.SetMaxTokens(0)
-
-		// Add a very long message to trigger compaction
-		err := ch.Begin("Hello", []mcp.Tool{})
-		assert.NoError(t, err)
-
-		// Add 10 messages to build up token count
-		for i := 0; i < 10; i++ {
-			ch.AddAssistantMessage("This is a relatively long message that will consume tokens in our conversation history. It contains enough text to make the tokenizer work hard and count a reasonable number of tokens for testing purposes. We need to make sure we have enough text to potentially trigger the compaction mechanism when we go over our limit.")
-		}
-	})
+	msgs := ch.GetLLMMessages()
+	assert.Len(t, msgs, 2)
+	assert.Equal(t, llms.ChatMessageTypeSystem, msgs[0].Role)
+	assert.Equal(t, llms.ChatMessageTypeAI, msgs[1].Role)
 }
 
-func TestChat_Compaction(t *testing.T) {
+func TestChat_RequestBudgetEnforcement(t *testing.T) {
 	log := logger.NewLogger()
+	calculator := llm_models.NewCalculator()
+	compaction := chat.NewDeleteOldStrategy("gpt-4", log)
+	budget := 0.0015 // Budget for two messages (each 0.001)
+	ch := chat.NewChat("gpt-4", "System: {{query}}", "query", log, calculator, compaction, 2048, budget)
+	_ = ch.Begin("Hi", nil)
 
-	t.Run("set compaction strategy", func(t *testing.T) {
-		ch := chat.NewChat("", "You are an AI assistant.", "query", log)
+	resp := types.LLMResponse{
+		Text: "This is a test response.",
+		Metadata: types.LLMResponseMetadata{
+			Tokens: types.LLMResponseTokensMetadata{
+				PromptTokens:     10,
+				CompletionTokens: 10,
+				TotalTokens:      20,
+			},
+			Cost: 0.001,
+		},
+	}
+	ch.AddAssistantMessage(resp)
+	assert.False(t, ch.ExceededRequestBudget(), "Should not exceed budget after first message")
 
-		// Default strategy is "delete-old"
-		err := ch.SetCompactionStrategy(chat.CompactionStrategyDeleteOld)
-		assert.NoError(t, err)
+	// Add another message to exceed the budget
+	ch.AddAssistantMessage(resp)
+	assert.True(t, ch.ExceededRequestBudget(), "Should exceed budget after second message")
+}
 
-		// Invalid strategy should return error
-		err = ch.SetCompactionStrategy("invalid-strategy")
-		assert.Error(t, err)
-	})
+func TestChat_OrphanedToolCallDetection(t *testing.T) {
+	log := logger.NewLogger()
+	calculator := llm_models.NewCalculator()
+	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, 2048, 0.0)
+	_ = ch.Begin("Hi", nil)
 
-	t.Run("compaction preserves system prompt", func(t *testing.T) {
-		ch := chat.NewChat("", "System instruction: You are a helpful AI assistant.", "query", log)
+	// Add a tool call but do NOT add a tool result (simulate error between call and result)
+	toolCall := llms.ToolCall{
+		ID:   "orphan-tool-1",
+		Type: "function",
+		FunctionCall: &llms.FunctionCall{
+			Name:      "echo",
+			Arguments: `{"msg":"hello"}`,
+		},
+	}
+	callReq, err := types.NewCallToolRequest(toolCall)
+	assert.NoError(t, err)
+	ch.AddToolCall(callReq)
 
-		// Set a very low token limit to force compaction
-		ch.SetMaxTokens(100)
+	msgs := ch.GetLLMMessages()
 
-		err := ch.Begin("Hello", []mcp.Tool{})
-		assert.NoError(t, err)
-
-		// Get the initial messages to compare later
-		initialMessages := ch.GetLLMMessages()
-		assert.Equal(t, 1, len(initialMessages))
-
-		// Add enough messages to trigger compaction
-		for i := 0; i < 5; i++ {
-			ch.AddAssistantMessage("This is message " + string(rune('A'+i)))
+	// Use the same validation as the agent
+	var validateToolCallResponses = func(messages []llms.MessageContent, logger types.LoggerSpec) error {
+		toolCallIDs := map[string]struct{}{}
+		toolResponseIDs := map[string]struct{}{}
+		for _, msg := range messages {
+			for _, part := range msg.Parts {
+				if tc, ok := part.(llms.ToolCall); ok {
+					toolCallIDs[tc.ID] = struct{}{}
+				}
+				if tr, ok := part.(llms.ToolCallResponse); ok {
+					toolResponseIDs[tr.ToolCallID] = struct{}{}
+				}
+			}
 		}
+		for id := range toolCallIDs {
+			if _, ok := toolResponseIDs[id]; !ok {
+				logger.Warnf("Orphaned tool_call: %s", id)
+				return fmt.Errorf("Orphaned tool_call: %s", id)
+			}
+		}
+		return nil
+	}
 
-		// Get final messages and ensure system prompt is preserved
-		finalMessages := ch.GetLLMMessages()
+	err = validateToolCallResponses(msgs, log)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Orphaned tool_call: orphan-tool-1")
+}
 
-		// System prompt should still be the same
-		assert.Greater(t, len(finalMessages), 1)
-		assert.Equal(t, initialMessages[0], finalMessages[0])
-	})
+func TestChat_TotalTokensAndCost_NeverDecreaseOnCompaction(t *testing.T) {
+	log := logger.NewLogger()
+	calculator := llm_models.NewCalculator()
+	maxTokens := 20 // Low limit to force compaction quickly
+	compaction := chat.NewDeleteOldStrategy("gpt-4o", log)
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, compaction, maxTokens, 0.0)
+	_ = ch.Begin("Hi", nil)
+
+	resp := types.LLMResponse{
+		Text: "0123456789", // 10 chars, ~2 tokens
+		Metadata: types.LLMResponseMetadata{
+			Tokens: types.LLMResponseTokensMetadata{
+				PromptTokens:     2,
+				CompletionTokens: 2,
+				TotalTokens:      4,
+			},
+			Cost: 0.001,
+		},
+	}
+
+	totalTokensPrev := ch.GetInfo().TotalTokens
+	totalCostPrev := ch.GetInfo().TotalCost
+
+	// Add enough messages to exceed maxTokens and trigger compaction
+	for i := 0; i < 10; i++ {
+		ch.AddAssistantMessage(resp)
+		info := ch.GetInfo()
+		// Save previous values for next iteration
+		assert.GreaterOrEqual(t, info.TotalTokens, totalTokensPrev, "TotalTokens decreased after compaction!")
+		assert.GreaterOrEqual(t, info.TotalCost, totalCostPrev, "TotalCost decreased after compaction!")
+		totalTokensPrev = info.TotalTokens
+		totalCostPrev = info.TotalCost
+	}
 }

@@ -1,24 +1,30 @@
 # Remote Resources
 
 ## Core Dependencies
-- [MCP Protocol](https://github.com/modelcontextprotocol/docs) - Machine Cognition Protocol specification
-- [MCP-Go](https://github.com/mark3labs/mcp-go) - Go implementation of MCP
-- [LangChainGo](https://github.com/tmc/langchaingo) - Go client for LLM interaction
+- [MCP Protocol](https://github.com/modelcontextprotocol/docs)
+- [MCP-Go](https://github.com/mark3labs/mcp-go)
+- [LangChainGo](https://github.com/tmc/langchaingo)
 
 ## LLM Providers
-- [OpenAI API](https://platform.openai.com/docs/api-reference) - OpenAI API reference
-- [Anthropic API](https://docs.anthropic.com/claude/reference/getting-started-with-the-api) - Anthropic API reference
+- [OpenAI API](https://platform.openai.com/docs/api-reference)
+- [Anthropic API](https://docs.anthropic.com/claude/reference/getting-started-with-the-api)
 
-## Supporting Libraries
-- [Logrus](https://github.com/sirupsen/logrus) - Structured logging library for Go
-- [Tiktoken-go](https://github.com/pkoukk/tiktoken-go) - Go implementation of OpenAI's tiktoken
+## Libraries
+- [Logrus](https://github.com/sirupsen/logrus)
+- [Tiktoken-go](https://github.com/pkoukk/tiktoken-go)
 
-## Development Tools
-- [MCP Inspector](https://www.npmjs.com/package/@modelcontextprotocol/inspector) - Debug and inspect MCP communications
+## Dev Tools
+- [MCP Inspector](https://www.npmjs.com/package/@modelcontextprotocol/inspector)
 
 ## External MCP Tools
-- [MCP Filesystem Server](https://github.com/mark3labs/mcp-filesystem-server) - Provides filesystem operations via MCP
-- [MCP Playwright](https://github.com/executeautomation/mcp-playwright) - Browser automation via MCP
+- [MCP Filesystem Server](https://github.com/mark3labs/mcp-filesystem-server)
+- [MCP Playwright](https://github.com/executeautomation/mcp-playwright)
 
-## Docker Resources
-- [speelka-agent Docker Image](https://github.com/korchasa/speelka-agent-go/pkgs/container/speelka-agent) - Official Docker image
+## Docker
+- [speelka-agent Docker Image](https://github.com/korchasa/speelka-agent-go/pkgs/container/speelka-agent)
+
+## LLM Token Counting
+- Refer to official OpenAI and Anthropic documentation for token counting details.
+- Project uses exact token counts from LLM responses by default, with fallback to a centralized estimation utility if needed.
+
+// All links verified and updated as of 2025-04-15.

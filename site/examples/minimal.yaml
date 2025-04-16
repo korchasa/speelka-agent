@@ -6,7 +6,7 @@
 runtime:
   log:
     level: info
-    output: ./simple.log
+    output: stderr
 
 agent:
   name: "simple-speelka-agent"
@@ -22,7 +22,7 @@ agent:
   llm:
     provider: "openai"
     api_key: ""  # Set via environment variable SPL_LLM_API_KEY for security
-    model: "gpt-4o"
+    model: "gpt-4.1-mini"
     prompt_template: "You are a helpful AI assistant. Respond to the following request: {{input}}. Provide a detailed and helpful response. Available tools: {{tools}}"
 
   # MCP Server connections
@@ -33,4 +33,8 @@ agent:
         args: ["run", "-i", "--rm", "mcp/time"]
       filesystem:
         command: "mcp-filesystem-server"
-        args: ["/Users/korchasa/www/speelka/speelka-agent"]
+        args: ["./"]
+
+  # Chat configuration
+  chat:
+    request_budget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)

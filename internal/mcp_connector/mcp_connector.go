@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/korchasa/speelka-agent-go/internal/utils"
+
 	"github.com/korchasa/speelka-agent-go/internal/error_handling"
-	"github.com/korchasa/speelka-agent-go/internal/logger"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -51,7 +52,7 @@ func (mc *MCPConnector) InitAndConnectToMCPs(ctx context.Context) error {
 	// Connecting to all configured MCP servers
 	for serverID, srvCfg := range mc.config.McpServers {
 		mc.logger.Infof("Connecting to MCP server `%s`", serverID)
-		mc.logger.Debugf("Details: %s", logger.SDump(srvCfg))
+		mc.logger.Debugf("Details: %s", utils.SDump(srvCfg))
 		mcpClient, err := mc.ConnectServer(ctx, serverID, srvCfg)
 		if err != nil {
 			return error_handling.WrapError(
@@ -72,12 +73,44 @@ func (mc *MCPConnector) InitAndConnectToMCPs(ctx context.Context) error {
 		}
 		for _, tool := range toolsResp.Tools {
 			mc.logger.Infof("Tool `%s` found on server `%s`", tool.Name, serverID)
-			mc.logger.Debugf("Details: %s", logger.SDump(tool))
+			mc.logger.Debugf("Details: %s", utils.SDump(tool))
 		}
 		mc.logger.Infof("Received %d tools from server `%s`", len(toolsResp.Tools), serverID)
 
+		// Filter tools according to includeTools and excludeTools
+		filteredTools := toolsResp.Tools
+		mc.logger.Infof("Srv configs: %s", utils.SDump(srvCfg))
+		if len(srvCfg.IncludeTools) > 0 {
+			// Only include tools listed in IncludeTools
+			includeSet := make(map[string]struct{}, len(srvCfg.IncludeTools))
+			for _, name := range srvCfg.IncludeTools {
+				includeSet[name] = struct{}{}
+			}
+			tmp := make([]mcp.Tool, 0, len(filteredTools))
+			for _, tool := range filteredTools {
+				if _, ok := includeSet[tool.Name]; ok {
+					tmp = append(tmp, tool)
+				}
+			}
+			filteredTools = tmp
+		}
+		if len(srvCfg.ExcludeTools) > 0 {
+			// Exclude tools listed in ExcludeTools
+			excludeSet := make(map[string]struct{}, len(srvCfg.ExcludeTools))
+			for _, name := range srvCfg.ExcludeTools {
+				excludeSet[name] = struct{}{}
+			}
+			tmp := make([]mcp.Tool, 0, len(filteredTools))
+			for _, tool := range filteredTools {
+				if _, ok := excludeSet[tool.Name]; !ok {
+					tmp = append(tmp, tool)
+				}
+			}
+			filteredTools = tmp
+		}
 		mc.clients[serverID] = mcpClient
-		mc.tools[serverID] = toolsResp.Tools
+		mc.tools[serverID] = filteredTools
+		mc.logger.Infof("Connected to MCP server `%s` with %d tools after filtering", serverID, len(filteredTools))
 	}
 	mc.logger.Infof("Connected to %d MCP servers", len(mc.clients))
 	return nil

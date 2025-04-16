@@ -7,7 +7,7 @@
 runtime:
   log:
     level: info
-    output: ./architect.log
+    output: stdout
 
   # Transport configuration
   transports:
@@ -32,9 +32,8 @@ agent:
 
   # Chat configuration
   chat:
-    max_tokens: 0
-    compaction_strategy: delete-old
-    max_llm_iterations: 50
+    max_llm_iterations: 0
+    request_budget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
 
   # LLM configuration
   llm:

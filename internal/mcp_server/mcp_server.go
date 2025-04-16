@@ -7,7 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/korchasa/speelka-agent-go/internal/logger"
+	"github.com/korchasa/speelka-agent-go/internal/utils"
+
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -96,7 +97,7 @@ func (s *MCPServer) createAndInitMCPServer(handler server.ToolHandlerFunc) error
 		opts...,
 	)
 
-	s.logger.Infof("MCP server initialized with config: %s", logger.SDump(s.config))
+	s.logger.Debugf("MCP server initialized with config: %s", utils.SDump(s.config))
 
 	tool := mcp.NewTool(s.config.Tool.Name,
 		mcp.WithDescription(s.config.Tool.Description),

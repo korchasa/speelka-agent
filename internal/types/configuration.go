@@ -63,9 +63,10 @@ type ConfigAgent struct {
 
 // AgentChatConfig represents the chat configuration section
 type AgentChatConfig struct {
-	MaxTokens          int    `json:"max_tokens" yaml:"max_tokens"`
-	CompactionStrategy string `json:"compaction_strategy" yaml:"compaction_strategy"`
-	MaxLLMIterations   int    `json:"max_llm_iterations" yaml:"max_llm_iterations"`
+	MaxTokens          int     `json:"max_tokens" yaml:"max_tokens"`
+	CompactionStrategy string  `json:"compaction_strategy" yaml:"compaction_strategy"`
+	MaxLLMIterations   int     `json:"max_llm_iterations" yaml:"max_llm_iterations"`
+	RequestBudget      float64 `json:"request_budget" yaml:"request_budget"`
 }
 
 // AgentToolConfig represents the tool configuration section
@@ -339,11 +340,11 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 	if newConfig.Agent.LLM.APIKey != "" || c.Agent.LLM.APIKey == "" {
 		c.Agent.LLM.APIKey = newConfig.Agent.LLM.APIKey
 	}
-	if newConfig.Agent.LLM.MaxTokens != 0 || newConfig.Agent.LLM.IsMaxTokensSet {
+	if newConfig.Agent.LLM.IsMaxTokensSet {
 		c.Agent.LLM.MaxTokens = newConfig.Agent.LLM.MaxTokens
 		c.Agent.LLM.IsMaxTokensSet = true
 	}
-	if newConfig.Agent.LLM.Temperature != 0 || newConfig.Agent.LLM.IsTemperatureSet {
+	if newConfig.Agent.LLM.IsTemperatureSet {
 		c.Agent.LLM.Temperature = newConfig.Agent.LLM.Temperature
 		c.Agent.LLM.IsTemperatureSet = true
 	}
@@ -375,6 +376,9 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 	if newConfig.Agent.Chat.MaxLLMIterations != 0 {
 		c.Agent.Chat.MaxLLMIterations = newConfig.Agent.Chat.MaxLLMIterations
 	}
+	if newConfig.Agent.Chat.RequestBudget != 0 {
+		c.Agent.Chat.RequestBudget = newConfig.Agent.Chat.RequestBudget
+	}
 
 	// Apply Connections configuration if any MCP servers are defined
 	if len(newConfig.Agent.Connections.McpServers) > 0 {
@@ -384,8 +388,36 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 		}
 
 		// Merge MCP servers
-		for name, server := range newConfig.Agent.Connections.McpServers {
-			c.Agent.Connections.McpServers[name] = server
+		for name, newServer := range newConfig.Agent.Connections.McpServers {
+			oldServer, exists := c.Agent.Connections.McpServers[name]
+			if !exists {
+				c.Agent.Connections.McpServers[name] = newServer
+				continue
+			}
+
+			// Overlay fields for each server
+			if newServer.URL != "" {
+				oldServer.URL = newServer.URL
+			}
+			if newServer.APIKey != "" {
+				oldServer.APIKey = newServer.APIKey
+			}
+			if newServer.Command != "" {
+				oldServer.Command = newServer.Command
+			}
+			if len(newServer.Args) > 0 {
+				oldServer.Args = newServer.Args
+			}
+			if len(newServer.Environment) > 0 {
+				oldServer.Environment = newServer.Environment
+			}
+			if newServer.IncludeTools != nil {
+				oldServer.IncludeTools = newServer.IncludeTools
+			}
+			if newServer.ExcludeTools != nil {
+				oldServer.ExcludeTools = newServer.ExcludeTools
+			}
+			c.Agent.Connections.McpServers[name] = oldServer
 		}
 	}
 

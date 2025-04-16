@@ -544,6 +544,117 @@ func TestConfiguration_Apply(t *testing.T) {
 	assert.Equal(t, "env-api-key", baseConfigWithEmptyAPIKey.Agent.LLM.APIKey, "Environment variable should override empty config file value for APIKey")
 }
 
+func TestMCPServerConnection_ToolFilters(t *testing.T) {
+	t.Run("includeTools only", func(t *testing.T) {
+		cfg := MCPServerConnection{
+			IncludeTools: []string{"foo", "bar"},
+		}
+		assert.Equal(t, []string{"foo", "bar"}, cfg.IncludeTools)
+		assert.Nil(t, cfg.ExcludeTools)
+	})
+	t.Run("excludeTools only", func(t *testing.T) {
+		cfg := MCPServerConnection{
+			ExcludeTools: []string{"baz"},
+		}
+		assert.Nil(t, cfg.IncludeTools)
+		assert.Equal(t, []string{"baz"}, cfg.ExcludeTools)
+	})
+	t.Run("both includeTools and excludeTools", func(t *testing.T) {
+		cfg := MCPServerConnection{
+			IncludeTools: []string{"foo", "bar"},
+			ExcludeTools: []string{"bar"},
+		}
+		assert.Equal(t, []string{"foo", "bar"}, cfg.IncludeTools)
+		assert.Equal(t, []string{"bar"}, cfg.ExcludeTools)
+	})
+	t.Run("neither includeTools nor excludeTools", func(t *testing.T) {
+		cfg := MCPServerConnection{}
+		assert.Nil(t, cfg.IncludeTools)
+		assert.Nil(t, cfg.ExcludeTools)
+	})
+}
+
+func TestConfiguration_Apply_McpServerToolFilters(t *testing.T) {
+	base := &Configuration{
+		Agent: ConfigAgent{
+			Connections: AgentConnectionsConfig{
+				McpServers: map[string]MCPServerConnection{
+					"srv": {
+						IncludeTools: []string{"foo", "bar"},
+						ExcludeTools: nil,
+					},
+				},
+			},
+		},
+	}
+
+	// Overlay: only ExcludeTools
+	overlay1 := &Configuration{
+		Agent: ConfigAgent{
+			Connections: AgentConnectionsConfig{
+				McpServers: map[string]MCPServerConnection{
+					"srv": {
+						ExcludeTools: []string{"baz"},
+					},
+				},
+			},
+		},
+	}
+	base.Apply(overlay1)
+	assert.Equal(t, []string{"foo", "bar"}, base.Agent.Connections.McpServers["srv"].IncludeTools)
+	assert.Equal(t, []string{"baz"}, base.Agent.Connections.McpServers["srv"].ExcludeTools)
+
+	// Overlay: only IncludeTools (should overwrite)
+	overlay2 := &Configuration{
+		Agent: ConfigAgent{
+			Connections: AgentConnectionsConfig{
+				McpServers: map[string]MCPServerConnection{
+					"srv": {
+						IncludeTools: []string{"qux"},
+					},
+				},
+			},
+		},
+	}
+	base.Apply(overlay2)
+	assert.Equal(t, []string{"qux"}, base.Agent.Connections.McpServers["srv"].IncludeTools)
+	assert.Equal(t, []string{"baz"}, base.Agent.Connections.McpServers["srv"].ExcludeTools)
+
+	// Overlay: both IncludeTools and ExcludeTools (should overwrite both)
+	overlay3 := &Configuration{
+		Agent: ConfigAgent{
+			Connections: AgentConnectionsConfig{
+				McpServers: map[string]MCPServerConnection{
+					"srv": {
+						IncludeTools: []string{"a", "b"},
+						ExcludeTools: []string{"c"},
+					},
+				},
+			},
+		},
+	}
+	base.Apply(overlay3)
+	assert.Equal(t, []string{"a", "b"}, base.Agent.Connections.McpServers["srv"].IncludeTools)
+	assert.Equal(t, []string{"c"}, base.Agent.Connections.McpServers["srv"].ExcludeTools)
+
+	// Overlay: nil IncludeTools/ExcludeTools (should preserve previous values)
+	overlay4 := &Configuration{
+		Agent: ConfigAgent{
+			Connections: AgentConnectionsConfig{
+				McpServers: map[string]MCPServerConnection{
+					"srv": {
+						IncludeTools: nil,
+						ExcludeTools: nil,
+					},
+				},
+			},
+		},
+	}
+	base.Apply(overlay4)
+	assert.Equal(t, []string{"a", "b"}, base.Agent.Connections.McpServers["srv"].IncludeTools)
+	assert.Equal(t, []string{"c"}, base.Agent.Connections.McpServers["srv"].ExcludeTools)
+}
+
 /* These functions might be defined elsewhere or have been removed
 func TestLoadLevelFromName(t *testing.T) {
 	tests := []struct {

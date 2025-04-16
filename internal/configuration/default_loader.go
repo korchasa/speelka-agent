@@ -42,7 +42,8 @@ func (l *DefaultLoader) LoadConfiguration() (*types.Configuration, error) {
 	// Set default values for Chat configuration
 	config.Agent.Chat.MaxTokens = 8192
 	config.Agent.Chat.CompactionStrategy = "delete-old"
-	config.Agent.Chat.MaxLLMIterations = 25
+	config.Agent.Chat.MaxLLMIterations = 100
+	config.Agent.Chat.RequestBudget = 1.0
 
 	// Set default values for LLM configuration
 	config.Agent.LLM.Provider = "openai"
@@ -66,13 +67,4 @@ func (l *DefaultLoader) LoadConfiguration() (*types.Configuration, error) {
 	config.Agent.Connections.McpServers = make(map[string]types.MCPServerConnection)
 
 	return config, nil
-}
-
-// IsEmptyConfig checks if a configuration is empty (has no values set)
-func IsEmptyConfig(config *types.Configuration) bool {
-	return config == nil || (config.Agent.Name == "" &&
-		config.Agent.Tool.Name == "" &&
-		config.Agent.LLM.Provider == "" &&
-		len(config.Agent.Connections.McpServers) == 0 &&
-		config.Runtime.Log.RawLevel == "")
 }
