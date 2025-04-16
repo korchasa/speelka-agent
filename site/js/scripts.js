@@ -242,7 +242,7 @@ function initializeApp() {
         initAgentSelection();
 
         // Load example files
-        loadExampleFile('simple', 'yaml');
+        loadExampleFile('minimal', 'yaml');
         loadExampleFile('ai-news', 'yaml');
         loadExampleFile('architect', 'yaml');
     } catch (error) {
