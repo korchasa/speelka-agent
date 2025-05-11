@@ -264,3 +264,59 @@ func (a *Agent) handleLLMAnswerToolRequest(call types.CallToolRequest, resp type
 	a.logger.Infof("Chat ended by LLM with message: %s %s", finalMessage, utils.SDump(session.GetInfo()))
 	return mcp.NewToolResultText(finalMessage)
 }
+
+// CallDirect runs the agent in direct call mode for a single input, returning the answer, meta info, and error.
+func (a *Agent) CallDirect(ctx context.Context, input string) (string, MetaInfo, error) {
+	start := time.Now()
+	tools, err := a.GetAllTools(ctx)
+	if err != nil {
+		return "", MetaInfo{}, err
+	}
+	session, err := a.beginSession(input, tools)
+	if err != nil {
+		return "", MetaInfo{}, err
+	}
+	iteration := 0
+	var meta MetaInfo
+	for iteration < a.config.MaxLLMIterations {
+		iteration++
+		resp, err := a.llmService.SendRequest(ctx, session.GetLLMMessages(), tools)
+		if err != nil {
+			return "", MetaInfo{}, err
+		}
+		session.AddAssistantMessage(resp)
+		if session.ExceededRequestBudget() {
+			info := session.GetInfo()
+			return "", MetaInfo{
+				Tokens:     info.TotalTokens,
+				Cost:       info.TotalCost,
+				DurationMs: time.Since(start).Milliseconds(),
+			}, fmt.Errorf("exceeded request budget: total cost %.4f > budget %.4f", info.TotalCost, info.RequestBudget)
+		}
+		if len(resp.Calls) == 0 {
+			return "", MetaInfo{}, fmt.Errorf("LLM returned no tool calls")
+		}
+		for _, call := range resp.Calls {
+			if a.isExitCommand(call) {
+				finalMessage := call.Params.Arguments["text"].(string)
+				info := session.GetInfo()
+				meta = MetaInfo{
+					Tokens:           info.TotalTokens,
+					Cost:             info.TotalCost,
+					DurationMs:       time.Since(start).Milliseconds(),
+					PromptTokens:     resp.Metadata.Tokens.PromptTokens,
+					CompletionTokens: resp.Metadata.Tokens.CompletionTokens,
+					ReasoningTokens:  resp.Metadata.Tokens.ReasoningTokens,
+				}
+				return finalMessage, meta, nil
+			}
+		}
+		a.handleLLMToolCallRequest(ctx, resp, session, iteration)
+	}
+	info := session.GetInfo()
+	return "", MetaInfo{
+		Tokens:     info.TotalTokens,
+		Cost:       info.TotalCost,
+		DurationMs: time.Since(start).Milliseconds(),
+	}, fmt.Errorf("exceeded maximum number of LLM iterations (%d)", a.config.MaxLLMIterations)
+}

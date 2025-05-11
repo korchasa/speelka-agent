@@ -317,3 +317,20 @@ connections:
       excludeTools:
         - delete
 ```
+
+## Direct Call Mode
+
+You can run the agent in direct call mode to process a single query and output a JSON result. This is useful for scripting, automation, or integration with other tools.
+
+Example:
+
+```sh
+./bin/speelka-agent --config site/examples/minimal.yaml --call 'What is 2+2?'
+```
+
+- The agent will process the query and print a single JSON result to stdout.
+- All logs and debug output are sent to stderr.
+- The output JSON will always include the fields: `success`, `result`, `meta`, and `error`.
+
+**Tip:**
+- You can use this mode in scripts and pipe the output to `jq` or other tools for further processing.

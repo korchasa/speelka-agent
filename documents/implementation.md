@@ -117,3 +117,51 @@ SPL_CHAT_REQUEST_BUDGET=0.0
 - This ensures that only tools allowed by the server's configuration (IncludeTools/ExcludeTools) are ever returned, and improves performance by avoiding unnecessary network calls.
 - The cache is populated during `InitAndConnectToMCPs` and is always up-to-date with the allowed tools for each server.
 - **Bugfix (2024-06):** Previously, tool filtering was not respected because `IncludeTools` and `ExcludeTools` were not copied into the connector config. This is now fixed: only allowed tools are available as expected.
+
+## Direct Call Mode (CLI)
+- **Flag:** `--call` (string, user query)
+- **Usage:** `./bin/speelka-agent --config config.yaml --call 'What is the weather?'
+- **Behavior:** Runs agent in single-shot mode, outputs structured JSON to stdout.
+- **Output Example:**
+  ```json
+  {
+    "success": true,
+    "result": { "answer": "The weather is sunny." },
+    "meta": { "tokens": 42, "cost": 0.01, "duration_ms": 1234 },
+    "error": { "type": "", "message": "" }
+  }
+  ```
+- **Error Handling:** All errors are mapped to JSON output and exit codes:
+  - `0`: success
+  - `1`: user/config error
+  - `2`: internal/agent/LLM/tool error
+- **Implementation:** Uses `DirectApp`, reuses agent core/config/env logic.
+- **Use Cases:** Scripting, automation, debugging, CI integration.
+
+## Shell/Integration Test Plan: run Script check Sequence
+
+### Purpose
+To verify that the `./run check` sequence:
+- Prints a clear error message and exits before the success message if any step fails.
+- Prints the final success message only if all steps succeed.
+
+### Test Cases
+
+1. **Simulate Failure in a Step**
+   - Temporarily modify one of the steps (e.g., `./run lint`) to return a non-zero exit code.
+   - Run `./run check`.
+   - **Expected:**
+     - The script prints an error message indicating which step failed (e.g., `Lint failed`).
+     - The script exits before printing `✓ All checks passed!`.
+
+2. **All Steps Succeed**
+   - Ensure all steps (`build`, `lint`, `test`, `call`, `call-multistep`, `test-direct-call`) succeed.
+   - Run `./run check`.
+   - **Expected:**
+     - The script prints all intermediate step outputs.
+     - The script prints `✓ All checks passed!` at the end.
+
+### Implementation Notes
+- Use explicit error handling in the `check` block for each step.
+- For CI, capture and assert on the presence/absence of the success message in the output.
+- Document any temporary modifications for failure simulation and revert after testing.

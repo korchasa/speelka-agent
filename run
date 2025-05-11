@@ -175,22 +175,25 @@ case $CMD in
         echo -e "${BLUE}Running all project checks...${NC}"
 
         echo -e "\n${YELLOW}1. Format code${NC}"
-        go fmt ./internal/...
+        go fmt ./internal/... || { echo -e "${RED}Format failed${NC}"; exit 1; }
 
         echo -e "\n${YELLOW}2. Building project${NC}"
-        ./run build
+        ./run build || { echo -e "${RED}Build failed${NC}"; exit 1; }
 
         echo -e "\n${YELLOW}3. Running linter${NC}"
-        ./run lint
+        ./run lint || { echo -e "${RED}Lint failed${NC}"; exit 1; }
 
         echo -e "\n${YELLOW}4. Running tests${NC}"
-        ./run test
+        ./run test || { echo -e "${RED}Tests failed${NC}"; exit 1; }
 
         echo -e "\n${YELLOW}5. Running call${NC}"
-        ./run call
+        ./run call || { echo -e "${RED}Call failed${NC}"; exit 1; }
 
         echo -e "\n${YELLOW}6. Running multi-step call${NC}"
-        ./run call-multistep
+        ./run call-multistep || { echo -e "${RED}Multi-step call failed${NC}"; exit 1; }
+
+        echo -e "\n${YELLOW}7. Running direct call${NC}"
+        ./run test-direct-call || { echo -e "${RED}Direct call failed${NC}"; exit 1; }
 
         echo -e "\n${GREEN}✓ All checks passed!${NC}"
         ;;
@@ -199,6 +202,37 @@ case $CMD in
         check_command "python3"
         cd site
         python3 -m http.server -b 127.0.0.1 8000
+        ;;
+    test-direct-call)
+        echo -e "${BLUE}Running integration test for --call flag (direct call mode)...${NC}"
+        load_env
+        go build -o bin/speelka-agent ./cmd/server/main.go
+        TEST_QUERY='What is 2+2?'
+        CONFIG=site/examples/minimal.yaml
+        OUTPUT=$(./bin/speelka-agent --config "$CONFIG" --call "$TEST_QUERY" 2>&1)
+        EXIT_CODE=$?
+        echo "Output: $OUTPUT"
+        echo "Exit code: $EXIT_CODE"
+        # Check exit code is 0 (success)
+        if [ $EXIT_CODE -ne 0 ]; then
+            echo -e "${RED}FAIL: Expected exit code 0, got $EXIT_CODE${NC}"
+            exit 1
+        fi
+        # Check output is valid JSON and has required fields
+        JSON_LINE=$(echo "$OUTPUT" | grep '^{.*}$')
+        echo "$JSON_LINE" | jq . > /dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}FAIL: Output is not valid JSON${NC}"
+            exit 1
+        fi
+        for field in success result meta error; do
+            echo "$JSON_LINE" | jq ".$field" > /dev/null 2>&1
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}FAIL: Missing field '$field' in output${NC}"
+                exit 1
+            fi
+        done
+        echo -e "${GREEN}✓ Direct call integration test passed!${NC}"
         ;;
     help)
         help

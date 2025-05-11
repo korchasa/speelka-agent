@@ -105,3 +105,8 @@ func (a *App) Stop(shutdownCtx context.Context) error {
 	a.logger.Info("Server shutdown complete")
 	return nil
 }
+
+// DirectAgent returns the agent as a directAgent interface for direct call mode
+func (a *App) DirectAgent() directAgent {
+	return a.agent.(directAgent)
+}

@@ -5,6 +5,7 @@ package types
 
 import (
 	"context"
+
 	"github.com/mark3labs/mcp-go/mcp"
 )
 

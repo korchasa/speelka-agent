@@ -137,3 +137,22 @@ graph TD
     LR --> LRMX[Max Backoff]
     LR --> LRBM[Multiplier]
 ```
+
+## Direct Call Mode (CLI)
+- **Flag:** `--call` (string, user query)
+- **Behavior:** Runs agent in single-shot mode, bypassing MCP server. Outputs a structured JSON result to stdout.
+- **Output Structure:**
+  ```json
+  {
+    "success": true/false,
+    "result": { "answer": "..." },
+    "meta": { "tokens": ..., "cost": ..., "duration_ms": ... },
+    "error": { "type": "...", "message": "..." }
+  }
+  ```
+- **Error Handling:** All errors are mapped to JSON output and exit codes:
+  - `0`: success
+  - `1`: user/config error
+  - `2`: internal/agent/LLM/tool error
+- **Implementation:** Uses `DirectApp` (thin wrapper), reuses all config/env/agent logic.
+- **Use Cases:** Scripting, automation, debugging, CI integration.
