@@ -24,7 +24,8 @@ flowchart TB
 ```
 
 ## Components
-- **Agent**: Orchestrates flow, manages state, LLM loop, tool exec, chat state (token/cost tracked via LLMResponse, fallback estimation if needed)
+- **Agent (internal/agent)**: Core agent logic only. Orchestrates flow, manages state, LLM loop, tool exec, chat state (token/cost tracked via LLMResponse, fallback estimation if needed). No config loading, server, CLI, or direct call JSON types. Exposes a clean interface for use by the app layer.
+- **App (internal/app)**: Application wiring, orchestration, lifecycle, CLI. Instantiates and manages the agent, provides CLI entry points. Owns config, logger, MCP server, agent instance. Includes `App` (server/daemon mode) and `DirectApp` (CLI direct-call mode, independent from `App`). Shared stateless utilities for config loading, agent instantiation, etc.
 - **Config Manager**: Loads/validates config (env, YAML, JSON), provides typed access, matches `types.Configuration` structure
 - **LLM Service**: Handles LLM requests, retry logic, returns `LLMResponse` (text, tool calls, token/cost)
 - **MCP Server**: Exposes agent (HTTP, stdio), manages tools, processes requests
@@ -59,8 +60,8 @@ flowchart TB
 - Tool access control
 
 ## Multi-Transport
-- Daemon: HTTP server
-- CLI: stdio
+- Daemon: HTTP server (via `internal/app.App`)
+- CLI: stdio (via `internal/app.DirectApp`)
 
 ## Dependencies
 - `mcp-go`: MCP impl
@@ -140,7 +141,7 @@ graph TD
 
 ## Direct Call Mode (CLI)
 - **Flag:** `--call` (string, user query)
-- **Behavior:** Runs agent in single-shot mode, bypassing MCP server. Outputs a structured JSON result to stdout.
+- **Behavior:** Runs agent in single-shot mode, bypassing MCP server. Outputs a structured JSON result to stdout. Uses `internal/app.DirectApp` (independent from `App`, wires up agent and dependencies for direct call mode).
 - **Output Structure:**
   ```json
   {

@@ -1,31 +1,44 @@
-package agent
+package app
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"testing"
+
+	"github.com/korchasa/speelka-agent-go/internal/types"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 type mockAgent struct {
 	callResult string
-	callMeta   MetaInfo
+	callMeta   types.MetaInfo
 	callErr    error
 }
 
-func (m *mockAgent) CallDirect(ctx context.Context, input string) (string, MetaInfo, error) {
+func (m *mockAgent) CallDirect(ctx context.Context, input string) (string, types.MetaInfo, error) {
 	return m.callResult, m.callMeta, m.callErr
 }
 
-func TestDirectApp_SuccessfulCall(t *testing.T) {
-	dapp := &DirectApp{
-		Agent: &mockAgent{
-			callResult: "42",
-			callMeta:   MetaInfo{Tokens: 10, Cost: 0.1, DurationMs: 100},
-			callErr:    nil,
-		},
+// Implement types.AgentSpec for App tests
+func (m *mockAgent) HandleRequest(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return nil, nil
+}
+func (m *mockAgent) RegisterTools() {}
+
+// testApp is a minimal stub for DirectApp.agent that returns a mockAgent
+// type testApp struct{ agent directAgent }
+
+// func (a *testApp) DirectAgent() directAgent { return a.agent }
+
+func TestApp_SuccessfulCall(t *testing.T) {
+	app := &App{}
+	app.agent = &mockAgent{
+		callResult: "42",
+		callMeta:   types.MetaInfo{Tokens: 10, Cost: 0.1, DurationMs: 100},
+		callErr:    nil,
 	}
-	res := dapp.HandleCall(context.Background(), "test")
+	res := app.HandleCall(context.Background(), "test")
 	if !res.Success {
 		t.Errorf("expected success=true, got false")
 	}
@@ -40,15 +53,14 @@ func TestDirectApp_SuccessfulCall(t *testing.T) {
 	}
 }
 
-func TestDirectApp_ErrorCall(t *testing.T) {
-	dapp := &DirectApp{
-		Agent: &mockAgent{
-			callResult: "",
-			callMeta:   MetaInfo{},
-			callErr:    errors.New("fail"),
-		},
+func TestApp_ErrorCall(t *testing.T) {
+	app := &App{}
+	app.agent = &mockAgent{
+		callResult: "",
+		callMeta:   types.MetaInfo{},
+		callErr:    errors.New("fail"),
 	}
-	res := dapp.HandleCall(context.Background(), "test")
+	res := app.HandleCall(context.Background(), "test")
 	if res.Success {
 		t.Errorf("expected success=false, got true")
 	}
@@ -60,15 +72,14 @@ func TestDirectApp_ErrorCall(t *testing.T) {
 	}
 }
 
-func TestDirectApp_JSONOutputAlwaysValid(t *testing.T) {
-	dapp := &DirectApp{
-		Agent: &mockAgent{
-			callResult: "foo",
-			callMeta:   MetaInfo{Tokens: 1},
-			callErr:    nil,
-		},
+func TestApp_JSONOutputAlwaysValid(t *testing.T) {
+	app := &App{}
+	app.agent = &mockAgent{
+		callResult: "foo",
+		callMeta:   types.MetaInfo{Tokens: 1},
+		callErr:    nil,
 	}
-	res := dapp.HandleCall(context.Background(), "bar")
+	res := app.HandleCall(context.Background(), "bar")
 	b, err := json.Marshal(res)
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
@@ -84,15 +95,14 @@ func TestDirectApp_JSONOutputAlwaysValid(t *testing.T) {
 	}
 }
 
-func TestDirectApp_JSONOutputWithNewlines(t *testing.T) {
-	dapp := &DirectApp{
-		Agent: &mockAgent{
-			callResult: "line1\nline2\nline3",
-			callMeta:   MetaInfo{Tokens: 3},
-			callErr:    nil,
-		},
+func TestApp_JSONOutputWithNewlines(t *testing.T) {
+	app := &App{}
+	app.agent = &mockAgent{
+		callResult: "line1\nline2\nline3",
+		callMeta:   types.MetaInfo{Tokens: 3},
+		callErr:    nil,
 	}
-	res := dapp.HandleCall(context.Background(), "bar")
+	res := app.HandleCall(context.Background(), "bar")
 	b, err := json.Marshal(res)
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)

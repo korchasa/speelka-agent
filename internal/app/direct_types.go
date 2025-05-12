@@ -1,7 +1,9 @@
-package agent
+package app
 
 // Types for direct call (CLI JSON output) mode only.
 // Not used in agent core or MCP protocol.
+
+// No import needed for MetaInfo
 
 type MetaInfo struct {
 	Tokens           int     `json:"tokens"`
@@ -24,3 +26,5 @@ type DirectCallResult struct {
 	Meta    MetaInfo        `json:"meta"`
 	Error   DirectCallError `json:"error"`
 }
+
+// ... existing code ...

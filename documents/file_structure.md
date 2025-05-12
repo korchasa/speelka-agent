@@ -23,11 +23,17 @@
 ## Internal Structure
 ```mermaid
 flowchart TD
-    cmd-->internal/agent
+    cmd-->internal/app
+    internal/app-->internal/agent
+    internal/app-->internal/chat
+    internal/app-->internal/llm_service
+    internal/app-->internal/mcp_connector
+    internal/app-->internal/mcp_server
+    internal/app-->internal/types
+    internal/app-->internal/utils
     internal/agent-->internal/chat
     internal/agent-->internal/llm_service
     internal/agent-->internal/mcp_connector
-    internal/agent-->internal/mcp_server
     internal/agent-->internal/types
     internal/agent-->internal/utils
     internal/chat-->internal/types
@@ -49,6 +55,10 @@ flowchart TD
     style external_mcp fill:#eee,stroke:#333,stroke-dasharray: 5 5
     style external_llm fill:#eee,stroke:#333,stroke-dasharray: 5 5
 ```
+
+### Key Packages
+- `internal/agent`: Core agent logic (LLM, tool orchestration, session management). No config loading, server, CLI, or direct call JSON types.
+- `internal/app`: Application wiring, orchestration, lifecycle, CLI. Instantiates and manages the agent, provides CLI entry points. Includes `App` (server/daemon mode) and `DirectApp` (CLI direct-call mode, independent from `App`). Shared stateless utilities for config loading, agent instantiation, etc.
 
 ## Examples (site/examples/)
 - `minimal.yaml`, `ai-news.yaml`, `architect.yaml`: Agent configs (YAML, preferred), include `agent.chat.request_budget` (limit on total cost per request)

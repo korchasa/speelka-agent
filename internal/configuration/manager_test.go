@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
@@ -179,4 +180,15 @@ agent:
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to load configuration from file")
 	})
+}
+
+// SetTestConfig sets the unexported config field in Manager for testing purposes only.
+// This should never be used in production code.
+func SetTestConfig(cm *Manager, cfg *types.Configuration) {
+	v := reflect.ValueOf(cm).Elem()
+	field := v.FieldByName("config")
+	if !field.IsValid() || !field.CanSet() {
+		panic("cannot set config field via reflection")
+	}
+	field.Set(reflect.ValueOf(cfg))
 }

@@ -45,7 +45,7 @@ func NewAgent(
 	mcpConnector types.MCPConnectorSpec,
 	logger types.LoggerSpec,
 	chat *chat.Chat,
-) types.AgentSpec {
+) *Agent {
 	return &Agent{
 		config:       config,
 		llmService:   llmService,
@@ -266,41 +266,41 @@ func (a *Agent) handleLLMAnswerToolRequest(call types.CallToolRequest, resp type
 }
 
 // CallDirect runs the agent in direct call mode for a single input, returning the answer, meta info, and error.
-func (a *Agent) CallDirect(ctx context.Context, input string) (string, MetaInfo, error) {
+func (a *Agent) CallDirect(ctx context.Context, input string) (string, types.MetaInfo, error) {
 	start := time.Now()
 	tools, err := a.GetAllTools(ctx)
 	if err != nil {
-		return "", MetaInfo{}, err
+		return "", types.MetaInfo{}, err
 	}
 	session, err := a.beginSession(input, tools)
 	if err != nil {
-		return "", MetaInfo{}, err
+		return "", types.MetaInfo{}, err
 	}
 	iteration := 0
-	var meta MetaInfo
+	var meta types.MetaInfo
 	for iteration < a.config.MaxLLMIterations {
 		iteration++
 		resp, err := a.llmService.SendRequest(ctx, session.GetLLMMessages(), tools)
 		if err != nil {
-			return "", MetaInfo{}, err
+			return "", types.MetaInfo{}, err
 		}
 		session.AddAssistantMessage(resp)
 		if session.ExceededRequestBudget() {
 			info := session.GetInfo()
-			return "", MetaInfo{
+			return "", types.MetaInfo{
 				Tokens:     info.TotalTokens,
 				Cost:       info.TotalCost,
 				DurationMs: time.Since(start).Milliseconds(),
 			}, fmt.Errorf("exceeded request budget: total cost %.4f > budget %.4f", info.TotalCost, info.RequestBudget)
 		}
 		if len(resp.Calls) == 0 {
-			return "", MetaInfo{}, fmt.Errorf("LLM returned no tool calls")
+			return "", types.MetaInfo{}, fmt.Errorf("LLM returned no tool calls")
 		}
 		for _, call := range resp.Calls {
 			if a.isExitCommand(call) {
 				finalMessage := call.Params.Arguments["text"].(string)
 				info := session.GetInfo()
-				meta = MetaInfo{
+				meta = types.MetaInfo{
 					Tokens:           info.TotalTokens,
 					Cost:             info.TotalCost,
 					DurationMs:       time.Since(start).Milliseconds(),
@@ -314,7 +314,7 @@ func (a *Agent) CallDirect(ctx context.Context, input string) (string, MetaInfo,
 		a.handleLLMToolCallRequest(ctx, resp, session, iteration)
 	}
 	info := session.GetInfo()
-	return "", MetaInfo{
+	return "", types.MetaInfo{
 		Tokens:     info.TotalTokens,
 		Cost:       info.TotalCost,
 		DurationMs: time.Since(start).Milliseconds(),

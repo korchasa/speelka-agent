@@ -1,7 +1,8 @@
 # Implementation
 
 ## Core Components
-- **Agent**: Orchestrates request lifecycle, tool exec, state, logs tool calls as `>> Execute tool toolName(args)`
+- **Agent (internal/agent)**: Core agent logic only. Orchestrates request lifecycle, tool exec, state, logs tool calls as `>> Execute tool toolName(args)`. No config loading, server, CLI, or direct call JSON types. Exposes a clean interface for use by the app layer.
+- **App (internal/app)**: Application wiring, orchestration, lifecycle, CLI. Instantiates and manages the agent, provides CLI entry points. Owns config, logger, MCP server, agent instance. Includes `App` (server/daemon mode) and `DirectApp` (CLI direct-call mode, independent from `App`). Shared stateless utilities for config loading, agent instantiation, etc.
 - **Chat**: Manages history, token/cost; config immutable (constructor only); all state in `chatInfo` struct; token/cost tracked via LLMResponse, fallback estimation if needed. **TotalTokens** and **TotalCost** are cumulative (monotonically increasing) and never decrease. Chat history is not compacted or compressed.
 - **TokenCounter**: Approximates tokens (4 chars ≈ 1 token), type-specific, fallback for unknowns
 - **Config Manager**: Loads/validates config (YAML, JSON, env), type-safe, strict validation, only `Apply` parses log/output
@@ -121,7 +122,7 @@ SPL_CHAT_REQUEST_BUDGET=0.0
 ## Direct Call Mode (CLI)
 - **Flag:** `--call` (string, user query)
 - **Usage:** `./bin/speelka-agent --config config.yaml --call 'What is the weather?'
-- **Behavior:** Runs agent in single-shot mode, outputs structured JSON to stdout.
+- **Behavior:** Runs agent in single-shot mode, outputs structured JSON to stdout. Uses `internal/app.DirectApp` (independent from `App`, wires up agent and dependencies for direct call mode).
 - **Output Example:**
   ```json
   {

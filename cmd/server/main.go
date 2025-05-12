@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -13,7 +12,7 @@ import (
 	"runtime/debug"
 	"syscall"
 
-	"github.com/korchasa/speelka-agent-go/internal/agent"
+	app "github.com/korchasa/speelka-agent-go/internal/app"
 	"github.com/korchasa/speelka-agent-go/internal/configuration"
 	"github.com/korchasa/speelka-agent-go/internal/logger"
 	"github.com/sirupsen/logrus"
@@ -64,37 +63,6 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if *callInput != "" {
-		// Direct call mode
-		configManager, err := loadConfiguration(ctx)
-		if err != nil {
-			outputDirectCallErrorAndExit("config", err)
-		}
-		app, err := agent.NewApp(log, configManager)
-		if err != nil {
-			outputDirectCallErrorAndExit("internal", err)
-		}
-		err = app.Initialize(ctx)
-		if err != nil {
-			outputDirectCallErrorAndExit("internal", err)
-		}
-		directApp := &agent.DirectApp{Agent: app.DirectAgent()}
-		result := directApp.HandleCall(ctx, *callInput)
-		if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
-			fmt.Fprintf(os.Stderr, "{\"success\":false,\"result\":{},\"meta\":{},\"error\":{\"type\":\"internal\",\"message\":\"failed to encode result: %v\"}}\n", err)
-			os.Exit(2)
-		}
-		if result.Success {
-			os.Exit(0)
-		}
-		switch result.Error.Type {
-		case "user", "config":
-			os.Exit(1)
-		default:
-			os.Exit(2)
-		}
-	}
-
 	// MCP server mode (default)
 	// Set up signal handling for graceful shutdown
 	signalCh := make(chan os.Signal, 1)
@@ -108,6 +76,13 @@ func main() {
 	configManager, err := loadConfiguration(ctx)
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	if *callInput != "" {
+		// Direct call mode
+		directApp := app.NewDirectApp(log, configManager)
+		directApp.Execute(ctx, *callInput)
+		return
 	}
 
 	// Start the server and handle errors
@@ -140,38 +115,22 @@ func run(ctx context.Context, configManager *configuration.Manager) error {
 	log.SetOutput(configManager.GetLogConfig().Output)
 
 	// Create the app with the logger and initialized configuration manager
-	app, err := agent.NewApp(log, configManager)
+	appInstance, err := app.NewApp(log, configManager)
 	if err != nil {
 		return fmt.Errorf("failed to create agent app: %w", err)
 	}
 
 	// Initialize the app (creates the Agent and its dependencies)
-	err = app.Initialize(ctx)
+	err = appInstance.Initialize(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to initialize agent app: %w", err)
 	}
 
 	// Start the agent
-	err = app.Start(*daemonMode, ctx)
+	err = appInstance.Start(*daemonMode, ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start agent: %w", err)
 	}
 
 	return nil
-}
-
-// Helper to output error in direct call mode and exit
-func outputDirectCallErrorAndExit(errType string, err error) {
-	result := agent.DirectCallResult{
-		Success: false,
-		Result:  map[string]any{"answer": ""},
-		Meta:    agent.MetaInfo{},
-		Error:   agent.DirectCallError{Type: errType, Message: err.Error()},
-	}
-	output, _ := json.Marshal(result)
-	fmt.Println(string(output))
-	if errType == "user" || errType == "config" {
-		os.Exit(1)
-	}
-	os.Exit(2)
 }
