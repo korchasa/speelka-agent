@@ -161,6 +161,7 @@ func (cm *Manager) GetMCPConnectorConfig() types.MCPConnectorConfig {
 			Environment:  conn.Environment,
 			IncludeTools: conn.IncludeTools,
 			ExcludeTools: conn.ExcludeTools,
+			Timeout:      conn.Timeout,
 		}
 	}
 

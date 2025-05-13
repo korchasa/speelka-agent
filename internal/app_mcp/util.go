@@ -1,4 +1,4 @@
-package app
+package app_mcp
 
 import (
 	"context"

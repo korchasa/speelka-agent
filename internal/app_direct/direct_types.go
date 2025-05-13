@@ -1,4 +1,4 @@
-package app
+package app_direct
 
 // Types for direct call (CLI JSON output) mode only.
 // Not used in agent core or MCP protocol.

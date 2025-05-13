@@ -1,0 +1,69 @@
+# AI News Subagent Extractor
+# A specialized agent that extracts news from a given URL.
+# Perfect for staying updated on the latest AI developments.
+# Features: News Extraction, Web Browsing, Structured Responses
+
+# Runtime configuration
+runtime:
+  log:
+    level: "info"
+
+  transports:
+    stdio:
+      enabled: true
+      buffer_size: 8192
+
+agent:
+  name: "text-extractor"
+  version: "1.0.0"
+
+  # Tool configuration
+  tool:
+    name: "extract-text"
+    description: "Extract text from given URL"
+    argument_name: "url"
+    argument_description: "The URL of the page to extract text from"
+
+  # Chat configuration
+  chat:
+    max_tokens: 150000
+    request_budget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
+
+  # LLM configuration
+  llm:
+    provider: "openai"
+    api_key: ""  # Set via environment variable for security
+    model: "gpt-4.1-nano"
+    temperature: 0.2
+    prompt_template: |
+      You are an elite AI news curator and analyst, internationally recognized for your ability to extract text from HTML pages!
+
+      Your goal is to collect text from the given URL, extract the text from the page, and call `answer` tool to return it as a markdown!
+
+      Important:
+      - Do not write any additional comments, just the text extracted from the page.
+      - Do not expose internal chain-of-thought or processing details.
+      - Extract the date of the news if it is present in the text.
+
+      ### URLs
+      {{url}}
+
+      ### Available tools
+      {{tools}}
+
+      ### Preferred tool params
+      - waitUntil: 'domcontentloaded'
+      - extractContent: true
+      - maxLength: 1000000
+      - returnHtml: false
+      - waitForNavigation: true
+      - navigationTimeout: 30000
+      - disableMedia: true
+      - debug: false
+
+  # MCP Server connections
+  connections:
+    mcpServers:
+      playwright:
+        command: "npx"
+        "args": ["-y", "fetcher-mcp"]

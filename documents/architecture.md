@@ -157,3 +157,20 @@ graph TD
   - `2`: internal/agent/LLM/tool error
 - **Implementation:** Uses `DirectApp` (thin wrapper), reuses all config/env/agent logic.
 - **Use Cases:** Scripting, automation, debugging, CI integration.
+
+## MCPConnector
+- Now supports per-server tool call timeout: each MCP server in config can specify a `timeout` (seconds, float or int). If not set, defaults to 30s.
+- Timeout is loaded from YAML/JSON, merged in `Apply`, copied in `GetMCPConnectorConfig`, and enforced in `MCPConnector.ExecuteTool`.
+- Manual timeout logic replaces context.WithTimeout for better control and logging. Enhanced logging for tool execution, including timeout/cancellation details.
+- Comprehensive tests added for timeout propagation and enforcement.
+
+## Logger
+- After config is loaded, logger's level is set to match config (`logger.SetLevel(configManager.GetLogConfig().Level)`).
+- Added test to ensure logger respects config log level.
+
+## File Removals
+- Deleted: `internal/app/direct_app_test.go`, `internal/app/direct_types.go`, `internal/app/util.go`, `site/examples/ai-news-subagent-extractor.yaml` (obsolete, replaced by `text-extractor.yaml`).
+- Tests and code referencing these files removed or updated.
+
+## Config System
+- Per-server timeout is now fully supported and documented in YAML/JSON config, merged and enforced throughout the stack.

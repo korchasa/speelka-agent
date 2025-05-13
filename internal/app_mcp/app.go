@@ -1,4 +1,4 @@
-package app
+package app_mcp
 
 import (
 	"context"
@@ -95,4 +95,12 @@ func (a *App) HandleCall(ctx context.Context, input string) types.DirectCallResu
 		res.Error = types.DirectCallError{Type: "internal", Message: err.Error()}
 	}
 	return res
+}
+
+// Application is the shared interface for all application types.
+type Application interface {
+	Initialize(ctx context.Context) error
+	Start(daemonMode bool, ctx context.Context) error
+	Stop(shutdownCtx context.Context) error
+	HandleCall(ctx context.Context, input string) types.DirectCallResult
 }

@@ -123,6 +123,50 @@ func TestJSONLoader_LoadConfiguration(t *testing.T) {
 			expectError: true,
 			errorMsg:    "empty file path provided",
 		},
+		{
+			name: "MCP server timeout parameter",
+			filePath: func() string {
+				path := filepath.Join(tempDir, "timeout-config.json")
+				json := `{
+  "runtime": {
+    "log": { "level": "info", "output": "stdout" }
+  },
+  "agent": {
+    "name": "timeout-agent",
+    "tool": {
+      "name": "timeout-tool",
+      "description": "Tool with timeout",
+      "argument_name": "input",
+      "argument_description": "Input"
+    },
+    "llm": {
+      "provider": "openai",
+      "model": "gpt-4",
+      "api_key": "test-api-key",
+      "prompt_template": "Test {{input}}. Tools: {{tools}}"
+    },
+    "connections": {
+      "mcpServers": {
+        "slow": {
+          "command": "slow-server",
+          "timeout": 42
+        }
+      }
+    }
+  }
+}
+`
+				_ = os.WriteFile(path, []byte(json), 0644)
+				return path
+			}(),
+			expectError: false,
+			validate: func(t *testing.T, config *types.Configuration) {
+				config.Apply(config)
+				server, ok := config.Agent.Connections.McpServers["slow"]
+				assert.True(t, ok)
+				assert.Equal(t, 42.0, server.Timeout)
+			},
+		},
 	}
 
 	// Run test cases

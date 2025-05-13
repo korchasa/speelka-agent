@@ -228,10 +228,6 @@ func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResp
 	}).Infof("<< LLM asked to call tools:\n%s", strings.Join(toolCalls, "\n"))
 	for _, call := range resp.Calls {
 		session.AddToolCall(call)
-
-		a.logger.Infof(">>> Execute tool `%s`", call.String())
-		a.logger.Debugf(">>> Details: %s", call.Params.Arguments)
-		n := time.Now()
 		result, err := a.mcpConnector.ExecuteTool(ctx, call)
 		if err != nil {
 			a.logger.Errorf("failed to execute tool %s: %v", call.ToolName(), err)
@@ -240,8 +236,6 @@ func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResp
 			continue
 		}
 		session.AddToolResult(call, result)
-		duration := time.Since(n)
-		a.logger.Infof("<<< Tool execution complete in %s", duration)
 	}
 
 	a.logger.Infof("Iteration complete: %s", utils.SDump(session.GetInfo()))

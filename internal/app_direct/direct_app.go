@@ -1,4 +1,4 @@
-package app
+package app_direct
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/korchasa/speelka-agent-go/internal/app_mcp"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 )
 
@@ -15,6 +16,10 @@ type DirectApp struct {
 	logger        types.LoggerSpec
 	agent         directAgent
 	configManager types.ConfigurationManagerSpec
+}
+
+type directAgent interface {
+	CallDirect(ctx context.Context, input string) (string, types.MetaInfo, error)
 }
 
 // NewDirectApp creates a new DirectApp with the given logger and configuration manager.
@@ -27,7 +32,7 @@ func NewDirectApp(logger types.LoggerSpec, configManager types.ConfigurationMana
 
 // Initialize loads configuration and initializes the Agent application.
 func (d *DirectApp) Initialize(ctx context.Context) error {
-	agent, _, err := NewAgentWithServer(d.configManager, d.logger)
+	agent, _, err := app_mcp.NewAgentWithServer(d.configManager, d.logger)
 	if err != nil {
 		return fmt.Errorf("failed to initialize agent: %w", err)
 	}
@@ -98,4 +103,17 @@ func (d *DirectApp) outputErrorAndExit(errType string, err error) {
 		os.Exit(1)
 	}
 	os.Exit(2)
+}
+
+// Ensure DirectApp implements the Application interface
+var _ app_mcp.Application = (*DirectApp)(nil)
+
+// Start is a no-op for DirectApp (CLI mode)
+func (d *DirectApp) Start(daemonMode bool, ctx context.Context) error {
+	return nil
+}
+
+// Stop is a no-op for DirectApp (CLI mode)
+func (d *DirectApp) Stop(shutdownCtx context.Context) error {
+	return nil
 }
