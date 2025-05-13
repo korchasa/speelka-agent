@@ -6,7 +6,7 @@
 
 runtime:
   log:
-    level: info                # Log level: debug, info, warn, error
+    default_level: info                # Log level: debug, info, warn, error
     output: stderr             # Log output: file path or stderr/stdout
   transports:
     stdio:

@@ -6,8 +6,7 @@
 # Runtime configuration
 runtime:
   log:
-    level: "info"
-    format: "json"
+    default_level: "info"
 
   transports:
     stdio:
