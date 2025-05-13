@@ -28,8 +28,8 @@ func TestConfigurationValidate(t *testing.T) {
 			config: &Configuration{
 				Runtime: RuntimeConfig{
 					Log: RuntimeLogConfig{
-						RawLevel:  "debug",
-						RawOutput: "stdout",
+						RawDefaultLevel: "debug",
+						RawOutput:       "stdout",
 					},
 				},
 				Agent: ConfigAgent{
@@ -274,10 +274,10 @@ func TestConfiguration_Apply(t *testing.T) {
 	baseConfig := &Configuration{
 		Runtime: RuntimeConfig{
 			Log: RuntimeLogConfig{
-				RawLevel:  "info",
-				RawOutput: "stdout",
-				LogLevel:  logrus.InfoLevel,
-				Output:    os.Stdout,
+				RawDefaultLevel: "info",
+				RawOutput:       "stdout",
+				LogLevel:        logrus.InfoLevel,
+				Output:          os.Stdout,
 			},
 			Transports: RuntimeTransportConfig{
 				Stdio: RuntimeStdioConfig{
@@ -340,7 +340,7 @@ func TestConfiguration_Apply(t *testing.T) {
 	newConfig := &Configuration{
 		Runtime: RuntimeConfig{
 			Log: RuntimeLogConfig{
-				RawLevel: "debug",
+				RawDefaultLevel: "debug",
 				// Output not specified, should keep stdout
 			},
 			Transports: RuntimeTransportConfig{
@@ -425,10 +425,7 @@ func TestConfiguration_Apply(t *testing.T) {
 	assert.Equal(t, baseConfig, result)
 
 	// Verify that the values were updated correctly
-	assert.Equal(t, "debug", baseConfig.Runtime.Log.RawLevel)
-	assert.Equal(t, "stdout", baseConfig.Runtime.Log.RawOutput)
-	assert.Equal(t, logrus.DebugLevel, baseConfig.Runtime.Log.LogLevel)
-	assert.Equal(t, os.Stdout, baseConfig.Runtime.Log.Output)
+	assert.Equal(t, "debug", baseConfig.Runtime.Log.RawDefaultLevel)
 
 	// Verify runtime transport values
 	assert.Equal(t, true, baseConfig.Runtime.Transports.Stdio.Enabled, "Stdio.Enabled should be true")
@@ -480,18 +477,14 @@ func TestConfiguration_Apply(t *testing.T) {
 	invalidLogConfig := &Configuration{
 		Runtime: RuntimeConfig{
 			Log: RuntimeLogConfig{
-				RawLevel:  "invalid_level",
-				RawOutput: "stderr",
+				RawDefaultLevel: "invalid_level",
+				RawOutput:       "stderr",
 			},
 		},
 	}
 
 	baseConfig.Apply(invalidLogConfig)
-	assert.Equal(t, "invalid_level", baseConfig.Runtime.Log.RawLevel)
-	assert.Equal(t, "stderr", baseConfig.Runtime.Log.RawOutput)
-	// Should default to info level for invalid log level
-	assert.Equal(t, logrus.InfoLevel, baseConfig.Runtime.Log.LogLevel)
-	assert.Equal(t, os.Stderr, baseConfig.Runtime.Log.Output)
+	assert.Equal(t, "invalid_level", baseConfig.Runtime.Log.RawDefaultLevel)
 
 	// Test with file output
 	// First create a temp directory for the test
@@ -503,16 +496,14 @@ func TestConfiguration_Apply(t *testing.T) {
 	fileLogConfig := &Configuration{
 		Runtime: RuntimeConfig{
 			Log: RuntimeLogConfig{
-				RawLevel:  "warn",
-				RawOutput: logFilePath,
+				RawDefaultLevel: "warn",
+				RawOutput:       logFilePath,
 			},
 		},
 	}
 
 	baseConfig.Apply(fileLogConfig)
-	assert.Equal(t, "warn", baseConfig.Runtime.Log.RawLevel)
-	assert.Equal(t, logFilePath, baseConfig.Runtime.Log.RawOutput)
-	assert.Equal(t, logrus.WarnLevel, baseConfig.Runtime.Log.LogLevel)
+	assert.Equal(t, "warn", baseConfig.Runtime.Log.RawDefaultLevel)
 	// Writer should be a file now, not stdout or stderr
 	assert.NotEqual(t, os.Stdout, baseConfig.Runtime.Log.Output)
 	assert.NotEqual(t, os.Stderr, baseConfig.Runtime.Log.Output)

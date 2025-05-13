@@ -36,6 +36,7 @@ function help() {
     echo "  call                  Call a process using MCP with default question"
     echo "  call-multistep        Call a multi-step process using MCP"
     echo "  call-news             Call a ai news agent with a request"
+    echo "  no-fixme              Scan for TODOs and FIXMEs in the code"
     echo "  check                 Run all checks in project (test, lint)"
     echo "  site                  Run the site"
     echo "  fetch_url <url>       Fetch a URL using MCP"
@@ -177,6 +178,12 @@ case $CMD in
             npx @modelcontextprotocol/inspector "${env_vars[@]}" -- go run -race ./cmd/server/main.go --config examples/minimal.yaml
         )
         ;;
+    no-fixme)
+        if grep -rE 'TODO|FIXME|Println\(' internal/; then
+            echo -e "${RED}Error: TODO/FIXME/Println found!${NC}"
+            exit 1
+        fi
+        ;;
     check)
         echo -e "${BLUE}Running all project checks...${NC}"
 
@@ -200,6 +207,9 @@ case $CMD in
 
         echo -e "\n${YELLOW}7. Running direct call${NC}"
         ./run test-direct-call || { echo -e "${RED}Direct call failed${NC}"; exit 1; }
+
+        echo -e "\n${YELLOW}8. Running no-fixme${NC}"
+        ./run no-fixme || { echo -e "${RED}No-fixme failed${NC}"; exit 1; }
 
         echo -e "\n${GREEN}✓ All checks passed!${NC}"
         ;;

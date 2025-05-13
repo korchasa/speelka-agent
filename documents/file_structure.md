@@ -63,3 +63,6 @@
 ## File Removals (2024-06)
 - Deleted: `internal/app/direct_app_test.go`, `internal/app/direct_types.go`, `internal/app/util.go`, `site/examples/ai-news-subagent-extractor.yaml` (obsolete, replaced by `text-extractor.yaml`).
 - All references and tests for these files have been removed or updated.
+
+Везде в конфиге используется runtime.log.default_level вместо runtime.log.level.
+MCPLogger интегрируется с MCPServer через интерфейс MCPServerNotifier.

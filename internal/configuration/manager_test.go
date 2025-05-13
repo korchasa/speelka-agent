@@ -26,8 +26,8 @@ func (m *SimpleLogger) WithField(key string, value interface{}) types.LogEntrySp
 func (m *SimpleLogger) WithFields(fields logrus.Fields) types.LogEntrySpec {
 	return &SimpleLogEntry{}
 }
-func (m *SimpleLogger) SetLevel(level logrus.Level)        {}
-func (m *SimpleLogger) SetMCPServer(mcpServer interface{}) {}
+func (m *SimpleLogger) SetLevel(level logrus.Level)                    {}
+func (m *SimpleLogger) SetMCPServer(mcpServer types.MCPServerNotifier) {}
 
 // SimpleLogEntry implements the LogEntrySpec interface for testing
 type SimpleLogEntry struct{}

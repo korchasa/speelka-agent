@@ -55,7 +55,8 @@ func (NoOpLogger) Fatal(args ...interface{})                                  {}
 func (NoOpLogger) Fatalf(format string, args ...interface{})                  {}
 func (NoOpLogger) WithField(key string, value interface{}) types.LogEntrySpec { return &NoOpLogEntry{} }
 func (NoOpLogger) WithFields(fields logrus.Fields) types.LogEntrySpec         { return &NoOpLogEntry{} }
-func (NoOpLogger) SetMCPServer(mcpServer interface{})                         {}
+func (NoOpLogger) SetMCPServer(mcpServer types.MCPServerNotifier)             {}
+func (NoOpLogger) SetFormatter(formatter logrus.Formatter)                    {}
 
 func TestLLMService_SendRequest_ReturnsLLMResponse(t *testing.T) {
 	mockResp := &llms.ContentResponse{

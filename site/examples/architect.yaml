@@ -119,3 +119,5 @@ agent:
       max_backoff: 30
       backoff_multiplier: 2
 
+default_level: info
+

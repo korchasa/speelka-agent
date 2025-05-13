@@ -14,10 +14,20 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// MCPServerNotifier defines the interface for sending MCP notifications
+// Used for injecting mock in tests and real MCPServer in production
+// MCPServerNotifier abstracts notification sending for logger
+// Only SendNotificationToClient is required for logger
+//
+//go:generate mockgen -destination=mock_mcpserver_notifier.go -package=logger . MCPServerNotifier
+type MCPServerNotifier interface {
+	SendNotificationToClient(ctx context.Context, method string, data map[string]interface{}) error
+}
+
 // Logger wraps a logrus logger and adds MCP logging capabilities
 type Logger struct {
 	underlying *logrus.Logger
-	mcpServer  *server.MCPServer
+	mcpServer  types.MCPServerNotifier
 	minLevel   logrus.Level
 }
 
@@ -45,25 +55,10 @@ func (l *Logger) SetFormatter(formatter logrus.Formatter) {
 }
 
 // SetMCPServer sets the MCP server instance for this logger and registers the log level handler
-func (l *Logger) SetMCPServer(mcpServer interface{}) {
-	// Check if the provided server is already the correct type
-	if serverInstance, ok := mcpServer.(*server.MCPServer); ok {
-		l.mcpServer = serverInstance
-	} else {
-		// For our internal MCPServer type, we need to get the underlying server
-		// This uses reflection to dynamically get the server field
-		// Try accessing a GetServer method if it exists
-		if serverAccessor, ok := mcpServer.(interface{ GetServer() *server.MCPServer }); ok {
-			l.mcpServer = serverAccessor.GetServer()
-		} else {
-			l.Error("Failed to set MCP server: unsupported server type")
-			return
-		}
-	}
-
-	// Register the handler for logging/setLevel method if mcpServer is not nil
-	if l.mcpServer != nil {
-		l.registerLoggingSetLevelHandler()
+func (l *Logger) SetMCPServer(mcpServer types.MCPServerNotifier) {
+	l.mcpServer = mcpServer
+	if srv, ok := mcpServer.(*server.MCPServer); ok {
+		l.registerLoggingSetLevelHandler(srv)
 	}
 }
 
@@ -89,14 +84,11 @@ func (l *Logger) LogLevelHandlerFunc(ctx context.Context, req mcp.CallToolReques
 }
 
 // registerLoggingSetLevelHandler registers a handler for the logging/setLevel method
-func (l *Logger) registerLoggingSetLevelHandler() {
-	// Create a tool for setting log levels
+func (l *Logger) registerLoggingSetLevelHandler(srv *server.MCPServer) {
 	setLevelTool := mcp.NewTool("logging/setLevel",
 		mcp.WithString("level", mcp.Required(), mcp.Description("Log level to set")),
 	)
-
-	// Register the tool with the server
-	l.mcpServer.AddTool(setLevelTool, l.LogLevelHandlerFunc)
+	srv.AddTool(setLevelTool, l.LogLevelHandlerFunc)
 }
 
 // SetLevel sets the minimum level for both the underlying logger and MCP notifications
@@ -199,11 +191,13 @@ func (l *Logger) sendNotification(level logrus.Level, msg string, fields logrus.
 
 	// Prepare notification data
 	data := map[string]interface{}{
-		"level":   mcpLevel,
-		"message": msg,
+		"level":               mcpLevel,
+		"message":             msg,
+		"delivered_to_client": true,
 	}
 
 	if len(fields) > 0 {
+		fields["delivered_to_client"] = true // logrus log
 		data["data"] = fields
 	}
 

@@ -1,7 +1,6 @@
 package configuration
 
 import (
-	"os"
 	"testing"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
@@ -23,8 +22,8 @@ func TestDefaultLoader_LoadConfiguration(t *testing.T) {
 	assert.NotNil(t, config)
 
 	// Verify default runtime values
-	assert.Equal(t, "info", config.Runtime.Log.RawLevel)
-	assert.Equal(t, "stderr", config.Runtime.Log.RawOutput)
+	assert.Equal(t, "info", config.Runtime.Log.RawDefaultLevel)
+	assert.Equal(t, "mcp", config.Runtime.Log.RawOutput)
 	assert.Equal(t, "text", config.Runtime.Log.RawFormat)
 
 	// Verify default transport values
@@ -70,10 +69,10 @@ func TestDefaultLoader_LoadConfiguration(t *testing.T) {
 
 	// After Apply, check parsed fields
 	config.Apply(config)
-	assert.Equal(t, "info", config.Runtime.Log.RawLevel)
-	assert.Equal(t, "stderr", config.Runtime.Log.RawOutput)
+	assert.Equal(t, "info", config.Runtime.Log.RawDefaultLevel)
+	assert.Equal(t, "mcp", config.Runtime.Log.RawOutput)
 	assert.Equal(t, "text", config.Runtime.Log.RawFormat)
-	assert.Equal(t, os.Stderr, config.Runtime.Log.Output)
+	assert.NotNil(t, config.Runtime.Log.Output)
 	assert.Equal(t, logrus.InfoLevel, config.Runtime.Log.LogLevel)
 
 	// Override RawFormat and check

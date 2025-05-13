@@ -26,7 +26,8 @@ func (d *dummyLogger) WithField(key string, value interface{}) types.LogEntrySpe
 	return &dummyLogEntry{}
 }
 func (d *dummyLogger) WithFields(fields logrus.Fields) types.LogEntrySpec { return &dummyLogEntry{} }
-func (d *dummyLogger) SetMCPServer(mcpServer interface{})                 {}
+func (d *dummyLogger) SetMCPServer(mcpServer types.MCPServerNotifier)     {}
+func (d *dummyLogger) SetFormatter(formatter logrus.Formatter)            {}
 
 type dummyLogEntry struct{}
 

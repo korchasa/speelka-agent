@@ -24,9 +24,9 @@ type RuntimeConfig struct {
 
 // RuntimeLogConfig represents the log configuration section in the runtime config
 type RuntimeLogConfig struct {
-	RawLevel  string `json:"level" yaml:"level"`
-	RawOutput string `json:"output" yaml:"output"`
-	RawFormat string `json:"format" yaml:"format"`
+	RawDefaultLevel string `json:"default_level" yaml:"default_level"`
+	RawOutput       string `json:"output" yaml:"output"`
+	RawFormat       string `json:"format" yaml:"format"`
 
 	// Internal fields, not directly from config file
 	LogLevel logrus.Level
@@ -256,8 +256,8 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 	}
 
 	// Apply Runtime configuration
-	if newConfig.Runtime.Log.RawLevel != "" {
-		c.Runtime.Log.RawLevel = newConfig.Runtime.Log.RawLevel
+	if newConfig.Runtime.Log.RawDefaultLevel != "" {
+		c.Runtime.Log.RawDefaultLevel = newConfig.Runtime.Log.RawDefaultLevel
 	}
 	if newConfig.Runtime.Log.RawOutput != "" {
 		c.Runtime.Log.RawOutput = newConfig.Runtime.Log.RawOutput
@@ -286,7 +286,7 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 	}
 
 	// Process the log level
-	logLevel, err := c.parseLogLevel(c.Runtime.Log.RawLevel)
+	logLevel, err := c.parseLogLevel(c.Runtime.Log.RawDefaultLevel)
 	if err == nil {
 		c.Runtime.Log.LogLevel = logLevel
 	} else {

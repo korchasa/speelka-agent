@@ -72,7 +72,7 @@ flowchart TB
 - Flexible: YAML, JSON, env
 - Type-safe, validated, defaults
 - Secure: API keys via env
-- Only `Apply` parses log level/output
+- Only `Apply` parses log default_level/output
 - Load order: default → file → env
 
 ## Testing
@@ -165,8 +165,25 @@ graph TD
 - Comprehensive tests added for timeout propagation and enforcement.
 
 ## Logger
-- After config is loaded, logger's level is set to match config (`logger.SetLevel(configManager.GetLogConfig().Level)`).
-- Added test to ensure logger respects config log level.
+- Логгер выбирается централизованно через фабрику NewLogger на основании runtime.log.output ("mcp" или "stderr").
+- MCPLogger: пишет только через MCP-нотификации (notifications/message), stderr не используется.
+- IOWriterLogger: пишет только в stderr, MCP не используется.
+- По-умолчанию используется MCPLogger (output = "mcp").
+- Дублирования логов нет: каждая реализация отвечает только за свой канал.
+- MCPLogger интегрируется с MCPServer через интерфейс MCPServerNotifier (SetMCPServer принимает MCPServerNotifier, а не конкретный тип сервера).
+- Все MCP-логи содержат delivered_to_client=true.
+- Легко добавить новые реализации (например, MultiLogger, файловый логгер и т.д.).
+- Все тесты покрывают оба варианта, проверяют отсутствие дублирования, работу с уровнями, edge-cases.
+- Выбор логгера и его поведение покрыты unit и интеграционными тестами.
+- В конфиге теперь используется runtime.log.default_level вместо runtime.log.level.
+
+```mermaid
+graph TD
+    A[Config: runtime.log.output] -->|"mcp"| B[MCPLogger]
+    A -->|"stderr"| C[IOWriterLogger]
+    B -->|MCP only| D[notifications/message]
+    C -->|stderr only| E[stderr]
+```
 
 ## File Removals
 - Deleted: `internal/app/direct_app_test.go`, `internal/app/direct_types.go`, `internal/app/util.go`, `site/examples/ai-news-subagent-extractor.yaml` (obsolete, replaced by `text-extractor.yaml`).
@@ -174,3 +191,26 @@ graph TD
 
 ## Config System
 - Per-server timeout is now fully supported and documented in YAML/JSON config, merged and enforced throughout the stack.
+
+## MCP Protocol Logging (MCP-логирование)
+
+- **Server:**
+  - Declares `logging` capability in handshake.
+  - Sends structured log messages to client via `notifications/message` (level, logger, data).
+  - Handles `logging/setLevel` requests from client to change log default_level dynamically.
+  - All MCP logs go through centralized logger (logrus), marked as delivered to client.
+  - No duplication to stderr (all clients support MCP notifications).
+- **Client:**
+  - Handles `notifications/message` for log reception, displays/filters logs in UI/CLI.
+  - Can send `logging/setLevel` to server.
+  - (Optionally) Duplicates MCP logs to local log.
+- **Security:**
+  - Do not log secrets/PII (enforced by business logic, not infra).
+- **Testing:**
+  - Covered by unit/integration tests: sending, receiving, filtering logs, changing level.
+  - See `implementation.md` for test details and coverage.
+- **Consequences:**
+  - Full MCP compatibility, traceability, dynamic log control, minimal code complexity.
+  - Filtering of secrets/PII is a business responsibility.
+
+Все тесты для MCP-логирования реализованы и проходят. Подробности по тестам — см. implementation.md.

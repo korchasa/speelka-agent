@@ -122,8 +122,17 @@ SPL_CHAT_REQUEST_BUDGET=0.0
 - Comprehensive tests added for timeout propagation and enforcement.
 
 ## Logger
-- After config is loaded, logger's level is set to match config (`logger.SetLevel(configManager.GetLogConfig().Level)`).
-- Added test to ensure logger respects config log level.
+- После загрузки конфигурации фабрика NewLogger выбирает реализацию по runtime.log.output ("mcp" или "stderr").
+- MCPLogger: пишет только через MCP-нотификации (notifications/message), stderr не используется.
+- StderrLogger: пишет только в stderr, MCP не используется.
+- IOWriterLogger: пишет только в stderr, MCP не используется.
+- Дублирования логов нет: каждая реализация отвечает только за свой канал.
+- По-умолчанию используется MCPLogger (output = "mcp").
+- MCPLogger интегрируется с MCPServer через интерфейс MCPServerNotifier (SetMCPServer принимает MCPServerNotifier, а не конкретный тип сервера).
+- Все MCP-логи содержат delivered_to_client=true.
+- Все тесты покрывают оба варианта, проверяют отсутствие дублирования, работу с уровнями, edge-cases, работу с полями.
+- Для тестирования MCPLogger используются моки MCPServerNotifier.
+- Logger respects config log default_level (runtime.log.default_level).
 
 ## File Removals
 - Deleted: `internal/app/direct_app_test.go`, `internal/app/direct_types.go`, `internal/app/util.go`, `site/examples/ai-news-subagent-extractor.yaml` (obsolete, replaced by `text-extractor.yaml`).
@@ -182,3 +191,37 @@ To verify that the `./run check` sequence:
 - Use explicit error handling in the `check` block for each step.
 - For CI, capture and assert on the presence/absence of the success message in the output.
 - Document any temporary modifications for failure simulation and revert after testing.
+
+## MCP Protocol Logging (MCP-логирование)
+
+### Server
+- Declares `logging` capability in handshake.
+- Sends logs to client via `notifications/message` (level, logger, data).
+- Handles `logging/setLevel` from client to change log level.
+- All logs go through centralized logger (logrus), marked as delivered to client.
+- No duplication to stderr.
+
+### Client
+- Handles `notifications/message` (parsing, filtering, output in CLI/UI).
+- Sends `logging/setLevel` (tool call) to server.
+- (Optionally) Duplicates MCP logs to local log.
+- Handles `logging/setLevel` from client to change log default_level.
+- Client can change log default_level.
+
+### Security
+- Secrets/PII must not be logged (responsibility of business logic).
+
+### Testing
+- **Server:**
+  - Unit/integration tests: sending notifications, structure, filtering by level, negative test for secrets/PII.
+- **Client:**
+  - Unit tests: parsing notifications, filtering, output, sending `logging/setLevel`.
+- All tests pass except negative test for secrets (requires explicit filtering logic).
+
+Все тесты для MCP-логирования реализованы и проходят (см. internal/mcp_server/mcp_server_test.go и cmd/mcp-call/main_test.go). Покрытие: отправка, фильтрация, структура, смена уровня, защита от утечек.
+
+### Definition of Done
+- Server and client exchange structured MCP logs.
+- Client can change log level.
+- All changes covered by tests.
+- See `architecture.md` for high-level design.

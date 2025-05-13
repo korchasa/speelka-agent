@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 )
@@ -70,19 +71,19 @@ func (m *mockLogger) Infof(format string, args ...interface{}) {
 }
 
 // Implement unused methods to satisfy LoggerSpec
-func (m *mockLogger) SetLevel(_ interface{})                    {}
-func (m *mockLogger) Debug(...interface{})                      {}
-func (m *mockLogger) Debugf(string, ...interface{})             {}
-func (m *mockLogger) Info(...interface{})                       {}
-func (m *mockLogger) Warn(...interface{})                       {}
-func (m *mockLogger) Warnf(string, ...interface{})              {}
-func (m *mockLogger) Error(...interface{})                      {}
-func (m *mockLogger) Errorf(string, ...interface{})             {}
-func (m *mockLogger) Fatal(...interface{})                      {}
-func (m *mockLogger) Fatalf(string, ...interface{})             {}
-func (m *mockLogger) WithField(string, interface{}) interface{} { return m }
-func (m *mockLogger) WithFields(interface{}) interface{}        { return m }
-func (m *mockLogger) SetMCPServer(interface{})                  {}
+func (m *mockLogger) SetLevel(_ interface{})                         {}
+func (m *mockLogger) Debug(...interface{})                           {}
+func (m *mockLogger) Debugf(string, ...interface{})                  {}
+func (m *mockLogger) Info(...interface{})                            {}
+func (m *mockLogger) Warn(...interface{})                            {}
+func (m *mockLogger) Warnf(string, ...interface{})                   {}
+func (m *mockLogger) Error(...interface{})                           {}
+func (m *mockLogger) Errorf(string, ...interface{})                  {}
+func (m *mockLogger) Fatal(...interface{})                           {}
+func (m *mockLogger) Fatalf(string, ...interface{})                  {}
+func (m *mockLogger) WithField(string, interface{}) interface{}      { return m }
+func (m *mockLogger) WithFields(interface{}) interface{}             { return m }
+func (m *mockLogger) SetMCPServer(mcpServer types.MCPServerNotifier) {}
 
 func Test_StderrLoggingTrimsNewlines(t *testing.T) {
 	// Simulate the goroutine logic directly

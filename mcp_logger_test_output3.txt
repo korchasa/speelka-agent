@@ -1,0 +1,117 @@
+=== RUN   TestMCPLoggerCreation
+--- PASS: TestMCPLoggerCreation (0.00s)
+=== RUN   TestMCPLoggingWithoutServer
+MCPLogger.send: level=debug, minLevel=debug, mcpServer=false, msg=test debug message, fields=map[]
+MCPLogger.send: mcpServer is nil, return
+MCPLogger.send: level=info, minLevel=debug, mcpServer=false, msg=test info message, fields=map[]
+MCPLogger.send: mcpServer is nil, return
+MCPLogger.send: level=warning, minLevel=debug, mcpServer=false, msg=test warning message, fields=map[]
+MCPLogger.send: mcpServer is nil, return
+MCPLogger.send: level=error, minLevel=debug, mcpServer=false, msg=test error message, fields=map[]
+MCPLogger.send: mcpServer is nil, return
+--- PASS: TestMCPLoggingWithoutServer (0.00s)
+=== RUN   TestMCPLoggingWithFieldsWithoutServer
+MCPLogger.send: level=info, minLevel=debug, mcpServer=false, msg=test with field, fields=map[key:value]
+MCPLogger.send: mcpServer is nil, return
+MCPLogger.send: level=info, minLevel=debug, mcpServer=false, msg=test with fields, fields=map[key1:value1 key2:value2]
+MCPLogger.send: mcpServer is nil, return
+--- PASS: TestMCPLoggingWithFieldsWithoutServer (0.00s)
+=== RUN   TestMCPLoggerLevelSetting
+--- PASS: TestMCPLoggerLevelSetting (0.00s)
+=== RUN   TestMCPLoggerEntryMethods
+MCPLogger.send: level=debug, minLevel=debug, mcpServer=false, msg=debug entry, fields=map[test:value]
+MCPLogger.send: mcpServer is nil, return
+MCPLogger.send: level=info, minLevel=debug, mcpServer=false, msg=info entry, fields=map[test:value]
+MCPLogger.send: mcpServer is nil, return
+MCPLogger.send: level=warning, minLevel=debug, mcpServer=false, msg=warn entry, fields=map[test:value]
+MCPLogger.send: mcpServer is nil, return
+MCPLogger.send: level=error, minLevel=debug, mcpServer=false, msg=error entry, fields=map[test:value]
+MCPLogger.send: mcpServer is nil, return
+MCPLogger.send: level=debug, minLevel=debug, mcpServer=false, msg=debug format, fields=map[test:value]
+MCPLogger.send: mcpServer is nil, return
+MCPLogger.send: level=info, minLevel=debug, mcpServer=false, msg=info format, fields=map[test:value]
+MCPLogger.send: mcpServer is nil, return
+MCPLogger.send: level=warning, minLevel=debug, mcpServer=false, msg=warn format, fields=map[test:value]
+MCPLogger.send: mcpServer is nil, return
+MCPLogger.send: level=error, minLevel=debug, mcpServer=false, msg=error format, fields=map[test:value]
+MCPLogger.send: mcpServer is nil, return
+--- PASS: TestMCPLoggerEntryMethods (0.00s)
+=== RUN   TestMCPLogLevelConversion
+--- PASS: TestMCPLogLevelConversion (0.00s)
+=== RUN   TestLogger_RespectsConfigLogLevel
+--- PASS: TestLogger_RespectsConfigLogLevel (0.00s)
+=== RUN   TestLogger_UsesJSONFormatterWhenConfigured
+--- PASS: TestLogger_UsesJSONFormatterWhenConfigured (0.00s)
+=== RUN   TestMCPServer_DeclaresLoggingCapability
+--- PASS: TestMCPServer_DeclaresLoggingCapability (0.00s)
+=== RUN   TestLogger_SendsMCPNotification
+MCPLogger.send: level=info, minLevel=info, mcpServer=true, msg=test info mcp-notification, fields=map[]
+MCPLogger.send: sending data=map[delivered_to_client:true level:info message:test info mcp-notification]
+--- PASS: TestLogger_SendsMCPNotification (0.00s)
+=== RUN   TestLogger_MCPLogHasDeliveredToClientMark
+MCPLogger.send: level=info, minLevel=info, mcpServer=true, msg=test delivered mark, fields=map[foo:bar]
+MCPLogger.send: sending data=map[data:map[delivered_to_client:true foo:bar] delivered_to_client:true level:info message:test delivered mark]
+--- PASS: TestLogger_MCPLogHasDeliveredToClientMark (0.00s)
+=== RUN   TestMCPLogger_BasicLevels
+minLevel after SetLevel: debug
+MCPLogger.send: level=debug, minLevel=debug, mcpServer=true, msg=debug message, fields=map[]
+MCPLogger.send: sending data=map[delivered_to_client:true level:debug message:debug message]
+minLevel before Info: debug
+MCPLogger.send: level=info, minLevel=debug, mcpServer=true, msg=info message, fields=map[]
+MCPLogger.send: level < minLevel, return
+minLevel before Warn: debug
+MCPLogger.send: level=warning, minLevel=debug, mcpServer=true, msg=warn message, fields=map[]
+MCPLogger.send: level < minLevel, return
+minLevel before Error: debug
+MCPLogger.send: level=error, minLevel=debug, mcpServer=true, msg=error message, fields=map[]
+MCPLogger.send: level < minLevel, return
+mock.calls: [map[delivered_to_client:true level:debug message:debug message]]
+    mcp_logger_test.go:38: expected 4 calls, got 1: [map[delivered_to_client:true level:debug message:debug message]]
+--- FAIL: TestMCPLogger_BasicLevels (0.00s)
+=== RUN   TestMCPLogger_RespectsLevel
+MCPLogger.send: level=info, minLevel=warning, mcpServer=true, msg=should not appear, fields=map[]
+MCPLogger.send: sending data=map[delivered_to_client:true level:info message:should not appear]
+MCPLogger.send: level=warning, minLevel=warning, mcpServer=true, msg=should appear, fields=map[]
+MCPLogger.send: sending data=map[delivered_to_client:true level:warning message:should appear]
+mock.calls: [map[delivered_to_client:true level:info message:should not appear] map[delivered_to_client:true level:warning message:should appear]]
+    mcp_logger_test.go:56: expected 1 call, got 2: [map[delivered_to_client:true level:info message:should not appear] map[delivered_to_client:true level:warning message:should appear]]
+--- FAIL: TestMCPLogger_RespectsLevel (0.00s)
+=== RUN   TestMCPLogger_WithFieldAndFields
+MCPLogger.send: level=info, minLevel=debug, mcpServer=true, msg=with field, fields=map[foo:bar]
+MCPLogger.send: level < minLevel, return
+MCPLogger.send: level=warning, minLevel=debug, mcpServer=true, msg=with fields, fields=map[a:1 b:2]
+MCPLogger.send: level < minLevel, return
+mock.calls: []
+    mcp_logger_test.go:72: expected 2 calls, got 0: []
+--- FAIL: TestMCPLogger_WithFieldAndFields (0.00s)
+=== RUN   TestMCPLogger_NoMCPServer_NoPanic
+MCPLogger.send: level=info, minLevel=debug, mcpServer=false, msg=should not panic, fields=map[]
+MCPLogger.send: mcpServer is nil, return
+--- PASS: TestMCPLogger_NoMCPServer_NoPanic (0.00s)
+=== RUN   TestMCPLogger_InfoOnly
+MCPLogger.send: level=info, minLevel=debug, mcpServer=true, msg=info message, fields=map[]
+MCPLogger.send: level < minLevel, return
+mock.calls: []
+    mcp_logger_test.go:98: 
+        	Error Trace:	/Users/korchasa/www/speelka/speelka-agent/internal/logger/mcp_logger_test.go:98
+        	Error:      	"[]" should have 1 item(s), but has 0
+        	Test:       	TestMCPLogger_InfoOnly
+--- FAIL: TestMCPLogger_InfoOnly (0.00s)
+panic: runtime error: index out of range [0] with length 0 [recovered]
+	panic: runtime error: index out of range [0] with length 0
+
+goroutine 50 [running]:
+testing.tRunner.func1.2({0x1004e17a0, 0x1400011c348})
+	/opt/homebrew/Cellar/go/1.24.2/libexec/src/testing/testing.go:1734 +0x1ac
+testing.tRunner.func1()
+	/opt/homebrew/Cellar/go/1.24.2/libexec/src/testing/testing.go:1737 +0x334
+panic({0x1004e17a0?, 0x1400011c348?})
+	/opt/homebrew/Cellar/go/1.24.2/libexec/src/runtime/panic.go:792 +0x124
+github.com/korchasa/speelka-agent-go/internal/logger.TestMCPLogger_InfoOnly(0x140001b0540)
+	/Users/korchasa/www/speelka/speelka-agent/internal/logger/mcp_logger_test.go:99 +0x214
+testing.tRunner(0x140001b0540, 0x1004fbc30)
+	/opt/homebrew/Cellar/go/1.24.2/libexec/src/testing/testing.go:1792 +0xe4
+created by testing.(*T).Run in goroutine 1
+	/opt/homebrew/Cellar/go/1.24.2/libexec/src/testing/testing.go:1851 +0x374
+FAIL	github.com/korchasa/speelka-agent-go/internal/logger	0.342s
+FAIL

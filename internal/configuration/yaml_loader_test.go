@@ -21,7 +21,7 @@ func TestYAMLLoader_LoadConfiguration(t *testing.T) {
 	validYAML := `
 runtime:
   log:
-    level: debug
+    default_level: debug
     output: ./test.log
 
 agent:
@@ -51,7 +51,7 @@ agent:
 	invalidYAML := `
 runtime
   log:
-    level: debug
+    default_level: debug
     INVALID: YAML: SYNTAX
 `
 
@@ -86,7 +86,7 @@ runtime
 				assert.Equal(t, "gpt-4", config.Agent.LLM.Model)
 				assert.Equal(t, "test-api-key", config.Agent.LLM.APIKey)
 				assert.Equal(t, "You are a helpful assistant. User query: {{query}} Available tools: {{tools}}", config.Agent.LLM.PromptTemplate)
-				assert.Equal(t, "debug", config.Runtime.Log.RawLevel)
+				assert.Equal(t, "debug", config.Runtime.Log.RawDefaultLevel)
 				assert.Equal(t, "./test.log", config.Runtime.Log.RawOutput)
 				assert.Equal(t, "", config.Runtime.Log.RawFormat)
 				// After Apply, check parsed fields
@@ -135,7 +135,7 @@ runtime
 				yaml := `
 runtime:
   log:
-    level: info
+    default_level: info
     output: stdout
 agent:
   name: timeout-agent
@@ -172,7 +172,7 @@ agent:
 				path := filepath.Join(tempDir, "log-format-config.yaml")
 				yaml := `runtime:
   log:
-    level: info
+    default_level: info
     output: stdout
     format: json
 agent:

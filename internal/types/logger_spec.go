@@ -4,6 +4,7 @@
 package types
 
 import (
+	"context"
 	"io"
 
 	"github.com/sirupsen/logrus"
@@ -13,9 +14,6 @@ import (
 // Responsibility: Storing logging system settings
 // Features: Defines the level, format, and output location for logs
 type LogConfig struct {
-	// RawLevel is the raw log level.
-	RawLevel string
-
 	// Level is the log level.
 	Level logrus.Level
 
@@ -64,11 +62,17 @@ type LogEntrySpec interface {
 	Fatalf(format string, args ...interface{})
 }
 
+// MCPServerNotifier defines the interface for sending MCP notifications (locally to avoid circular imports)
+type MCPServerNotifier interface {
+	SendNotificationToClient(ctx context.Context, method string, data map[string]interface{}) error
+}
+
 // LoggerSpec defines the interface for our MCP-aware logger
 // Responsibility: Providing a unified logging interface
 // Features: Supports different log levels, structured logging, and MCP integration
 type LoggerSpec interface {
 	SetLevel(level logrus.Level)
+	SetFormatter(formatter logrus.Formatter)
 	Debug(args ...interface{})
 	Debugf(format string, args ...interface{})
 	Info(args ...interface{})
@@ -81,5 +85,5 @@ type LoggerSpec interface {
 	Fatalf(format string, args ...interface{})
 	WithField(key string, value interface{}) LogEntrySpec
 	WithFields(fields logrus.Fields) LogEntrySpec
-	SetMCPServer(mcpServer interface{})
+	SetMCPServer(mcpServer MCPServerNotifier)
 }

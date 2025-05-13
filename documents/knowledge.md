@@ -60,4 +60,4 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{..
 |          | SPL_LLM_RETRY_INITIAL_BACKOFF | Init backoff | 1.0 |
 |          | SPL_LLM_RETRY_MAX_BACKOFF | Max backoff | 30.0 |
 |          | SPL_LLM_RETRY_BACKOFF_MULTIPLIER | Multiplier | 2.0 |
-| Runtime  | SPL_LOG_LEVEL | Log level | info |
+| Runtime  | SPL_LOG_DEFAULT_LEVEL | Log default_level | info |

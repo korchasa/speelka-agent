@@ -79,8 +79,9 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		assert.Equal(t, "Process this {{input}}. Available tools: {{tools}}", config.Agent.LLM.PromptTemplate)
 
 		// Assert that optional values were set to defaults
-		assert.Equal(t, "", config.Runtime.Log.RawLevel)
+		assert.Equal(t, "", config.Runtime.Log.RawDefaultLevel)
 		assert.Equal(t, "", config.Runtime.Log.RawOutput)
+		assert.Equal(t, "", config.Runtime.Log.RawFormat)
 	})
 
 	// Test scenario: Override default values
@@ -97,7 +98,7 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		os.Setenv("SPL_LLM_PROMPT_TEMPLATE", "Process this {{input}}. Available tools: {{tools}}")
 
 		// Override default values
-		os.Setenv("SPL_LOG_LEVEL", "debug")
+		os.Setenv("SPL_LOG_DEFAULT_LEVEL", "debug")
 		os.Setenv("SPL_LOG_OUTPUT", "stdout")
 		os.Setenv("SPL_LOG_FORMAT", "json")
 		os.Setenv("SPL_LLM_MAX_TOKENS", "1000")
@@ -116,7 +117,7 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		require.NotNil(t, config, "Configuration should not be nil when required env vars are set")
 
 		// Assert overridden values
-		assert.Equal(t, "debug", config.Runtime.Log.RawLevel)
+		assert.Equal(t, "debug", config.Runtime.Log.RawDefaultLevel)
 		assert.Equal(t, "stdout", config.Runtime.Log.RawOutput)
 		assert.Equal(t, "json", config.Runtime.Log.RawFormat)
 		// After Apply, check parsed fields
@@ -131,6 +132,7 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		assert.Equal(t, 3.0, config.Agent.LLM.Retry.BackoffMultiplier)
 		assert.Equal(t, 50, config.Agent.Chat.MaxLLMIterations)
 		assert.Equal(t, 2000, config.Agent.Chat.MaxTokens)
+		assert.Equal(t, "debug", config.Runtime.Log.RawDefaultLevel)
 	})
 
 	// Test scenario: MCP Server configuration

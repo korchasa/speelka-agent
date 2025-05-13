@@ -34,7 +34,6 @@ const (
 // Features: Stores message history, adds tool calls and responses to it
 type Chat struct {
 	promptTemplate string
-	argName        string // TODO: move to Begin() arguments and remove from constructor
 	messagesStack  []llms.MessageContent
 	logger         types.LoggerSpec
 
@@ -51,8 +50,8 @@ type Chat struct {
 	requestBudget float64
 }
 
-// NewChat creates a new Chat with the given prompt template, argument name, calculator, max tokens, and request budget
-func NewChat(model string, promptTemplate, argName string, logger types.LoggerSpec, calculator types.CalculatorSpec, maxTokens int, requestBudget float64) *Chat {
+// NewChat creates a new Chat with the given prompt template, calculator, max tokens, and request budget
+func NewChat(model string, promptTemplate string, logger types.LoggerSpec, calculator types.CalculatorSpec, maxTokens int, requestBudget float64) *Chat {
 	if calculator == nil {
 		calculator = llm_models.NewCalculator()
 	}
@@ -62,7 +61,6 @@ func NewChat(model string, promptTemplate, argName string, logger types.LoggerSp
 	}
 	return &Chat{
 		promptTemplate: promptTemplate,
-		argName:        argName,
 		messagesStack:  make([]llms.MessageContent, 0),
 		logger:         logger,
 		info: types.ChatInfo{
@@ -87,13 +85,12 @@ func (c *Chat) Begin(input string, tools []mcp.Tool) error {
 	}
 	prompt := prompts.PromptTemplate{
 		Template:       c.promptTemplate,
-		InputVariables: []string{c.argName, "tools"},
+		InputVariables: []string{"tools"},
 		TemplateFormat: prompts.TemplateFormatJinja2,
 	}
 
 	values := map[string]any{
-		c.argName: input,
-		"tools":   toolsDescription,
+		"tools": toolsDescription,
 	}
 
 	result, err := prompt.Format(values)

@@ -22,7 +22,7 @@ func TestJSONLoader_LoadConfiguration(t *testing.T) {
 {
   "runtime": {
     "log": {
-      "level": "debug",
+      "default_level": "debug",
       "output": "./test.log"
     }
   },
@@ -53,7 +53,7 @@ func TestJSONLoader_LoadConfiguration(t *testing.T) {
 {
   "runtime": {
     "log": {
-      "level": "debug",
+      "default_level": "debug",
       "output": invalid json syntax
     }
   }
@@ -91,7 +91,7 @@ func TestJSONLoader_LoadConfiguration(t *testing.T) {
 				assert.Equal(t, "gpt-4", config.Agent.LLM.Model)
 				assert.Equal(t, "test-api-key", config.Agent.LLM.APIKey)
 				assert.Equal(t, "You are a helpful assistant. User query: {{query}} Available tools: {{tools}}", config.Agent.LLM.PromptTemplate)
-				assert.Equal(t, "debug", config.Runtime.Log.RawLevel)
+				assert.Equal(t, "debug", config.Runtime.Log.RawDefaultLevel)
 				assert.Equal(t, "./test.log", config.Runtime.Log.RawOutput)
 				assert.Equal(t, "", config.Runtime.Log.RawFormat)
 				// After Apply, check parsed fields
@@ -130,7 +130,7 @@ func TestJSONLoader_LoadConfiguration(t *testing.T) {
 				path := filepath.Join(tempDir, "timeout-config.json")
 				json := `{
   "runtime": {
-    "log": { "level": "info", "output": "stdout" }
+    "log": { "default_level": "info", "output": "stdout" }
   },
   "agent": {
     "name": "timeout-agent",
@@ -174,7 +174,7 @@ func TestJSONLoader_LoadConfiguration(t *testing.T) {
 				path := filepath.Join(tempDir, "log-format-config.json")
 				json := `{
   "runtime": {
-    "log": { "level": "info", "output": "stdout", "format": "json" }
+    "log": { "default_level": "info", "output": "stdout", "format": "json" }
   },
   "agent": {
     "name": "log-format-agent",

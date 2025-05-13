@@ -3,14 +3,15 @@ package logger
 import (
 	"context"
 	"fmt"
-	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/sirupsen/logrus"
 )
 
 // Entry is a wrapper around logrus.Entry that supports MCP logging
 type Entry struct {
 	underlying *logrus.Entry
-	mcpServer  *server.MCPServer
+	mcpServer  types.MCPServerNotifier
 	minLevel   logrus.Level
 	fields     logrus.Fields
 }
@@ -85,17 +86,21 @@ func (e *Entry) sendNotification(level logrus.Level, msg string) {
 
 	// Prepare notification data
 	data := map[string]interface{}{
-		"level":   mcpLevel,
-		"message": msg,
+		"level":               mcpLevel,
+		"message":             msg,
+		"delivered_to_client": true,
 	}
 
 	if len(e.fields) > 0 {
-		data["data"] = e.fields
+		fields := make(logrus.Fields, len(e.fields))
+		for k, v := range e.fields {
+			fields[k] = v
+		}
+		fields["delivered_to_client"] = true
+		data["data"] = fields
 	}
 
 	// Send the notification to all clients
-	// We ignore errors because logging should not fail the application
-	// The sendNotificationToAllClients method is unexported, so we use SendNotificationToClient instead
 	if ctx := context.Background(); ctx != nil {
 		_ = e.mcpServer.SendNotificationToClient(ctx, "notifications/message", data)
 	}

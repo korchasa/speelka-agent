@@ -165,7 +165,7 @@ All environment variables are prefixed with `SPL_`:
 | `SPL_MSPS_RETRY_MAX_BACKOFF`        | 30.0          | Maximum backoff time in seconds                                                                                    |
 | `SPL_MSPS_RETRY_BACKOFF_MULTIPLIER` | 2.0           | Multiplier for increasing backoff time                                                                             |
 | **Runtime Configuration**           |               |                                                                                                                    |
-| `SPL_LOG_LEVEL`                     | "info"        | Log level (debug, info, warn, error)                                                                               |
+| `SPL_LOG_DEFAULT_LEVEL`              | "info"        | Log default_level (debug, info, warn, error)                                                                            |
 | `SPL_LOG_OUTPUT`                    | "stderr"      | Log output destination (stdout, stderr, file path)                                                                 |
 | `SPL_RUNTIME_STDIO_ENABLED`         | true          | Enable stdin/stdout transport                                                                                      |
 | `SPL_RUNTIME_STDIO_BUFFER_SIZE`     | 8192          | Buffer size for stdio transport                                                                                    |
