@@ -1,15 +1,15 @@
 # System Architecture
 
 ## Overview
-- Universal LLM agent (MCP-based)
-- Modular, extensible, clean architecture
+Universal LLM agent based on the Model Context Protocol (MCP). Modular, extensible, and clean architecture. All components are interface-driven, testable, and follow single-responsibility principle.
 
 ## Principles
 - Single-responsibility components
 - Dependency injection
-- Interface-driven, testable
+- Interface-based design
+- Centralized configuration
 - Structured error handling
-- Centralized config
+- Secure by default
 
 ## High-Level Flow
 ```mermaid
@@ -23,16 +23,15 @@ flowchart TB
     Agent -->|"Final answer"| User
 ```
 
-## Components
-- **Agent (internal/agent)**: Core agent logic only. Orchestrates flow, manages state, LLM loop, tool exec, chat state (token/cost tracked via LLMResponse, fallback estimation if needed). No config loading, server, CLI, or direct call JSON types. Exposes a clean interface for use by the app layer.
-- **App (internal/app)**: Application wiring, orchestration, lifecycle, CLI. Instantiates and manages the agent, provides CLI entry points. Owns config, logger, MCP server, agent instance. Includes `App` (server/daemon mode) and `DirectApp` (CLI direct-call mode, independent from `App`). Shared stateless utilities for config loading, agent instantiation, etc.
-- **Config Manager**: Loads/validates config (env, YAML, JSON), provides typed access, matches `types.Configuration` structure
-- **LLM Service**: Handles LLM requests, retry logic, returns `LLMResponse` (text, tool calls, token/cost)
-- **MCP Server**: Exposes agent (HTTP, stdio), manages tools, processes requests
-- **MCP Connector**: Connects to external MCP servers, routes tool calls, manages connections
-- **Chat**: Manages history, formatting, token/cost, context, all state in `chatInfo` struct, immutable config, enforces `request_budget` (limits total cost per request). **TotalTokens** and **TotalCost** are cumulative (monotonically increasing) and never decrease. Chat history is not compacted or compressed.
-  - **Tool call/result contract:** Every tool_call (function/tool request) must be followed by a tool result (response) before the next LLM request. If a tool_call is found without a result (orphaned), it is now automatically removed from the message stack and a warning is logged.
-- **Logger**: Wraps logrus, MCP protocol logging, client notifications
+## Main Components
+- **Agent** (`internal/agent`): Orchestrates LLM loop, tool execution, and chat state. Exposes a clean interface for app layer. No config/server/CLI logic.
+- **App Layer** (`internal/app_*`): Application wiring, lifecycle, CLI/server entrypoints. Manages config, logger, MCP server, agent instance.
+- **Config Manager**: Loads and validates config (env, YAML, JSON), provides typed access.
+- **LLM Service**: Handles LLM requests, retry logic, returns structured responses.
+- **MCP Server**: Exposes agent via HTTP/stdio, manages tools, processes requests.
+- **MCP Connector**: Connects to external MCP servers, routes tool calls, manages timeouts.
+- **Chat**: Manages history, formatting, token/cost tracking, enforces request budget.
+- **Logger**: Centralized logging (logrus/MCP protocol), client notifications.
 
 ## Data Flow
 1. User → MCP Server
@@ -41,45 +40,41 @@ flowchart TB
 4. LLM → text/tool calls
 5. MCP Connector → tool exec
 6. Tool results → Chat
-7. Token check
+7. Token/cost check
 8. Repeat until answer
 9. Response → User
 
 ## Error Handling
 - Categories: Validation, Transient, Internal, External
-- Retry: Per error type
+- Retry per error type
 - Context-rich, sanitized messages
-- Graceful degradation
-- Principles: Always check nil, safe assertions, descriptive errors, no panics
-- **Orphaned tool_call auto-cleanup:** The system detects and removes orphaned tool calls (calls without results) from the message stack before sending to the LLM, logging a warning. This prevents protocol errors and ensures robust operation even if an error or interruption occurs after a tool call is issued.
+- No panics, always check nil
+- Orphaned tool calls are auto-removed and logged
 
 ## Security
-- API keys: env/secure storage
+- API keys via env/secure storage
 - Sanitized logs/errors
 - HTTP transport security
 - Tool access control
 
-## Multi-Transport
-- Daemon: HTTP server (via `internal/app.App`)
-- CLI: stdio (via `internal/app.DirectApp`)
+## Transports
+- Daemon: HTTP server
+- CLI: stdio (direct call mode)
 
 ## Dependencies
-- `mcp-go`: MCP impl
-- `langchaingo`: LLM client
+- `mcp-go`: MCP protocol
+- `langchaingo`: LLM abstraction
 - `logrus`: Logging
 
-## Config System
+## Configuration
 - Flexible: YAML, JSON, env
-- Type-safe, validated, defaults
-- Secure: API keys via env
-- Only `Apply` parses log default_level/output
+- Type-safe, validated, secure
 - Load order: default → file → env
 
 ## Testing
-- Unit: 75%+ coverage, mocks
-- Config: defaults, overrides, validation, transport
+- Unit: 75%+ coverage
 - Integration: component, config, API
-- E2E: agent, transport, tools, token/cost/approximation
+- E2E: agent, transport, tools, token/cost
 
 ## Diagrams
 ### Request Flow
@@ -139,78 +134,15 @@ graph TD
     LR --> LRBM[Multiplier]
 ```
 
-## Direct Call Mode (CLI)
-- **Flag:** `--call` (string, user query)
-- **Behavior:** Runs agent in single-shot mode, bypassing MCP server. Outputs a structured JSON result to stdout. Uses `internal/app.DirectApp` (independent from `App`, wires up agent and dependencies for direct call mode).
-- **Output Structure:**
-  ```json
-  {
-    "success": true/false,
-    "result": { "answer": "..." },
-    "meta": { "tokens": ..., "cost": ..., "duration_ms": ... },
-    "error": { "type": "...", "message": "..." }
-  }
-  ```
-- **Error Handling:** All errors are mapped to JSON output and exit codes:
-  - `0`: success
-  - `1`: user/config error
-  - `2`: internal/agent/LLM/tool error
-- **Implementation:** Uses `DirectApp` (thin wrapper), reuses all config/env/agent logic.
-- **Use Cases:** Scripting, automation, debugging, CI integration.
+## Direct Call Mode
+- `--call` flag: single-shot agent run, outputs structured JSON to stdout
+- All errors mapped to JSON and exit codes (0: success, 1: user/config, 2: internal/tool)
+- Use cases: scripting, automation, CI
 
-## MCPConnector
-- Now supports per-server tool call timeout: each MCP server in config can specify a `timeout` (seconds, float or int). If not set, defaults to 30s.
-- Timeout is loaded from YAML/JSON, merged in `Apply`, copied in `GetMCPConnectorConfig`, and enforced in `MCPConnector.ExecuteTool`.
-- Manual timeout logic replaces context.WithTimeout for better control and logging. Enhanced logging for tool execution, including timeout/cancellation details.
-- Comprehensive tests added for timeout propagation and enforcement.
+## Logging
+- Centralized logger (logrus/MCP)
+- No log duplication
+- Dynamic log level via protocol
+- No secrets/PII in logs
 
-## Logger
-- Логгер выбирается централизованно через фабрику NewLogger на основании runtime.log.output ("mcp" или "stderr").
-- MCPLogger: пишет только через MCP-нотификации (notifications/message), stderr не используется.
-- IOWriterLogger: пишет только в stderr, MCP не используется.
-- По-умолчанию используется MCPLogger (output = "mcp").
-- Дублирования логов нет: каждая реализация отвечает только за свой канал.
-- MCPLogger интегрируется с MCPServer через интерфейс MCPServerNotifier (SetMCPServer принимает MCPServerNotifier, а не конкретный тип сервера).
-- Все MCP-логи содержат delivered_to_client=true.
-- Легко добавить новые реализации (например, MultiLogger, файловый логгер и т.д.).
-- Все тесты покрывают оба варианта, проверяют отсутствие дублирования, работу с уровнями, edge-cases.
-- Выбор логгера и его поведение покрыты unit и интеграционными тестами.
-- В конфиге теперь используется runtime.log.default_level вместо runtime.log.level.
-
-```mermaid
-graph TD
-    A[Config: runtime.log.output] -->|"mcp"| B[MCPLogger]
-    A -->|"stderr"| C[IOWriterLogger]
-    B -->|MCP only| D[notifications/message]
-    C -->|stderr only| E[stderr]
-```
-
-## File Removals
-- Deleted: `internal/app/direct_app_test.go`, `internal/app/direct_types.go`, `internal/app/util.go`, `site/examples/ai-news-subagent-extractor.yaml` (obsolete, replaced by `text-extractor.yaml`).
-- Tests and code referencing these files removed or updated.
-
-## Config System
-- Per-server timeout is now fully supported and documented in YAML/JSON config, merged and enforced throughout the stack.
-
-## MCP Protocol Logging (MCP-логирование)
-
-- **Server:**
-  - Declares `logging` capability in handshake.
-  - Sends structured log messages to client via `notifications/message` (level, logger, data).
-  - Handles `logging/setLevel` requests from client to change log default_level dynamically.
-  - All MCP logs go through centralized logger (logrus), marked as delivered to client.
-  - No duplication to stderr (all clients support MCP notifications).
-- **Client:**
-  - Handles `notifications/message` for log reception, displays/filters logs in UI/CLI.
-  - Can send `logging/setLevel` to server.
-  - (Optionally) Duplicates MCP logs to local log.
-- **Security:**
-  - Do not log secrets/PII (enforced by business logic, not infra).
-- **Testing:**
-  - Covered by unit/integration tests: sending, receiving, filtering logs, changing level.
-  - See `implementation.md` for test details and coverage.
-- **Consequences:**
-  - Full MCP compatibility, traceability, dynamic log control, minimal code complexity.
-  - Filtering of secrets/PII is a business responsibility.
-
-Все тесты для MCP-логирования реализованы и проходят. Подробности по тестам — см. implementation.md.
+// See implementation.md for test details and coverage.

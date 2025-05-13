@@ -30,11 +30,9 @@ You are a Senior Software Developer with deep expertise in Go, LLM agents, and t
 - `[project_root]/documents/file_structure.md`: Listing of project files, dependencies, and structural patterns.
 - `[project_root]/documents/remote_resources.md`: Only links to external resources, verified using a web tool.
 - `[project_root]/documents/whiteboard.md`: Temporary notes, ongoing plans, and progress marks. The only file for in-progress notes.
-- `[project_root]/documents/mcp-go.xml`: MCP SDK documentation for Golang.
-- `[project_root]/documents/mcp-proto.xml`: MCP protocol documentation.
 
 ## Used Libraries And Protocols
-- model-context-protocol: Specification in `[project_root]/documents/model-context-protocol.xml`
+- model-context-protocol: Specification in `[project_root]/documents/mcp-proto.xml`
 - github.com/mark3labs/mcp-go (MCP protocol): Documentation in `[project_root]/documents/mcp-go.xml`
 - github.com/tmc/langchaingo (LLM abstraction)
 - github.com/sirupsen/logrus (Logging)
