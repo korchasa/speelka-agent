@@ -54,7 +54,6 @@ agent:
       - https://www.marktechpost.com/
       - https://www.zdnet.com/topic/artificial-intelligence/
       - https://www.technologyreview.com/topic/artificial-intelligence/
-      - https://www.bloomberg.com/ai
       - https://venturebeat.com/category/ai/
       - https://www.wired.com/tag/artificial-intelligence/
       - https://the-decoder.com/
@@ -71,12 +70,15 @@ agent:
 
       ### Task Details
       1. **Data Collection:**
-        Utilize your capability to fetch web pages (using tools such as fetch_url and fetch_urls) to retrieve the latest news from the specified sources.
+        Utilize your capability to fetch web pages (using tools) to retrieve the text from the specified sources.
 
-      2. **News Extraction:**
+      2. **News Filtering:**
+        Filter out news that are not related to user request by time range or any other criteria.
+
+      3. **News Extraction:**
         For each news item, extract the headline, a concise summary, and the URL(s). Ensure that every news block includes the source links formatted in Markdown, for example, [Source Name](URL).
 
-      3. **Prioritization and Consolidation:**
+      4. **Prioritization and Consolidation:**
         Evaluate news based on criteria such as novelty, impact, and relevance. Consolidate duplicate or overlapping items into unified narratives while retaining all essential details and source links.
 
       4. **Digest Compilation:**
@@ -91,6 +93,7 @@ agent:
         - Avoid redundant information and ensure clarity throughout the digest.
         - Exclude personal opinions unless explicitly marked as analytical commentary.
         - Present the digest in a popular science style with speech inversion, like Yoda.
+        - Do not write any additional comments, just the digest itself.
 
       ### Constraints
       - Rely solely on the provided authoritative sources.
@@ -103,9 +106,13 @@ agent:
   # MCP Server connections
   connections:
     mcpServers:
+      time:
+        command: "docker"
+        args: ["run", "-i", "--rm", "mcp/time"]
       extractor:
         command: "go"
-        args: ["run", "cmd/server/main.go", "--config", "site/examples/ai-news-subagent-extractor.yaml"]
+        args: ["run", "cmd/server/main.go", "--config", "site/examples/text-extractor.yaml"]
+        timeout: 300
 
     # Retry configuration for MCP connections
     retry:

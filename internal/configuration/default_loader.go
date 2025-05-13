@@ -64,6 +64,7 @@ func (l *DefaultLoader) LoadConfiguration() (*types.Configuration, error) {
 
 	// Initialize empty server connections map
 	config.Agent.Connections.McpServers = make(map[string]types.MCPServerConnection)
+	// Note: No per-server timeout is set by default. If not set, fallback to 30s in code.
 
 	return config, nil
 }

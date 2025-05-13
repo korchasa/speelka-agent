@@ -56,7 +56,7 @@ func main() {
 		logErrorf("Error initializing server: %v", err)
 		os.Exit(1)
 	}
-	defer func(mcpClient client.MCPClient) {
+	defer func(mcpClient *client.Client) {
 		err := mcpClient.Close()
 		if err != nil {
 			logErrorf("Error closing MCP client: %v", err)
@@ -115,7 +115,7 @@ func prepare() (Flags, []string, map[string]interface{}, error) {
 
 // initServer creates and initializes the MCP client
 // It sets up stderr handling and connects to the MCP server
-func initServer(ctx context.Context, command string, commandArgs []string, timeout time.Duration) (client.MCPClient, *mcp.InitializeResult, error) {
+func initServer(ctx context.Context, command string, commandArgs []string, timeout time.Duration) (*client.Client, *mcp.InitializeResult, error) {
 	// Create the MCP client
 	logInfof("Run MCP-server : %s %v", command, commandArgs)
 	mcpClient, err := client.NewStdioMCPClient(command, os.Environ(), commandArgs...)
@@ -123,9 +123,8 @@ func initServer(ctx context.Context, command string, commandArgs []string, timeo
 		return nil, nil, fmt.Errorf("error creating MCP client: %v", err)
 	}
 
-	// Set up a goroutine to print stderr from the subprocess
-	go func() {
-		stderrReader := mcpClient.Stderr()
+	// Set up a goroutine to print stderr from the subprocess (if available)
+	if stderrReader, ok := client.GetStderr(mcpClient); ok {
 		go func() {
 			reader := bufio.NewReader(stderrReader)
 			for {
@@ -141,7 +140,7 @@ func initServer(ctx context.Context, command string, commandArgs []string, timeo
 				logStderr(line)
 			}
 		}()
-	}()
+	}
 
 	// Initialize the client with a specific timeout
 	initRequest := mcp.InitializeRequest{
@@ -177,7 +176,7 @@ func initServer(ctx context.Context, command string, commandArgs []string, timeo
 
 // listTools fetches the list of available tools from the MCP server
 // It also validates if the specified tool exists
-func listTools(ctx context.Context, client client.MCPClient, timeout time.Duration) error {
+func listTools(ctx context.Context, client *client.Client, timeout time.Duration) error {
 	// Get the list of available tools with timeout
 	logInfof("Listing available tools...")
 	toolsResult, err := mustRunWithTimeout(ctx, timeout, "List tools", func(ctx context.Context) (*mcp.ListToolsResult, error) {
@@ -199,7 +198,7 @@ func listTools(ctx context.Context, client client.MCPClient, timeout time.Durati
 
 // callTool executes the specified tool with given parameters
 // It handles the tool call and displays the results
-func callTool(ctx context.Context, client client.MCPClient, toolName string, params map[string]interface{}, timeout time.Duration) error {
+func callTool(ctx context.Context, client *client.Client, toolName string, params map[string]interface{}, timeout time.Duration) error {
 	// Create a CallToolRequest
 	callToolRequest := mcp.CallToolRequest{}
 	callToolRequest.Params.Name = toolName

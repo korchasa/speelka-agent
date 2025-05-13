@@ -413,6 +413,9 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 			if newServer.ExcludeTools != nil {
 				oldServer.ExcludeTools = newServer.ExcludeTools
 			}
+			if newServer.Timeout != 0 {
+				oldServer.Timeout = newServer.Timeout
+			}
 			c.Agent.Connections.McpServers[name] = oldServer
 		}
 	}

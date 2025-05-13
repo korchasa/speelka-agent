@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,18 +17,18 @@ import (
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/pkg/errors"
 )
 
 // MCPConnector implements the contracts.MCPConnectorSpec interface
 // Responsibility: Managing connections to external MCP servers
 // Features: Provides access to tools from all connected servers
 type MCPConnector struct {
-	config          types.MCPConnectorConfig
-	clients         map[string]client.MCPClient
-	tools           map[string][]mcp.Tool
-	dataLock        sync.RWMutex
-	logger          types.LoggerSpec
-	toolCallTimeout time.Duration
+	config   types.MCPConnectorConfig
+	clients  map[string]client.MCPClient
+	tools    map[string][]mcp.Tool
+	dataLock sync.RWMutex
+	logger   types.LoggerSpec
 }
 
 // NewMCPConnector creates a new instance of MCPConnector
@@ -35,11 +36,10 @@ type MCPConnector struct {
 // Features: Returns a simple instance without initialization
 func NewMCPConnector(config types.MCPConnectorConfig, logger types.LoggerSpec) *MCPConnector {
 	return &MCPConnector{
-		clients:         make(map[string]client.MCPClient),
-		tools:           make(map[string][]mcp.Tool),
-		config:          config,
-		logger:          logger,
-		toolCallTimeout: 30 * time.Second, // Default timeout
+		clients: make(map[string]client.MCPClient),
+		tools:   make(map[string][]mcp.Tool),
+		config:  config,
+		logger:  logger,
 	}
 }
 
@@ -115,18 +115,21 @@ func (mc *MCPConnector) ConnectServer(ctx context.Context, serverID string, serv
 			}
 
 			// Capture stderr output and log it with warning level
-			if stdioClient, ok := mcpClient.(*client.StdioMCPClient); ok {
-				stderrReader := stdioClient.Stderr()
-				go func() {
-					reader := bufio.NewReader(stderrReader)
-					for {
-						line, err := reader.ReadString('\n')
-						if err != nil {
-							return
+			if stdioClient, ok := mcpClient.(*client.Client); ok {
+				if stderrReader, ok := client.GetStderr(stdioClient); ok {
+					go func() {
+						reader := bufio.NewReader(stderrReader)
+						for {
+							line, err := reader.ReadString('\n')
+							if err != nil {
+								return
+							}
+							// Trim trailing newlines and whitespace for clean log output
+							trimmed := strings.TrimRight(line, "\r\n \\t")
+							mc.logger.Infof("`%s` stderr: %s", serverID, trimmed)
 						}
-						mc.logger.Infof("`%s` stderr: %s", serverID, line)
-					}
-				}()
+					}()
+				}
 			}
 		} else if serverConfig.URL != "" {
 			// Use HTTP client with SSE
@@ -228,12 +231,88 @@ func (mc *MCPConnector) ExecuteTool(ctx context.Context, call types.CallToolRequ
 		)
 	}
 
-	// ToolCall the tool with timeout
-	callCtx, cancel := context.WithTimeout(ctx, mc.toolCallTimeout)
-	defer cancel()
+	// Determine per-server timeout (fallback to 30s if not set)
+	timeout := 30.0
+	if srvCfg, ok := mc.config.McpServers[foundServerID]; ok && srvCfg.Timeout > 0 {
+		timeout = srvCfg.Timeout
+	}
+	callTimeout := time.Duration(timeout * float64(time.Second))
 
-	result, err := mcpClient.CallTool(callCtx, call.CallToolRequest)
+	// Log tool execution with timeout info
+	mc.logger.Infof(
+		">>> Execute tool `%s` (server_id=%s, timeout_sec=%.0f, arguments=%v)",
+		call.ToolName(), foundServerID, timeout, call.Params.Arguments,
+	)
+	mc.logger.Debugf(">>> Details: %s", call.Params.Arguments)
+
+	n := time.Now()
+
+	// Manual timeout handling: create a cancelable context and a timer
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+	defer cancel()
+	resultCh := make(chan *mcp.CallToolResult, 1)
+	errCh := make(chan error, 1)
+
+	go func() {
+		result, err := mcpClient.CallTool(ctxWithCancel, call.CallToolRequest)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		resultCh <- result
+	}()
+
+	timer := time.NewTimer(callTimeout)
+	defer timer.Stop()
+
+	var result *mcp.CallToolResult
+	var err error
+	var timedOut bool
+
+	select {
+	case result = <-resultCh:
+		// Success
+	case err = <-errCh:
+		// Error from tool
+	case <-timer.C:
+		timedOut = true
+		cancel() // Cancel the context
+	}
+	duration := time.Since(n)
+	mc.logger.Infof("<<< Tool execution complete in %s", duration)
+
+	if timedOut {
+		mc.logger.WithFields(map[string]interface{}{
+			"tool":        call.ToolName(),
+			"arguments":   call.Params.Arguments,
+			"server_id":   foundServerID,
+			"timeout_sec": timeout,
+		}).Warnf("Tool execution timed out after %.0f seconds", timeout)
+		return nil, error_handling.NewError(
+			fmt.Sprintf("tool `%s` execution timed out after %.0f seconds", call.Params.Name, timeout),
+			error_handling.ErrorCategoryInternal,
+		)
+	}
+
 	if err != nil {
+		// Enhanced logging for context cancellation
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			mc.logger.WithFields(map[string]interface{}{
+				"tool":        call.ToolName(),
+				"arguments":   call.Params.Arguments,
+				"server_id":   foundServerID,
+				"timeout_sec": timeout,
+				"context_err": err.Error(),
+			}).Warnf("Tool execution canceled due to context error: %T", err)
+		} else {
+			mc.logger.WithFields(map[string]interface{}{
+				"tool":        call.ToolName(),
+				"arguments":   call.Params.Arguments,
+				"server_id":   foundServerID,
+				"timeout_sec": timeout,
+				"error":       err.Error(),
+			}).Errorf("Failed to execute tool")
+		}
 		return nil, error_handling.WrapError(
 			err,
 			fmt.Sprintf("failed to call tool `%s`", call.Params.Name),
@@ -259,4 +338,21 @@ func (mc *MCPConnector) Close() error {
 	}
 
 	return nil
+}
+
+// testableTimeoutSelect is a helper for testing manual timeout logic in ExecuteTool.
+// It races a result and error channel against a timer, returning which event occurred.
+func testableTimeoutSelect(resultCh <-chan *mcp.CallToolResult, errCh <-chan error, timeout time.Duration, cancel context.CancelFunc) (result *mcp.CallToolResult, err error, timedOut bool) {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case result = <-resultCh:
+		return result, nil, false
+	case err = <-errCh:
+		return nil, err, false
+	case <-timer.C:
+		cancel()
+		return nil, nil, true
+	}
 }

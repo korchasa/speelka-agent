@@ -169,3 +169,24 @@ func TestMCPLogLevelConversion(t *testing.T) {
 	_, err = mcpToLogrusLevel("invalid")
 	assert.Error(t, err)
 }
+
+func TestLogger_RespectsConfigLogLevel(t *testing.T) {
+	var buf bytes.Buffer
+	logger := NewLogger()
+	logger.SetOutput(&buf)
+	logger.SetLevel(logrus.WarnLevel)
+
+	logger.Info("this is info")
+	logger.Warn("this is warn")
+
+	output := buf.String()
+	if output == "" {
+		t.Fatal("expected some output, got none")
+	}
+	if contains := bytes.Contains([]byte(output), []byte("this is info")); contains {
+		t.Error("info log should not be present at warn level")
+	}
+	if !bytes.Contains([]byte(output), []byte("this is warn")) {
+		t.Error("warn log should be present at warn level")
+	}
+}

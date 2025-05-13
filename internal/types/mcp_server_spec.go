@@ -151,6 +151,9 @@ type MCPServerConnection struct {
 
 	// ExcludeTools is an optional blacklist of tool names to exclude from this server. If set, these tools will not be available.
 	ExcludeTools []string `json:"exclude_tools,omitempty" yaml:"exclude_tools,omitempty"`
+
+	// Timeout is the tool call timeout for this server, in seconds. If zero, the default is used.
+	Timeout float64 `json:"timeout,omitempty" yaml:"timeout,omitempty"`
 }
 
 // IsToolAllowed determines if a tool is allowed based on IncludeTools and ExcludeTools.

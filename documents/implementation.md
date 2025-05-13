@@ -1,7 +1,9 @@
 # Implementation
 
 ## Core Components
-- **Agent**: Orchestrates request lifecycle, tool exec, state, logs tool calls as `>> Execute tool toolName(args)`
+- **Agent (internal/agent)**: Core agent logic only. Orchestrates request lifecycle, tool exec, state, logs tool calls as `>> Execute tool toolName(args)`. No config loading, server, CLI, or direct call JSON types. Exposes a clean interface for use by the app layer.
+- **App MCP (internal/app_mcp)**: Application wiring for MCP server/daemon mode. Instantiates and manages the agent, provides CLI entry points. Implements the shared `Application` interface.
+- **App Direct (internal/app_direct)**: Application wiring for direct CLI call mode. Instantiates and manages the agent for direct call mode. Implements the shared `Application` interface.
 - **Chat**: Manages history, token/cost; config immutable (constructor only); all state in `chatInfo` struct; token/cost tracked via LLMResponse, fallback estimation if needed. **TotalTokens** and **TotalCost** are cumulative (monotonically increasing) and never decrease. Chat history is not compacted or compressed.
 - **TokenCounter**: Approximates tokens (4 chars ≈ 1 token), type-specific, fallback for unknowns
 - **Config Manager**: Loads/validates config (YAML, JSON, env), type-safe, strict validation, only `Apply` parses log/output
@@ -46,9 +48,11 @@ agent:
       time:
         command: "docker"
         args: ["run", "-i", "--rm", "mcp/time"]
+        timeout: 10   # Tool call timeout in seconds (optional, default 30s if not set)
       filesystem:
         command: "mcp-filesystem-server"
         args: ["/path/to/directory"]
+        # timeout: 60
 ```
 
 ## Token Counting
@@ -111,17 +115,30 @@ SPL_CHAT_REQUEST_BUDGET=0.0
   - If the overlay config provides nil, the previous value is preserved.
 - Comprehensive tests cover all edge cases for loading and merging these fields.
 
-## MCPConnector Tool Discovery
+## MCPConnector
+- Now supports per-server tool call timeout: each MCP server in config can specify a `timeout` (seconds, float or int). If not set, defaults to 30s.
+- Timeout is loaded from YAML/JSON, merged in `Apply`, copied in `GetMCPConnectorConfig`, and enforced in `MCPConnector.ExecuteTool`.
+- Manual timeout logic replaces context.WithTimeout for better control and logging. Enhanced logging for tool execution, including timeout/cancellation details.
+- Comprehensive tests added for timeout propagation and enforcement.
 
-- The `GetAllTools` method of `MCPConnector` now returns the union of all tools from the cached, filtered `mc.tools[serverID]` map, rather than querying each MCP client for its tools.
-- This ensures that only tools allowed by the server's configuration (IncludeTools/ExcludeTools) are ever returned, and improves performance by avoiding unnecessary network calls.
-- The cache is populated during `InitAndConnectToMCPs` and is always up-to-date with the allowed tools for each server.
-- **Bugfix (2024-06):** Previously, tool filtering was not respected because `IncludeTools` and `ExcludeTools` were not copied into the connector config. This is now fixed: only allowed tools are available as expected.
+## Logger
+- After config is loaded, logger's level is set to match config (`logger.SetLevel(configManager.GetLogConfig().Level)`).
+- Added test to ensure logger respects config log level.
+
+## File Removals
+- Deleted: `internal/app/direct_app_test.go`, `internal/app/direct_types.go`, `internal/app/util.go`, `site/examples/ai-news-subagent-extractor.yaml` (obsolete, replaced by `text-extractor.yaml`).
+- Tests and code referencing these files removed or updated.
+
+## Test Coverage
+- Added/updated tests for:
+  - Per-server timeout propagation and enforcement (YAML/JSON loader, config manager, MCPConnector).
+  - Logger respects config log level.
+  - Removal of obsolete files and references.
 
 ## Direct Call Mode (CLI)
 - **Flag:** `--call` (string, user query)
 - **Usage:** `./bin/speelka-agent --config config.yaml --call 'What is the weather?'
-- **Behavior:** Runs agent in single-shot mode, outputs structured JSON to stdout.
+- **Behavior:** Runs agent in single-shot mode, outputs structured JSON to stdout. Uses `internal/app.DirectApp` (independent from `App`, wires up agent and dependencies for direct call mode).
 - **Output Example:**
   ```json
   {
