@@ -88,6 +88,7 @@ runtime
 				assert.Equal(t, "You are a helpful assistant. User query: {{query}} Available tools: {{tools}}", config.Agent.LLM.PromptTemplate)
 				assert.Equal(t, "debug", config.Runtime.Log.RawLevel)
 				assert.Equal(t, "./test.log", config.Runtime.Log.RawOutput)
+				assert.Equal(t, "", config.Runtime.Log.RawFormat)
 				// After Apply, check parsed fields
 				config.Apply(config)
 				assert.NotNil(t, config.Runtime.Log.Output)
@@ -163,6 +164,38 @@ agent:
 				server, ok := config.Agent.Connections.McpServers["slow"]
 				assert.True(t, ok)
 				assert.Equal(t, 42.0, server.Timeout)
+			},
+		},
+		{
+			name: "Log format YAML field",
+			filePath: func() string {
+				path := filepath.Join(tempDir, "log-format-config.yaml")
+				yaml := `runtime:
+  log:
+    level: info
+    output: stdout
+    format: json
+agent:
+  name: log-format-agent
+  tool:
+    name: log-format-tool
+    description: Tool with log format
+    argument_name: input
+    argument_description: Input
+  llm:
+    provider: openai
+    model: gpt-4
+    api_key: test-api-key
+    prompt_template: "Test {{input}}. Tools: {{tools}}"
+`
+				_ = os.WriteFile(path, []byte(yaml), 0644)
+				return path
+			}(),
+			expectError: false,
+			validate: func(t *testing.T, config *types.Configuration) {
+				assert.Equal(t, "json", config.Runtime.Log.RawFormat)
+				config.Apply(config)
+				assert.Equal(t, "json", config.Runtime.Log.RawFormat)
 			},
 		},
 	}

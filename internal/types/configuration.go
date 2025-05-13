@@ -26,6 +26,7 @@ type RuntimeConfig struct {
 type RuntimeLogConfig struct {
 	RawLevel  string `json:"level" yaml:"level"`
 	RawOutput string `json:"output" yaml:"output"`
+	RawFormat string `json:"format" yaml:"format"`
 
 	// Internal fields, not directly from config file
 	LogLevel logrus.Level
@@ -260,6 +261,10 @@ func (c *Configuration) Apply(newConfig *Configuration) *Configuration {
 	}
 	if newConfig.Runtime.Log.RawOutput != "" {
 		c.Runtime.Log.RawOutput = newConfig.Runtime.Log.RawOutput
+	}
+	// Override log format if specified
+	if newConfig.Runtime.Log.RawFormat != "" {
+		c.Runtime.Log.RawFormat = newConfig.Runtime.Log.RawFormat
 	}
 
 	// Apply transports configuration

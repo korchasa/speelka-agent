@@ -250,7 +250,21 @@ func (a *Agent) handleIterationLimit(session *chat.Chat) (*mcp.CallToolResult, e
 }
 
 func (a *Agent) handleLLMAnswerToolRequest(call types.CallToolRequest, resp types.LLMResponse, session *chat.Chat) *mcp.CallToolResult {
-	finalMessage := call.Params.Arguments["text"].(string)
+	// Robust nil and type checking for 'text' argument
+	argValue, exists := call.Params.Arguments["text"]
+	if !exists || argValue == nil {
+		a.logger.Errorf("missing or nil 'text' argument in exit tool call")
+		return mcp.NewToolResultError("missing or nil 'text' argument in exit tool call")
+	}
+	finalMessage, ok := argValue.(string)
+	if !ok {
+		a.logger.Errorf("invalid 'text' argument type: expected string, got %T", argValue)
+		return mcp.NewToolResultError(fmt.Sprintf("invalid 'text' argument type: expected string, got %T", argValue))
+	}
+	if finalMessage == "" {
+		a.logger.Errorf("empty 'text' argument in exit tool call")
+		return mcp.NewToolResultError("empty 'text' argument in exit tool call")
+	}
 	a.logger.WithFields(logrus.Fields{
 		"request_cost":     resp.Metadata.Cost,
 		"request_duration": resp.Metadata.DurationMs,

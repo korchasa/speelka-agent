@@ -99,6 +99,7 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		// Override default values
 		os.Setenv("SPL_LOG_LEVEL", "debug")
 		os.Setenv("SPL_LOG_OUTPUT", "stdout")
+		os.Setenv("SPL_LOG_FORMAT", "json")
 		os.Setenv("SPL_LLM_MAX_TOKENS", "1000")
 		os.Setenv("SPL_LLM_TEMPERATURE", "0.5")
 		os.Setenv("SPL_LLM_RETRY_MAX_RETRIES", "5")
@@ -117,6 +118,7 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		// Assert overridden values
 		assert.Equal(t, "debug", config.Runtime.Log.RawLevel)
 		assert.Equal(t, "stdout", config.Runtime.Log.RawOutput)
+		assert.Equal(t, "json", config.Runtime.Log.RawFormat)
 		// After Apply, check parsed fields
 		config.Apply(config)
 		assert.Equal(t, os.Stdout, config.Runtime.Log.Output)

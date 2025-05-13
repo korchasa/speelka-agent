@@ -6,6 +6,7 @@
 runtime:
   log:
     level: "info"
+    format: "json"
 
   transports:
     stdio:
@@ -62,47 +63,10 @@ agent:
       - https://devblogs.microsoft.com/devops/
       - https://developer.ibm.com/devpractices/devops/blogs/
       - https://devm.io/magazines/devops-magazine/
-      - https://devops.com/
-      - https://devopsdays.org/blog/
-      - https://directdevops.blog
-      - https://directdevops.blog/
-      - https://dzone.com/devops-and-cicd
-      - https://fedtechmagazine.com/management/devops
-      - https://gearset.com/blog/
-      - https://itrevolution.com/articles/
-      - https://kodekloud.com/blog/
-      - https://searchitoperations.techtarget.com/
-      - https://securityboulevard.com/category/blogs/devops/
-      - https://spacelift.io/blog
-      - https://stackify.com/blog/
-      - https://theagileadmin.com/
-      - https://www.apexhours.com/category/devops/
-      - https://www.ashnik.com/blogs/
-      - https://www.atlassian.com/blog/devops
-      - https://www.bestdevops.com/
-      - https://www.clickittech.com/blog/
-      - https://www.cloudthat.com/resources/blogs/
-      - https://www.codemotion.com/magazine/devops/
-      - https://www.dasa.org/blog/
-      - https://www.delphix.com/blog
-      - https://www.devopsdigest.com/blog
-      - https://www.docker.com/blog/
-      - https://www.dynatrace.com/news/category/devops/
-      - https://www.edureka.co/blog/category/devops/
-      - https://www.infoq.com/Devops/articles/
-      - https://www.kovair.com/blog/category/devops/
-      - https://www.opsview.com/resources/devops/blog
-      - https://www.scmagazine.com/topic/devops
-      - https://www.techtarget.com/searchitoperations/
-      - https://www.theregister.com/software/devops/
-      - https://www.xmatters.com/blog/category/devops-sre
-      - https://www.reddit.com/r/devops/
-      - https://www.reddit.com/r/Cloud/
-      - https://www.reddit.com/r/infrastructure/
 
       ### Task Details
       1. **Data Collection:**
-        Utilize your capability to fetch web pages (using tools) to retrieve the latest news from the specified sources.
+        Utilize your capability to fetch web pages (using tools) to retrieve the latest news from ALL authoritative sources.
 
       2. **News Filtering:**
         Filter out news that are not related to user request by time range or any other criteria.
@@ -129,7 +93,7 @@ agent:
       ### Constraints
       - Rely solely on the provided authoritative sources.
       - Ensure that each news block contains source links using the specified Markdown format.
-      - Do not expose internal chain-of-thought or processing details.
+      - Expose internal chain of thought and processing details in responses, but not in the answer tool call.
 
       ### Available tools
       {{tools}}
@@ -141,8 +105,8 @@ agent:
         command: "docker"
         args: ["run", "-i", "--rm", "mcp/time"]
       extractor:
-        command: "npx"
-        args: ["-y", "fetcher-mcp"]
+        command: "go"
+        args: ["run", "cmd/server/main.go", "--config", "site/examples/text-extractor.yaml"]
         timeout: 300
 
     # Retry configuration for MCP connections

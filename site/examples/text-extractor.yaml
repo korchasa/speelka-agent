@@ -7,6 +7,7 @@
 runtime:
   log:
     level: "info"
+    format: "json"
 
   transports:
     stdio:

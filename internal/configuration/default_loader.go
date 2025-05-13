@@ -21,6 +21,7 @@ func (l *DefaultLoader) LoadConfiguration() (*types.Configuration, error) {
 	// Set default values for RuntimeConfig
 	config.Runtime.Log.RawLevel = "info"
 	config.Runtime.Log.RawOutput = "stderr"
+	config.Runtime.Log.RawFormat = "text"
 
 	// Set default values for Runtime Transport
 	config.Runtime.Transports.Stdio.Enabled = true

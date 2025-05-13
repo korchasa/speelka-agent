@@ -220,6 +220,7 @@ func (cm *Manager) GetLogConfig() types.LogConfig {
 	logConfig := types.LogConfig{
 		RawLevel:  cm.config.Runtime.Log.RawLevel,
 		RawOutput: cm.config.Runtime.Log.RawOutput,
+		RawFormat: cm.config.Runtime.Log.RawFormat,
 		Level:     cm.config.Runtime.Log.LogLevel,
 		Output:    cm.config.Runtime.Log.Output,
 	}

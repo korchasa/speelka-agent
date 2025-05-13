@@ -22,6 +22,9 @@ type LogConfig struct {
 	// RawOutput is the raw output of the log level.
 	RawOutput string
 
+	// RawFormat is the raw format for log output ("text" or "json").
+	RawFormat string
+
 	// Output is the log output.
 	Output io.Writer
 }

@@ -2,6 +2,7 @@ package logger
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -189,4 +190,20 @@ func TestLogger_RespectsConfigLogLevel(t *testing.T) {
 	if !bytes.Contains([]byte(output), []byte("this is warn")) {
 		t.Error("warn log should be present at warn level")
 	}
+}
+
+func TestLogger_UsesJSONFormatterWhenConfigured(t *testing.T) {
+	logger := NewLogger()
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
+	logger.SetLevel(logrus.InfoLevel)
+	logger.SetFormatter(&logrus.JSONFormatter{})
+
+	logger.Info("json test", "foo")
+	output := buf.String()
+	assert.Contains(t, output, "json test")
+	assert.Contains(t, output, "foo")
+	// Should be valid JSON
+	var js map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(output), &js))
 }

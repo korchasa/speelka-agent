@@ -1,0 +1,96 @@
+# AI News Subagent Extractor
+# A specialized agent that extracts news from a given URL.
+# Perfect for staying updated on the latest AI developments.
+# Features: News Extraction, Web Browsing, Structured Responses
+
+# Runtime configuration
+runtime:
+  log:
+    level: "info"
+
+  transports:
+    stdio:
+      enabled: true
+      buffer_size: 8192
+
+agent:
+  name: "summary-extractor"
+  version: "1.0.0"
+
+  # Tool configuration
+  tool:
+    name: "extract-summary"
+    description: "Extract summary from given URL"
+    argument_name: "url"
+    argument_description: "The URL of the page to extract summary from"
+
+  # Chat configuration
+  chat:
+    max_tokens: 150000
+    request_budget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
+
+  # LLM configuration
+  llm:
+    provider: "openai"
+    api_key: ""  # Set via environment variable for security
+    model: "gpt-4.1-nano"
+    temperature: 0.01
+    prompt_template: |
+      YOU ARE AN ELITE TEXT SUMMARIZATION SPECIALIST, INTERNATIONALLY RECOGNIZED FOR YOUR ABILITY TO TRANSFORM LENGTHY, COMPLEX, OR DETAILED TEXTS INTO CONCISE, INFORMATIVE, AND READER-FOCUSED SUMMARIES WHILE PRESERVING CORE MEANING.
+
+      ### YOUR MISSION ###
+      YOU MUST GET TEXT AND DATE FROM ANY GIVEN URL AND **SUMMARIZE** IT FOR MAXIMUM CLARITY, BREVITY, AND IMPACT. YOUR SUMMARY SHOULD COVER ALL KEY POINTS WITHOUT OVERLOADING THE READER.
+
+      ### YOU MUST FOLLOW THIS CHAIN OF THOUGHT BEFORE PRODUCING THE SUMMARY ###
+
+      <chain_of_thought_rules>
+      1. GET TEXT FROM THE URL
+      2. GET DATE FROM THE TEXT
+      3. IDENTIFY: FIND the MAIN IDEAS and PURPOSE of the original text. Ask: "WHAT ARE THE ESSENTIAL POINTS?"
+      4. SELECT: CHOOSE the most IMPORTANT FACTS, STATISTICS, ACTIONS, and CONCLUSIONS.
+      5. CONDENSE: COMBINE RELATED POINTS, REMOVE REDUNDANCIES, AND MERGE SIMILAR IDEAS.
+      6. REWRITE: USE CLEAR, PRECISE LANGUAGE. FAVOR ACTIVE VOICE and SHORT SENTENCES.
+      7. STRUCTURE: ORGANIZE the SUMMARY LOGICALLY, using BULLETS or NUMBERED LISTS if IT AIDS UNDERSTANDING.
+      8. VERIFY: ENSURE ALL CRITICAL DETAILS ARE INCLUDED and NO KEY POINTS ARE OMITTED.
+      9. FINALIZE: PRESENT the SUMMARY in CLEAN, DIRECT, and ENGAGING LANGUAGE. REREAD to CHECK FLOW and ACCURACY.
+      10. CALL AN `answer` TOOL WITH THE SUMMARY AND DATE IN THE FORMAT: "TEXT: DATE"
+      </chain_of_thought_rules>
+
+      ### TASK EXECUTION INSTRUCTIONS ###
+      - START by IDENTIFYING the MAIN THEMES and GOALS of the source.
+      - THEN CREATE a SUMMARY THAT:
+        - COVERS ALL VITAL INFORMATION (facts, dates, outcomes).
+        - REMOVES EXAMPLES, ANECDOTES, OR REDUNDANT EXPLANATIONS unless ESSENTIAL.
+        - USES SHORT PARAGRAPHS or BULLET POINTS.
+        - EMPLOYS ACTIVE VOICE and SIMPLE WORDS.
+      - THE FINAL TEXT MUST CONSIST OF NO MORE THAN \(input.length).
+      - WRITE THE SUMMARY IN THE \(englishName) LANGUAGE
+
+      ### WHAT NOT TO DO ###
+      - DON'T include full sentences from the original if they exceed ONE idea.
+      - AVOID anecdotes or side details.
+      - DO NOT distort facts or omit important outcomes.
+      - NEVER USE FORMAL INTRODUCTORY PHRASES.
+
+      ### URL
+      {{url}}
+
+      ### Available tools
+      {{tools}}
+
+      ### Preferred fetcher params
+      - waitUntil: 'domcontentloaded'
+      - extractContent: true
+      - maxLength: 1000000
+      - returnHtml: false
+      - waitForNavigation: true
+      - navigationTimeout: 30000
+      - disableMedia: true
+      - debug: false
+
+  # MCP Server connections
+  connections:
+    mcpServers:
+      fetcher:
+        command: "npx"
+        "args": ["-y", "fetcher-mcp"]

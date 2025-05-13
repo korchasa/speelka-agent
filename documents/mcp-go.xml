@@ -1,3 +1,6 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+The content has been processed where content has been compressed (code blocks are separated by ⋮---- delimiter).
+
 <file_summary>
 This section contains a summary of this file.
 
@@ -12,6 +15,7 @@ The content is organized as follows:
 1. This summary section
 2. Repository information
 3. Directory structure
+4. Repository files (if enabled)
 4. Repository files, each consisting of:
   - File path as an attribute
   - Full contents of the file
@@ -32,7 +36,6 @@ The content is organized as follows:
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been compressed - code blocks are separated by ⋮---- delimiter
-- Security check has been disabled - content may contain sensitive information
 - Files are sorted by Git change count (files with more changes are at the bottom)
 </notes>
 
@@ -44,22 +47,45 @@ The content is organized as follows:
 
 <directory_structure>
 .github/
+  ISSUE_TEMPLATE/
+    bug_report.md
+    config.yml
+    documentation-improvement.md
+    feature-request.md
   workflows/
     ci.yml
+    golangci-lint.yml
     release.yml
+  pull_request_template.md
 client/
+  transport/
+    inprocess.go
+    interface.go
+    sse_test.go
+    sse.go
+    stdio_test.go
+    stdio.go
+    streamable_http_test.go
+    streamable_http.go
   client.go
+  http.go
+  inprocess_test.go
+  inprocess.go
+  interface.go
   sse_test.go
   sse.go
   stdio_test.go
   stdio.go
-  types.go
 examples/
   custom_context/
+    main.go
+  dynamic_path/
     main.go
   everything/
     main.go
   filesystem_stdio_client/
+    main.go
+  simple_client/
     main.go
 mcp/
   prompts.go
@@ -68,6 +94,9 @@ mcp/
   tools.go
   types.go
   utils.go
+mcptest/
+  mcptest_test.go
+  mcptest.go
 server/
   internal/
     gen/
@@ -76,10 +105,16 @@ server/
       main.go
       README.md
       request_handler.go.tmpl
+  errors.go
   hooks.go
+  http_transport_options.go
   request_handler.go
+  resource_test.go
+  server_race_test.go
   server_test.go
   server.go
+  session_test.go
+  session.go
   sse_test.go
   sse.go
   stdio_test.go
@@ -87,6 +122,9 @@ server/
 testdata/
   mockstdio_server.go
 .gitignore
+.golangci.yml
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
 go.mod
 LICENSE
 README.md
@@ -95,6 +133,111 @@ README.md
 <files>
 This section contains the contents of the repository's files.
 
+<file path=".github/ISSUE_TEMPLATE/bug_report.md">
+---
+name: Bug report
+about: Report an issue or unexpected behavior
+title: 'bug: '
+labels: bug
+assignees: ''
+---
+
+## Description
+
+A clear and concise description of the bug, including what happened and what you expected to happen.
+
+## Code Sample
+
+```go
+// Minimum code snippet to reproduce the issue
+// Remove if not applicable
+```
+
+## Logs or Error Messages
+
+```text
+If applicable, include any error messages, stack traces, or logs. Remove if not applicable.
+```
+
+## Environment
+
+ - Go version (see `go.mod`): [e.g. 1.23]
+ - mcp-go version (see `go.mod`): [e.g. 0.27.0]
+ - Any other relevant environment details (OS, architecture, etc.)
+
+## Additional Context
+
+Add any other context about the problem here.
+
+## Possible Solution
+
+If you have a suggestion for fixing the issue, please describe it here.
+</file>
+
+<file path=".github/ISSUE_TEMPLATE/config.yml">
+blank_issues_enabled: true
+contact_links:
+  - name: Ask a Question
+    url: https://github.com/mark3labs/mcp-go/discussions/categories/q-a
+    about: Ask any question about the project.
+  - name: Join the Community
+    url: https://discord.gg/RqSS2NQVsY
+    about: Join the community on Discord.
+</file>
+
+<file path=".github/ISSUE_TEMPLATE/documentation-improvement.md">
+---
+name: Documentation improvement
+about: Suggest improvements to the documentation
+title: 'docs: '
+labels: documentation
+assignees: ''
+---
+
+## Documentation Issue
+
+Describe what's unclear, incorrect, or missing in the current documentation.
+
+## Location
+
+Provide a link or description of where this documentation issue exists or should exist (README, code comments, examples, etc.).
+</file>
+
+<file path=".github/ISSUE_TEMPLATE/feature-request.md">
+---
+name: Feature request
+about: Suggest a new feature or enhancement
+title: 'feature: '
+labels: enhancement
+assignees: ''
+---
+
+## Problem Statement
+
+A clear and concise description of what the problem is. For example, "I'm always frustrated when [...]"
+
+## Proposed Solution
+
+A clear and concise description of what you want to happen. Include any API design or implementation details you have in mind.
+
+## MCP Spec Reference
+
+If this feature is described in the MCP specification, please provide a link to the relevant section with a brief explanation of how it relates to your request.
+
+Remove this section if not applicable.
+
+## Example Usage
+
+```go
+// If applicable, provide sample code showing how the proposed feature would be used.
+// Remove if not applicable
+```
+
+## Alternatives/Workarounds Considered
+
+A clear and concise description of any alternative solutions, workarounds, or features you've considered.
+</file>
+
 <file path=".github/workflows/ci.yml">
 name: go
 on:
@@ -102,6 +245,8 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -111,6 +256,50 @@ jobs:
       with:
         go-version-file: 'go.mod'
     - run: go test ./... -race
+
+  verify-codegen:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
+    - name: Run code generation
+      run: go generate ./...
+    - name: Check for uncommitted changes
+      run: |
+        if [[ -n $(git status --porcelain) ]]; then
+          echo "Error: Generated code is not up to date. Please run 'go generate ./...' and commit the changes."
+          git status
+          git diff
+          exit 1
+        fi
+</file>
+
+<file path=".github/workflows/golangci-lint.yml">
+name: golangci-lint
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  golangci:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1
 </file>
 
 <file path=".github/workflows/release.yml">
@@ -118,7 +307,7 @@ name: "Create Release on Tag Push"
 on:
   push:
     tags:
-      - '*'
+      - '*'  
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -138,14 +327,457 @@ jobs:
           prerelease: false
 </file>
 
-<file path="client/client.go">
-// Package client provides MCP (Model Control Protocol) client implementations.
-package client
+<file path=".github/pull_request_template.md">
+## Description
+<!-- Provide a concise description of the changes in this PR -->
+
+Fixes #<issue_number> (if applicable)
+
+## Type of Change
+<!-- Please select all the relevant options by replacing [ ] with [x] -->
+
+- [ ] Bug fix (non-breaking change that fixes an issue)
+- [ ] New feature (non-breaking change that adds functionality)
+- [ ] MCP spec compatibility implementation
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Documentation update
+- [ ] Code refactoring (no functional changes)
+- [ ] Performance improvement
+- [ ] Tests only (no functional changes)
+- [ ] Other (please describe):
+
+## Checklist
+<!-- Please select all that apply by replacing [ ] with [x] -->
+
+- [ ] My code follows the code style of this project
+- [ ] I have performed a self-review of my own code
+- [ ] I have added tests that prove my fix is effective or that my feature works
+- [ ] I have updated the documentation accordingly
+
+## MCP Spec Compliance
+<!-- If this PR implements a feature from the MCP specification, please answer the following -->
+<!-- If not applicable, remove this section -->
+
+- [ ] This PR implements a feature defined in the MCP specification
+- [ ] Link to relevant spec section: [Link text](https://modelcontextprotocol.io/specification/path-to-section)
+- [ ] Implementation follows the specification exactly
+
+## Additional Information
+<!-- Any additional information that might be useful for reviewers -->
+<!-- If not applicable, remove this section -->
+</file>
+
+<file path="client/transport/inprocess.go">
+package transport
 ⋮----
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
+)
+⋮----
+"context"
+"encoding/json"
+"fmt"
+"sync"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+"github.com/mark3labs/mcp-go/server"
+⋮----
+type InProcessTransport struct {
+	server *server.MCPServer
+
+	onNotification func(mcp.JSONRPCNotification)
+	notifyMu       sync.RWMutex
+}
+⋮----
+func NewInProcessTransport(server *server.MCPServer) *InProcessTransport
+⋮----
+func (c *InProcessTransport) Start(ctx context.Context) error
+⋮----
+func (c *InProcessTransport) SendRequest(ctx context.Context, request JSONRPCRequest) (*JSONRPCResponse, error)
+⋮----
+func (c *InProcessTransport) SendNotification(ctx context.Context, notification mcp.JSONRPCNotification) error
+⋮----
+func (c *InProcessTransport) SetNotificationHandler(handler func(notification mcp.JSONRPCNotification))
+⋮----
+func (*InProcessTransport) Close() error
+</file>
+
+<file path="client/transport/interface.go">
+package transport
+⋮----
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/mark3labs/mcp-go/mcp"
+)
+⋮----
+"context"
+"encoding/json"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+⋮----
+// Interface for the transport layer.
+type Interface interface {
+	// Start the connection. Start should only be called once.
+	Start(ctx context.Context) error
+
+	// SendRequest sends a json RPC request and returns the response synchronously.
+	SendRequest(ctx context.Context, request JSONRPCRequest) (*JSONRPCResponse, error)
+
+	// SendNotification sends a json RPC Notification to the server.
+	SendNotification(ctx context.Context, notification mcp.JSONRPCNotification) error
+
+	// SetNotificationHandler sets the handler for notifications.
+	// Any notification before the handler is set will be discarded.
+	SetNotificationHandler(handler func(notification mcp.JSONRPCNotification))
+
+	// Close the connection.
+	Close() error
+}
+⋮----
+// Start the connection. Start should only be called once.
+⋮----
+// SendRequest sends a json RPC request and returns the response synchronously.
+⋮----
+// SendNotification sends a json RPC Notification to the server.
+⋮----
+// SetNotificationHandler sets the handler for notifications.
+// Any notification before the handler is set will be discarded.
+⋮----
+// Close the connection.
+⋮----
+type JSONRPCRequest struct {
+	JSONRPC string `json:"jsonrpc"`
+	ID      int64  `json:"id"`
+	Method  string `json:"method"`
+	Params  any    `json:"params,omitempty"`
+}
+⋮----
+type JSONRPCResponse struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      *int64          `json:"id"`
+	Result  json.RawMessage `json:"result"`
+	Error   *struct {
+		Code    int             `json:"code"`
+		Message string          `json:"message"`
+		Data    json.RawMessage `json:"data"`
+	} `json:"error"`
+</file>
+
+<file path="client/transport/sse_test.go">
+package transport
+⋮----
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"sync"
+	"testing"
+	"time"
+
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+
+	"github.com/mark3labs/mcp-go/mcp"
+)
+⋮----
+"context"
+"encoding/json"
+"errors"
+"sync"
+"testing"
+"time"
+⋮----
+"fmt"
+"net/http"
+"net/http/httptest"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+⋮----
+// startMockSSEEchoServer starts a test HTTP server that implements
+// a minimal SSE-based echo server for testing purposes.
+// It returns the server URL and a function to close the server.
+func startMockSSEEchoServer() (string, func())
+⋮----
+// Create handler for SSE endpoint
+var sseWriter http.ResponseWriter
+var flush func()
+var mu sync.Mutex
+⋮----
+// Setup SSE headers
+⋮----
+mu.Lock() // for passing race test
+⋮----
+// Send initial endpoint event with message endpoint URL
+⋮----
+// Keep connection open
+⋮----
+// Create handler for message endpoint
+⋮----
+// Handle only POST requests
+⋮----
+// Parse incoming JSON-RPC request
+var request map[string]any
+⋮----
+// Echo back the request as the response result
+⋮----
+// send notification to client
+⋮----
+// Set response headers
+⋮----
+// Create a router to handle different endpoints
+⋮----
+// Start test server
+⋮----
+func TestSSE(t *testing.T)
+⋮----
+// Compile mock server
+⋮----
+// Start the transport
+⋮----
+// Send the request
+⋮----
+// Parse the result to verify echo
+var result struct {
+			JSONRPC string         `json:"jsonrpc"`
+			ID      int64          `json:"id"`
+			Method  string         `json:"method"`
+			Params  map[string]any `json:"params"`
+		}
+⋮----
+// Verify response data matches what was sent
+⋮----
+// Create a context that's already canceled
+⋮----
+cancel() // Cancel the context immediately
+⋮----
+// Prepare a request
+⋮----
+// The request should fail because the context is canceled
+⋮----
+var wg sync.WaitGroup
+⋮----
+// Set notification handler
+⋮----
+// Send a notification
+// This would trigger a notification from the server
+⋮----
+// We received a notification
+⋮----
+const numRequests = 5
+⋮----
+// Send multiple requests concurrently
+⋮----
+// Each request has a unique ID and payload
+⋮----
+// Check results
+⋮----
+// Parse the result to verify echo
+var result struct {
+				JSONRPC string         `json:"jsonrpc"`
+				ID      int64          `json:"id"`
+				Method  string         `json:"method"`
+				Params  map[string]any `json:"params"`
+			}
+⋮----
+// Verify data matches what was sent
+⋮----
+// Verify the requestIndex parameter
+⋮----
+var responseError JSONRPCRequest
+⋮----
+func TestSSEErrors(t *testing.T)
+⋮----
+// Create a new SSE transport with an invalid URL
+⋮----
+// Create a new SSE transport with a non-existent URL
+⋮----
+// Start should fail
+⋮----
+// Create a custom client with a very short timeout
+⋮----
+// Initialize SSE transport with the custom HTTP client
+⋮----
+// Starting should immediately error due to timeout
+⋮----
+// Create a new SSE instance without calling Start method
+⋮----
+// Start a mock server
+⋮----
+// Create a new SSE transport
+⋮----
+// Start the transport
+⋮----
+// Close the transport
+⋮----
+// Wait a bit to ensure connection has closed
+⋮----
+// Try to send a request after close
+</file>
+
+<file path="client/transport/sse.go">
+package transport
+⋮----
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/mark3labs/mcp-go/mcp"
+)
+⋮----
+"bufio"
+"bytes"
+"context"
+"encoding/json"
+"fmt"
+"io"
+"net/http"
+"net/url"
+"strings"
+"sync"
+"sync/atomic"
+"time"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+⋮----
+// SSE implements the transport layer of the MCP protocol using Server-Sent Events (SSE).
+// It maintains a persistent HTTP connection to receive server-pushed events
+// while sending requests over regular HTTP POST calls. The client handles
+// automatic reconnection and message routing between requests and responses.
+type SSE struct {
+	baseURL        *url.URL
+	endpoint       *url.URL
+	httpClient     *http.Client
+	responses      map[int64]chan *JSONRPCResponse
+	mu             sync.RWMutex
+	onNotification func(mcp.JSONRPCNotification)
+	notifyMu       sync.RWMutex
+	endpointChan   chan struct{}
+⋮----
+type ClientOption func(*SSE)
+⋮----
+func WithHeaders(headers map[string]string) ClientOption
+⋮----
+func WithHTTPClient(httpClient *http.Client) ClientOption
+⋮----
+// NewSSE creates a new SSE-based MCP client with the given base URL.
+// Returns an error if the URL is invalid.
+func NewSSE(baseURL string, options ...ClientOption) (*SSE, error)
+⋮----
+// Start initiates the SSE connection to the server and waits for the endpoint information.
+// Returns an error if the connection fails or times out waiting for the endpoint.
+func (c *SSE) Start(ctx context.Context) error
+⋮----
+// set custom http headers
+⋮----
+// Wait for the endpoint to be received
+⋮----
+// Endpoint received, proceed
+⋮----
+case <-timeout.C: // Add a timeout
+⋮----
+// readSSE continuously reads the SSE stream and processes events.
+// It runs until the connection is closed or an error occurs.
+func (c *SSE) readSSE(reader io.ReadCloser)
+⋮----
+var event, data string
+⋮----
+// when close or start's ctx cancel, the reader will be closed
+// and the for loop will break.
+⋮----
+// Process any pending event before exit
+⋮----
+// Remove only newline markers
+⋮----
+// Empty line means end of event
+⋮----
+// handleSSEEvent processes SSE events based on their type.
+// Handles 'endpoint' events for connection setup and 'message' events for JSON-RPC communication.
+func (c *SSE) handleSSEEvent(event, data string)
+⋮----
+var baseMessage JSONRPCResponse
+⋮----
+// Handle notification
+⋮----
+var notification mcp.JSONRPCNotification
+⋮----
+func (c *SSE) SetNotificationHandler(handler func(notification mcp.JSONRPCNotification))
+⋮----
+// SendRequest sends a JSON-RPC request to the server and waits for a response.
+// Returns the raw JSON response message or an error if the request fails.
+func (c *SSE) SendRequest(
+	ctx context.Context,
+	request JSONRPCRequest,
+) (*JSONRPCResponse, error)
+⋮----
+// Marshal request
+⋮----
+// Create HTTP request
+⋮----
+// Set headers
+⋮----
+// Register response channel
+⋮----
+// Send request
+⋮----
+// Drain any outstanding io
+⋮----
+// Check if we got an error response
+⋮----
+// Close shuts down the SSE client connection and cleans up any pending responses.
+// Returns an error if the shutdown process fails.
+func (c *SSE) Close() error
+⋮----
+return nil // Already closed
+⋮----
+// It could stop the sse stream body, to quit the readSSE loop immediately
+// Also, it could quit start() immediately if not receiving the endpoint
+⋮----
+// Clean up any pending responses
+⋮----
+// SendNotification sends a JSON-RPC notification to the server without expecting a response.
+func (c *SSE) SendNotification(ctx context.Context, notification mcp.JSONRPCNotification) error
+⋮----
+// Set custom HTTP headers
+⋮----
+// GetEndpoint returns the current endpoint URL for the SSE connection.
+func (c *SSE) GetEndpoint() *url.URL
+⋮----
+// GetBaseURL returns the base URL set in the SSE constructor.
+func (c *SSE) GetBaseURL() *url.URL
+</file>
+
+<file path="client/transport/stdio_test.go">
+package transport
+⋮----
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"runtime"
+	"sync"
+	"testing"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -153,6 +785,781 @@ import (
 "context"
 "encoding/json"
 "fmt"
+"os"
+"os/exec"
+"runtime"
+"sync"
+"testing"
+"time"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+⋮----
+func compileTestServer(outputPath string) error
+⋮----
+// Verify the binary was actually created
+⋮----
+func TestStdio(t *testing.T)
+⋮----
+// Create a temporary file for the mock server
+⋮----
+// Add .exe suffix on Windows
+⋮----
+os.Remove(mockServerPath) // Remove the empty file first
+⋮----
+// Create a new Stdio transport
+⋮----
+// Start the transport
+⋮----
+// Send the request
+⋮----
+// Parse the result to verify echo
+var result struct {
+			JSONRPC string         `json:"jsonrpc"`
+			ID      int64          `json:"id"`
+			Method  string         `json:"method"`
+			Params  map[string]any `json:"params"`
+		}
+⋮----
+// Verify response data matches what was sent
+⋮----
+// Create a context that's already canceled
+⋮----
+cancel() // Cancel the context immediately
+⋮----
+// Prepare a request
+⋮----
+// The request should fail because the context is canceled
+⋮----
+var wg sync.WaitGroup
+⋮----
+// Set notification handler
+⋮----
+// Send a notification
+// This would trigger a notification from the server
+⋮----
+// We received a notification
+⋮----
+const numRequests = 5
+⋮----
+// Send multiple requests concurrently
+⋮----
+// Each request has a unique ID and payload
+⋮----
+// Check results
+⋮----
+// Parse the result to verify echo
+var result struct {
+				JSONRPC string         `json:"jsonrpc"`
+				ID      int64          `json:"id"`
+				Method  string         `json:"method"`
+				Params  map[string]any `json:"params"`
+			}
+⋮----
+// Verify data matches what was sent
+⋮----
+// Verify the requestIndex parameter
+⋮----
+var responseError JSONRPCRequest
+⋮----
+func TestStdioErrors(t *testing.T)
+⋮----
+// Create a new Stdio transport with a non-existent command
+⋮----
+// Start should fail
+⋮----
+// Create a temporary file for the mock server
+⋮----
+// Add .exe suffix on Windows
+⋮----
+os.Remove(mockServerPath) // Remove the empty file first
+⋮----
+// Create a new Stdio transport
+⋮----
+// Start the transport
+⋮----
+// Close the transport - ignore errors like "broken pipe" since the process might exit already
+⋮----
+// Wait a bit to ensure process has exited
+⋮----
+// Try to send a request after close
+</file>
+
+<file path="client/transport/stdio.go">
+package transport
+⋮----
+import (
+	"bufio"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"sync"
+
+	"github.com/mark3labs/mcp-go/mcp"
+)
+⋮----
+"bufio"
+"context"
+"encoding/json"
+"fmt"
+"io"
+"os"
+"os/exec"
+"sync"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+⋮----
+// Stdio implements the transport layer of the MCP protocol using stdio communication.
+// It launches a subprocess and communicates with it via standard input/output streams
+// using JSON-RPC messages. The client handles message routing between requests and
+// responses, and supports asynchronous notifications.
+type Stdio struct {
+	command string
+	args    []string
+	env     []string
+
+	cmd            *exec.Cmd
+	stdin          io.WriteCloser
+	stdout         *bufio.Reader
+	stderr         io.ReadCloser
+	responses      map[int64]chan *JSONRPCResponse
+	mu             sync.RWMutex
+	done           chan struct{}
+⋮----
+// NewIO returns a new stdio-based transport using existing input, output, and
+// logging streams instead of spawning a subprocess.
+// This is useful for testing and simulating client behavior.
+func NewIO(input io.Reader, output io.WriteCloser, logging io.ReadCloser) *Stdio
+⋮----
+// NewStdio creates a new stdio transport to communicate with a subprocess.
+// It launches the specified command with given arguments and sets up stdin/stdout pipes for communication.
+// Returns an error if the subprocess cannot be started or the pipes cannot be created.
+func NewStdio(
+	command string,
+	env []string,
+	args ...string,
+) *Stdio
+⋮----
+func (c *Stdio) Start(ctx context.Context) error
+⋮----
+// spawnCommand spawns a new process running c.command.
+func (c *Stdio) spawnCommand(ctx context.Context) error
+⋮----
+// Close shuts down the stdio client, closing the stdin pipe and waiting for the subprocess to exit.
+// Returns an error if there are issues closing stdin or waiting for the subprocess to terminate.
+func (c *Stdio) Close() error
+⋮----
+// cancel all in-flight request
+⋮----
+// SetNotificationHandler sets the handler function to be called when a notification is received.
+// Only one handler can be set at a time; setting a new one replaces the previous handler.
+func (c *Stdio) SetNotificationHandler(
+	handler func(notification mcp.JSONRPCNotification),
+)
+⋮----
+// readResponses continuously reads and processes responses from the server's stdout.
+// It handles both responses to requests and notifications, routing them appropriately.
+// Runs until the done channel is closed or an error occurs reading from stdout.
+func (c *Stdio) readResponses()
+⋮----
+var baseMessage JSONRPCResponse
+⋮----
+// Handle notification
+⋮----
+var notification mcp.JSONRPCNotification
+⋮----
+// SendRequest sends a JSON-RPC request to the server and waits for a response.
+// It creates a unique request ID, sends the request over stdin, and waits for
+// the corresponding response or context cancellation.
+// Returns the raw JSON response message or an error if the request fails.
+func (c *Stdio) SendRequest(
+	ctx context.Context,
+	request JSONRPCRequest,
+) (*JSONRPCResponse, error)
+⋮----
+// Marshal request
+⋮----
+// Register response channel
+⋮----
+// Send request
+⋮----
+// SendNotification sends a json RPC Notification to the server.
+func (c *Stdio) SendNotification(
+	ctx context.Context,
+	notification mcp.JSONRPCNotification,
+) error
+⋮----
+// Stderr returns a reader for the stderr output of the subprocess.
+// This can be used to capture error messages or logs from the subprocess.
+func (c *Stdio) Stderr() io.Reader
+</file>
+
+<file path="client/transport/streamable_http_test.go">
+package transport
+⋮----
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/mark3labs/mcp-go/mcp"
+)
+⋮----
+"context"
+"encoding/json"
+"errors"
+"fmt"
+"net/http"
+"net/http/httptest"
+"sync"
+"testing"
+"time"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+⋮----
+// startMockStreamableHTTPServer starts a test HTTP server that implements
+// a minimal Streamable HTTP server for testing purposes.
+// It returns the server URL and a function to close the server.
+func startMockStreamableHTTPServer() (string, func())
+⋮----
+var sessionID string
+var mu sync.Mutex
+⋮----
+// Handle only POST requests
+⋮----
+// Parse incoming JSON-RPC request
+var request map[string]any
+⋮----
+// Generate a new session ID
+⋮----
+// Check session ID
+⋮----
+// Echo back the request as the response result
+⋮----
+// Send response and notification
+⋮----
+// Return an error response
+⋮----
+// Start test server
+⋮----
+func TestStreamableHTTP(t *testing.T)
+⋮----
+// Start mock server
+⋮----
+// Create transport
+⋮----
+// Initialize the transport first
+⋮----
+// Now run the tests
+⋮----
+// Send the request
+⋮----
+// Parse the result to verify echo
+var result struct {
+			JSONRPC string         `json:"jsonrpc"`
+			ID      int64          `json:"id"`
+			Method  string         `json:"method"`
+			Params  map[string]any `json:"params"`
+		}
+⋮----
+// Verify response data matches what was sent
+⋮----
+// Create a context that's already canceled
+⋮----
+cancel() // Cancel the context immediately
+⋮----
+// Prepare a request
+⋮----
+// The request should fail because the context is canceled
+⋮----
+var wg sync.WaitGroup
+⋮----
+// Set notification handler
+⋮----
+// Send a request that triggers a notification
+⋮----
+// We received a notification
+⋮----
+const numRequests = 5
+⋮----
+// Send multiple requests concurrently
+⋮----
+// Each request has a unique ID and payload
+⋮----
+// Check results
+⋮----
+// Parse the result to verify echo
+var result struct {
+				JSONRPC string         `json:"jsonrpc"`
+				ID      int64          `json:"id"`
+				Method  string         `json:"method"`
+				Params  map[string]any `json:"params"`
+			}
+⋮----
+// Verify data matches what was sent
+⋮----
+// Verify the requestIndex parameter
+⋮----
+var responseError JSONRPCRequest
+⋮----
+func TestStreamableHTTPErrors(t *testing.T)
+⋮----
+// Create a new StreamableHTTP transport with an invalid URL
+⋮----
+// Create a new StreamableHTTP transport with a non-existent URL
+⋮----
+// Send request should fail
+</file>
+
+<file path="client/transport/streamable_http.go">
+package transport
+⋮----
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"mime"
+	"net/http"
+	"net/url"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/mark3labs/mcp-go/mcp"
+)
+⋮----
+"bufio"
+"bytes"
+"context"
+"encoding/json"
+"fmt"
+"io"
+"mime"
+"net/http"
+"net/url"
+"strings"
+"sync"
+"sync/atomic"
+"time"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+⋮----
+type StreamableHTTPCOption func(*StreamableHTTP)
+⋮----
+func WithHTTPHeaders(headers map[string]string) StreamableHTTPCOption
+⋮----
+// WithHTTPTimeout sets the timeout for a HTTP request and stream.
+func WithHTTPTimeout(timeout time.Duration) StreamableHTTPCOption
+⋮----
+// StreamableHTTP implements Streamable HTTP transport.
+//
+// It transmits JSON-RPC messages over individual HTTP requests. One message per request.
+// The HTTP response body can either be a single JSON-RPC response,
+// or an upgraded SSE stream that concludes with a JSON-RPC response for the same request.
+⋮----
+// https://modelcontextprotocol.io/specification/2025-03-26/basic/transports
+⋮----
+// The current implementation does not support the following features:
+//   - batching
+//   - continuously listening for server notifications when no request is in flight
+//     (https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#listening-for-messages-from-the-server)
+//   - resuming stream
+//     (https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#resumability-and-redelivery)
+//   - server -> client request
+type StreamableHTTP struct {
+	baseURL    *url.URL
+	httpClient *http.Client
+	headers    map[string]string
+
+	sessionID atomic.Value // string
+
+	notificationHandler func(mcp.JSONRPCNotification)
+	notifyMu            sync.RWMutex
+
+	closed chan struct{}
+⋮----
+sessionID atomic.Value // string
+⋮----
+// NewStreamableHTTP creates a new Streamable HTTP transport with the given base URL.
+// Returns an error if the URL is invalid.
+func NewStreamableHTTP(baseURL string, options ...StreamableHTTPCOption) (*StreamableHTTP, error)
+⋮----
+smc.sessionID.Store("") // set initial value to simplify later usage
+⋮----
+// Start initiates the HTTP connection to the server.
+func (c *StreamableHTTP) Start(ctx context.Context) error
+⋮----
+// For Streamable HTTP, we don't need to establish a persistent connection
+⋮----
+// Close closes the all the HTTP connections to the server.
+func (c *StreamableHTTP) Close() error
+⋮----
+// Cancel all in-flight requests
+⋮----
+// notify server session closed
+⋮----
+const (
+	initializeMethod   = "initialize"
+	headerKeySessionID = "Mcp-Session-Id"
+)
+⋮----
+// SendRequest sends a JSON-RPC request to the server and waits for a response.
+// Returns the raw JSON response message or an error if the request fails.
+func (c *StreamableHTTP) SendRequest(
+	ctx context.Context,
+	request JSONRPCRequest,
+) (*JSONRPCResponse, error)
+⋮----
+// Create a combined context that could be canceled when the client is closed
+⋮----
+// The original context was canceled, no need to do anything
+⋮----
+// Marshal request
+⋮----
+// Create HTTP request
+⋮----
+// Set headers
+⋮----
+// Send request
+⋮----
+// Check if we got an error response
+⋮----
+// handle session closed
+⋮----
+// handle error response
+var errResponse JSONRPCResponse
+⋮----
+// saved the received session ID in the response
+// empty session ID is allowed
+⋮----
+// Handle different response types
+⋮----
+// Single response
+var response JSONRPCResponse
+⋮----
+// should not be a notification
+⋮----
+// Server is using SSE for streaming responses
+⋮----
+// handleSSEResponse processes an SSE stream for a specific request.
+// It returns the final result for the request once received, or an error.
+func (c *StreamableHTTP) handleSSEResponse(ctx context.Context, reader io.ReadCloser) (*JSONRPCResponse, error)
+⋮----
+// Create a channel for this specific request
+⋮----
+// Start a goroutine to process the SSE stream
+⋮----
+// only close responseChan after readingSSE()
+⋮----
+// (unsupported: batching)
+⋮----
+var message JSONRPCResponse
+⋮----
+// Handle notification
+⋮----
+var notification mcp.JSONRPCNotification
+⋮----
+// Wait for the response or context cancellation
+⋮----
+// readSSE reads the SSE stream(reader) and calls the handler for each event and data pair.
+// It will end when the reader is closed (or the context is done).
+func (c *StreamableHTTP) readSSE(ctx context.Context, reader io.ReadCloser, handler func(event, data string))
+⋮----
+var event, data string
+⋮----
+// Process any pending event before exit
+⋮----
+// Remove only newline markers
+⋮----
+// Empty line means end of event
+⋮----
+func (c *StreamableHTTP) SendNotification(ctx context.Context, notification mcp.JSONRPCNotification) error
+⋮----
+func (c *StreamableHTTP) SetNotificationHandler(handler func(mcp.JSONRPCNotification))
+⋮----
+func (c *StreamableHTTP) GetSessionId() string
+</file>
+
+<file path="client/client.go">
+package client
+⋮----
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"sync"
+	"sync/atomic"
+
+	"github.com/mark3labs/mcp-go/client/transport"
+	"github.com/mark3labs/mcp-go/mcp"
+)
+⋮----
+"context"
+"encoding/json"
+"errors"
+"fmt"
+"sync"
+"sync/atomic"
+⋮----
+"github.com/mark3labs/mcp-go/client/transport"
+"github.com/mark3labs/mcp-go/mcp"
+⋮----
+// Client implements the MCP client.
+type Client struct {
+	transport transport.Interface
+
+	initialized        bool
+	notifications      []func(mcp.JSONRPCNotification)
+	notifyMu           sync.RWMutex
+	requestID          atomic.Int64
+	clientCapabilities mcp.ClientCapabilities
+	serverCapabilities mcp.ServerCapabilities
+}
+⋮----
+type ClientOption func(*Client)
+⋮----
+// WithClientCapabilities sets the client capabilities for the client.
+func WithClientCapabilities(capabilities mcp.ClientCapabilities) ClientOption
+⋮----
+// NewClient creates a new MCP client with the given transport.
+// Usage:
+//
+//	stdio := transport.NewStdio("./mcp_server", nil, "xxx")
+//	client, err := NewClient(stdio)
+//	if err != nil {
+//	    log.Fatalf("Failed to create client: %v", err)
+//	}
+func NewClient(transport transport.Interface, options ...ClientOption) *Client
+⋮----
+// Start initiates the connection to the server.
+// Must be called before using the client.
+func (c *Client) Start(ctx context.Context) error
+⋮----
+// Close shuts down the client and closes the transport.
+func (c *Client) Close() error
+⋮----
+// OnNotification registers a handler function to be called when notifications are received.
+// Multiple handlers can be registered and will be called in the order they were added.
+func (c *Client) OnNotification(
+	handler func(notification mcp.JSONRPCNotification),
+)
+⋮----
+// sendRequest sends a JSON-RPC request to the server and waits for a response.
+// Returns the raw JSON response message or an error if the request fails.
+func (c *Client) sendRequest(
+	ctx context.Context,
+	method string,
+	params any,
+) (*json.RawMessage, error)
+⋮----
+// Initialize negotiates with the server.
+// Must be called after Start, and before any request methods.
+func (c *Client) Initialize(
+	ctx context.Context,
+	request mcp.InitializeRequest,
+) (*mcp.InitializeResult, error)
+⋮----
+// Ensure we send a params object with all required fields
+⋮----
+Capabilities:    request.Params.Capabilities, // Will be empty struct if not set
+⋮----
+var result mcp.InitializeResult
+⋮----
+// Store serverCapabilities
+⋮----
+// Send initialized notification
+⋮----
+func (c *Client) Ping(ctx context.Context) error
+⋮----
+// ListResourcesByPage manually list resources by page.
+func (c *Client) ListResourcesByPage(
+	ctx context.Context,
+	request mcp.ListResourcesRequest,
+) (*mcp.ListResourcesResult, error)
+⋮----
+func (c *Client) ListResources(
+	ctx context.Context,
+	request mcp.ListResourcesRequest,
+) (*mcp.ListResourcesResult, error)
+⋮----
+func (c *Client) ListResourceTemplatesByPage(
+	ctx context.Context,
+	request mcp.ListResourceTemplatesRequest,
+) (*mcp.ListResourceTemplatesResult, error)
+⋮----
+func (c *Client) ListResourceTemplates(
+	ctx context.Context,
+	request mcp.ListResourceTemplatesRequest,
+) (*mcp.ListResourceTemplatesResult, error)
+⋮----
+func (c *Client) ReadResource(
+	ctx context.Context,
+	request mcp.ReadResourceRequest,
+) (*mcp.ReadResourceResult, error)
+⋮----
+func (c *Client) Subscribe(
+	ctx context.Context,
+	request mcp.SubscribeRequest,
+) error
+⋮----
+func (c *Client) Unsubscribe(
+	ctx context.Context,
+	request mcp.UnsubscribeRequest,
+) error
+⋮----
+func (c *Client) ListPromptsByPage(
+	ctx context.Context,
+	request mcp.ListPromptsRequest,
+) (*mcp.ListPromptsResult, error)
+⋮----
+func (c *Client) ListPrompts(
+	ctx context.Context,
+	request mcp.ListPromptsRequest,
+) (*mcp.ListPromptsResult, error)
+⋮----
+func (c *Client) GetPrompt(
+	ctx context.Context,
+	request mcp.GetPromptRequest,
+) (*mcp.GetPromptResult, error)
+⋮----
+func (c *Client) ListToolsByPage(
+	ctx context.Context,
+	request mcp.ListToolsRequest,
+) (*mcp.ListToolsResult, error)
+⋮----
+func (c *Client) ListTools(
+	ctx context.Context,
+	request mcp.ListToolsRequest,
+) (*mcp.ListToolsResult, error)
+⋮----
+func (c *Client) CallTool(
+	ctx context.Context,
+	request mcp.CallToolRequest,
+) (*mcp.CallToolResult, error)
+⋮----
+func (c *Client) SetLevel(
+	ctx context.Context,
+	request mcp.SetLevelRequest,
+) error
+⋮----
+func (c *Client) Complete(
+	ctx context.Context,
+	request mcp.CompleteRequest,
+) (*mcp.CompleteResult, error)
+⋮----
+var result mcp.CompleteResult
+⋮----
+func listByPage[T any](
+	ctx context.Context,
+	client *Client,
+	request mcp.PaginatedRequest,
+	method string,
+) (*T, error)
+⋮----
+var result T
+⋮----
+// Helper methods
+⋮----
+// GetTransport gives access to the underlying transport layer.
+// Cast it to the specific transport type and obtain the other helper methods.
+func (c *Client) GetTransport() transport.Interface
+⋮----
+// GetServerCapabilities returns the server capabilities.
+func (c *Client) GetServerCapabilities() mcp.ServerCapabilities
+⋮----
+// GetClientCapabilities returns the client capabilities.
+func (c *Client) GetClientCapabilities() mcp.ClientCapabilities
+</file>
+
+<file path="client/http.go">
+package client
+⋮----
+import (
+	"fmt"
+
+	"github.com/mark3labs/mcp-go/client/transport"
+)
+⋮----
+"fmt"
+⋮----
+"github.com/mark3labs/mcp-go/client/transport"
+⋮----
+// NewStreamableHttpClient is a convenience method that creates a new streamable-http-based MCP client
+// with the given base URL. Returns an error if the URL is invalid.
+func NewStreamableHttpClient(baseURL string, options ...transport.StreamableHTTPCOption) (*Client, error)
+</file>
+
+<file path="client/inprocess_test.go">
+package client
+⋮----
+import (
+	"context"
+	"testing"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
+)
+⋮----
+"context"
+"testing"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+"github.com/mark3labs/mcp-go/server"
+⋮----
+func TestInProcessMCPClient(t *testing.T)
+⋮----
+// Add a test tool
+⋮----
+// Start the client
+⋮----
+// Initialize
+⋮----
+// Test Ping
+⋮----
+// Test ListTools
+⋮----
+// Try to make a request without initializing
+</file>
+
+<file path="client/inprocess.go">
+package client
+⋮----
+import (
+	"github.com/mark3labs/mcp-go/client/transport"
+	"github.com/mark3labs/mcp-go/server"
+)
+⋮----
+"github.com/mark3labs/mcp-go/client/transport"
+"github.com/mark3labs/mcp-go/server"
+⋮----
+// NewInProcessClient connect directly to a mcp server object in the same process
+func NewInProcessClient(server *server.MCPServer) (*Client, error)
+</file>
+
+<file path="client/interface.go">
+// Package client provides MCP (Model Context Protocol) client implementations.
+package client
+⋮----
+import (
+	"context"
+
+	"github.com/mark3labs/mcp-go/mcp"
+)
+⋮----
+"context"
 ⋮----
 "github.com/mark3labs/mcp-go/mcp"
 ⋮----
@@ -294,20 +1701,6 @@ type MCPClient interface {
 // Close client connection and cleanup resources
 ⋮----
 // OnNotification registers a handler for notifications
-⋮----
-type mcpClient interface {
-	MCPClient
-
-	sendRequest(ctx context.Context, method string, params interface{}) (*json.RawMessage, error)
-⋮----
-func listByPage[T any](
-	ctx context.Context,
-	client mcpClient,
-	request mcp.PaginatedRequest,
-	method string,
-) (*T, error)
-⋮----
-var result T
 </file>
 
 <file path="client/sse_test.go">
@@ -318,6 +1711,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mark3labs/mcp-go/client/transport"
+
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -325,6 +1720,8 @@ import (
 "context"
 "testing"
 "time"
+⋮----
+"github.com/mark3labs/mcp-go/client/transport"
 ⋮----
 "github.com/mark3labs/mcp-go/mcp"
 "github.com/mark3labs/mcp-go/server"
@@ -407,223 +1804,31 @@ func TestSSEMCPClient(t *testing.T)
 package client
 ⋮----
 import (
-	"bufio"
-	"bytes"
-	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"time"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/client/transport"
 )
 ⋮----
-"bufio"
-"bytes"
-"context"
-"encoding/json"
-"errors"
 "fmt"
-"io"
 "net/http"
 "net/url"
-"strings"
-"sync"
-"sync/atomic"
-"time"
 ⋮----
-"github.com/mark3labs/mcp-go/mcp"
+"github.com/mark3labs/mcp-go/client/transport"
 ⋮----
-// SSEMCPClient implements the MCPClient interface using Server-Sent Events (SSE).
-// It maintains a persistent HTTP connection to receive server-pushed events
-// while sending requests over regular HTTP POST calls. The client handles
-// automatic reconnection and message routing between requests and responses.
-type SSEMCPClient struct {
-	baseURL       *url.URL
-	endpoint      *url.URL
-	httpClient    *http.Client
-	requestID     atomic.Int64
-	responses     map[int64]chan RPCResponse
-	mu            sync.RWMutex
-	done          chan struct{}
+func WithHeaders(headers map[string]string) transport.ClientOption
 ⋮----
-type ClientOption func(*SSEMCPClient)
-⋮----
-func WithHeaders(headers map[string]string) ClientOption
+func WithHTTPClient(httpClient *http.Client) transport.ClientOption
 ⋮----
 // NewSSEMCPClient creates a new SSE-based MCP client with the given base URL.
 // Returns an error if the URL is invalid.
-func NewSSEMCPClient(baseURL string, options ...ClientOption) (*SSEMCPClient, error)
-⋮----
-// Start initiates the SSE connection to the server and waits for the endpoint information.
-// Returns an error if the connection fails or times out waiting for the endpoint.
-func (c *SSEMCPClient) Start(ctx context.Context) error
-⋮----
-// Wait for the endpoint to be received
-⋮----
-// Endpoint received, proceed
-⋮----
-case <-time.After(30 * time.Second): // Add a timeout
-⋮----
-// readSSE continuously reads the SSE stream and processes events.
-// It runs until the connection is closed or an error occurs.
-func (c *SSEMCPClient) readSSE(reader io.ReadCloser)
-⋮----
-var event, data string
-⋮----
-// Process any pending event before exit
-⋮----
-// Remove only newline markers
-⋮----
-// Empty line means end of event
-⋮----
-// handleSSEEvent processes SSE events based on their type.
-// Handles 'endpoint' events for connection setup and 'message' events for JSON-RPC communication.
-func (c *SSEMCPClient) handleSSEEvent(event, data string)
-⋮----
-var baseMessage struct {
-			JSONRPC string          `json:"jsonrpc"`
-			ID      *int64          `json:"id,omitempty"`
-			Method  string          `json:"method,omitempty"`
-			Result  json.RawMessage `json:"result,omitempty"`
-			Error   *struct {
-				Code    int    `json:"code"`
-				Message string `json:"message"`
-			} `json:"error,omitempty"`
-		}
-⋮----
-// Handle notification
-⋮----
-var notification mcp.JSONRPCNotification
-⋮----
-// OnNotification registers a handler function to be called when notifications are received.
-// Multiple handlers can be registered and will be called in the order they were added.
-func (c *SSEMCPClient) OnNotification(
-	handler func(notification mcp.JSONRPCNotification),
-)
-⋮----
-// sendRequest sends a JSON-RPC request to the server and waits for a response.
-// Returns the raw JSON response message or an error if the request fails.
-func (c *SSEMCPClient) sendRequest(
-	ctx context.Context,
-	method string,
-	params interface
-⋮----
-// set custom http headers
-⋮----
-func (c *SSEMCPClient) Initialize(
-	ctx context.Context,
-	request mcp.InitializeRequest,
-) (*mcp.InitializeResult, error)
-⋮----
-// Ensure we send a params object with all required fields
-⋮----
-Capabilities:    request.Params.Capabilities, // Will be empty struct if not set
-⋮----
-var result mcp.InitializeResult
-⋮----
-// Store capabilities
-⋮----
-// Send initialized notification
-⋮----
-func (c *SSEMCPClient) Ping(ctx context.Context) error
-⋮----
-// ListResourcesByPage manually list resources by page.
-func (c *SSEMCPClient) ListResourcesByPage(
-	ctx context.Context,
-	request mcp.ListResourcesRequest,
-) (*mcp.ListResourcesResult, error)
-⋮----
-func (c *SSEMCPClient) ListResources(
-	ctx context.Context,
-	request mcp.ListResourcesRequest,
-) (*mcp.ListResourcesResult, error)
-⋮----
-func (c *SSEMCPClient) ListResourceTemplatesByPage(
-	ctx context.Context,
-	request mcp.ListResourceTemplatesRequest,
-) (*mcp.ListResourceTemplatesResult, error)
-⋮----
-func (c *SSEMCPClient) ListResourceTemplates(
-	ctx context.Context,
-	request mcp.ListResourceTemplatesRequest,
-) (*mcp.ListResourceTemplatesResult, error)
-⋮----
-func (c *SSEMCPClient) ReadResource(
-	ctx context.Context,
-	request mcp.ReadResourceRequest,
-) (*mcp.ReadResourceResult, error)
-⋮----
-func (c *SSEMCPClient) Subscribe(
-	ctx context.Context,
-	request mcp.SubscribeRequest,
-) error
-⋮----
-func (c *SSEMCPClient) Unsubscribe(
-	ctx context.Context,
-	request mcp.UnsubscribeRequest,
-) error
-⋮----
-func (c *SSEMCPClient) ListPromptsByPage(
-	ctx context.Context,
-	request mcp.ListPromptsRequest,
-) (*mcp.ListPromptsResult, error)
-⋮----
-func (c *SSEMCPClient) ListPrompts(
-	ctx context.Context,
-	request mcp.ListPromptsRequest,
-) (*mcp.ListPromptsResult, error)
-⋮----
-func (c *SSEMCPClient) GetPrompt(
-	ctx context.Context,
-	request mcp.GetPromptRequest,
-) (*mcp.GetPromptResult, error)
-⋮----
-func (c *SSEMCPClient) ListToolsByPage(
-	ctx context.Context,
-	request mcp.ListToolsRequest,
-) (*mcp.ListToolsResult, error)
-⋮----
-func (c *SSEMCPClient) ListTools(
-	ctx context.Context,
-	request mcp.ListToolsRequest,
-) (*mcp.ListToolsResult, error)
-⋮----
-func (c *SSEMCPClient) CallTool(
-	ctx context.Context,
-	request mcp.CallToolRequest,
-) (*mcp.CallToolResult, error)
-⋮----
-func (c *SSEMCPClient) SetLevel(
-	ctx context.Context,
-	request mcp.SetLevelRequest,
-) error
-⋮----
-func (c *SSEMCPClient) Complete(
-	ctx context.Context,
-	request mcp.CompleteRequest,
-) (*mcp.CompleteResult, error)
-⋮----
-var result mcp.CompleteResult
-⋮----
-// Helper methods
+func NewSSEMCPClient(baseURL string, options ...transport.ClientOption) (*Client, error)
 ⋮----
 // GetEndpoint returns the current endpoint URL for the SSE connection.
-func (c *SSEMCPClient) GetEndpoint() *url.URL
-⋮----
-// Close shuts down the SSE client connection and cleans up any pending responses.
-// Returns an error if the shutdown process fails.
-func (c *SSEMCPClient) Close() error
-⋮----
-return nil // Already closed
-⋮----
-// Clean up any pending responses
+//
+// Note: This method only works with SSE transport, or it will panic.
+func GetEndpoint(c *Client) *url.URL
 </file>
 
 <file path="client/stdio_test.go">
@@ -636,7 +1841,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -650,7 +1855,7 @@ import (
 "log/slog"
 "os"
 "os/exec"
-"path/filepath"
+"runtime"
 "sync"
 "testing"
 "time"
@@ -659,9 +1864,15 @@ import (
 ⋮----
 func compileTestServer(outputPath string) error
 ⋮----
+// Verify the binary was actually created
+⋮----
 func TestStdioMCPClient(t *testing.T)
 ⋮----
-// Compile mock server
+// Create a temporary file for the mock server
+⋮----
+// Add .exe suffix on Windows
+⋮----
+os.Remove(mockServerPath) // Remove the empty file first
 ⋮----
 var logRecords []map[string]any
 var logRecordsMu sync.RWMutex
@@ -678,209 +1889,34 @@ var record map[string]any
 package client
 ⋮----
 import (
-	"bufio"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"os"
-	"os/exec"
-	"sync"
-	"sync/atomic"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/client/transport"
 )
 ⋮----
-"bufio"
 "context"
-"encoding/json"
-"errors"
 "fmt"
 "io"
-"os"
-"os/exec"
-"sync"
-"sync/atomic"
 ⋮----
-"github.com/mark3labs/mcp-go/mcp"
-⋮----
-// StdioMCPClient implements the MCPClient interface using stdio communication.
-// It launches a subprocess and communicates with it via standard input/output streams
-// using JSON-RPC messages. The client handles message routing between requests and
-// responses, and supports asynchronous notifications.
-type StdioMCPClient struct {
-	cmd           *exec.Cmd
-	stdin         io.WriteCloser
-	stdout        *bufio.Reader
-	stderr        io.ReadCloser
-	requestID     atomic.Int64
-	responses     map[int64]chan RPCResponse
-	mu            sync.RWMutex
-	done          chan struct{}
+"github.com/mark3labs/mcp-go/client/transport"
 ⋮----
 // NewStdioMCPClient creates a new stdio-based MCP client that communicates with a subprocess.
 // It launches the specified command with given arguments and sets up stdin/stdout pipes for communication.
 // Returns an error if the subprocess cannot be started or the pipes cannot be created.
+//
+// NOTICE: NewStdioMCPClient will start the connection automatically. Don't call the Start method manually.
+// This is for backward compatibility.
 func NewStdioMCPClient(
 	command string,
 	env []string,
 	args ...string,
-) (*StdioMCPClient, error)
+) (*Client, error)
 ⋮----
-// Start reading responses in a goroutine and wait for it to be ready
-⋮----
-// Close shuts down the stdio client, closing the stdin pipe and waiting for the subprocess to exit.
-// Returns an error if there are issues closing stdin or waiting for the subprocess to terminate.
-func (c *StdioMCPClient) Close() error
-⋮----
-// Stderr returns a reader for the stderr output of the subprocess.
+// GetStderr returns a reader for the stderr output of the subprocess.
 // This can be used to capture error messages or logs from the subprocess.
-func (c *StdioMCPClient) Stderr() io.Reader
-⋮----
-// OnNotification registers a handler function to be called when notifications are received.
-// Multiple handlers can be registered and will be called in the order they were added.
-func (c *StdioMCPClient) OnNotification(
-	handler func(notification mcp.JSONRPCNotification),
-)
-⋮----
-// readResponses continuously reads and processes responses from the server's stdout.
-// It handles both responses to requests and notifications, routing them appropriately.
-// Runs until the done channel is closed or an error occurs reading from stdout.
-func (c *StdioMCPClient) readResponses()
-⋮----
-var baseMessage struct {
-				JSONRPC string          `json:"jsonrpc"`
-				ID      *int64          `json:"id,omitempty"`
-				Method  string          `json:"method,omitempty"`
-				Result  json.RawMessage `json:"result,omitempty"`
-				Error   *struct {
-					Code    int    `json:"code"`
-					Message string `json:"message"`
-				} `json:"error,omitempty"`
-			}
-⋮----
-// Handle notification
-⋮----
-var notification mcp.JSONRPCNotification
-⋮----
-// sendRequest sends a JSON-RPC request to the server and waits for a response.
-// It creates a unique request ID, sends the request over stdin, and waits for
-// the corresponding response or context cancellation.
-// Returns the raw JSON response message or an error if the request fails.
-func (c *StdioMCPClient) sendRequest(
-	ctx context.Context,
-	method string,
-	params interface
-⋮----
-// Create the complete request structure
-⋮----
-func (c *StdioMCPClient) Ping(ctx context.Context) error
-⋮----
-func (c *StdioMCPClient) Initialize(
-	ctx context.Context,
-	request mcp.InitializeRequest,
-) (*mcp.InitializeResult, error)
-⋮----
-// This structure ensures Capabilities is always included in JSON
-⋮----
-Capabilities:    request.Params.Capabilities, // Will be empty struct if not set
-⋮----
-var result mcp.InitializeResult
-⋮----
-// Store capabilities
-⋮----
-// Send initialized notification
-⋮----
-// ListResourcesByPage manually list resources by page.
-func (c *StdioMCPClient) ListResourcesByPage(
-	ctx context.Context,
-	request mcp.ListResourcesRequest,
-) (*mcp.ListResourcesResult, error)
-⋮----
-func (c *StdioMCPClient) ListResources(
-	ctx context.Context,
-	request mcp.ListResourcesRequest,
-) (*mcp.ListResourcesResult, error)
-⋮----
-func (c *StdioMCPClient) ListResourceTemplatesByPage(
-	ctx context.Context,
-	request mcp.ListResourceTemplatesRequest,
-) (*mcp.ListResourceTemplatesResult, error)
-⋮----
-func (c *StdioMCPClient) ListResourceTemplates(
-	ctx context.Context,
-	request mcp.ListResourceTemplatesRequest,
-) (*mcp.ListResourceTemplatesResult, error)
-⋮----
-func (c *StdioMCPClient) ReadResource(
-	ctx context.Context,
-	request mcp.ReadResourceRequest,
-) (*mcp.ReadResourceResult,
-	error)
-⋮----
-func (c *StdioMCPClient) Subscribe(
-	ctx context.Context,
-	request mcp.SubscribeRequest,
-) error
-⋮----
-func (c *StdioMCPClient) Unsubscribe(
-	ctx context.Context,
-	request mcp.UnsubscribeRequest,
-) error
-⋮----
-func (c *StdioMCPClient) ListPromptsByPage(
-	ctx context.Context,
-	request mcp.ListPromptsRequest,
-) (*mcp.ListPromptsResult, error)
-⋮----
-func (c *StdioMCPClient) ListPrompts(
-	ctx context.Context,
-	request mcp.ListPromptsRequest,
-) (*mcp.ListPromptsResult, error)
-⋮----
-func (c *StdioMCPClient) GetPrompt(
-	ctx context.Context,
-	request mcp.GetPromptRequest,
-) (*mcp.GetPromptResult, error)
-⋮----
-func (c *StdioMCPClient) ListToolsByPage(
-	ctx context.Context,
-	request mcp.ListToolsRequest,
-) (*mcp.ListToolsResult, error)
-⋮----
-func (c *StdioMCPClient) ListTools(
-	ctx context.Context,
-	request mcp.ListToolsRequest,
-) (*mcp.ListToolsResult, error)
-⋮----
-func (c *StdioMCPClient) CallTool(
-	ctx context.Context,
-	request mcp.CallToolRequest,
-) (*mcp.CallToolResult, error)
-⋮----
-func (c *StdioMCPClient) SetLevel(
-	ctx context.Context,
-	request mcp.SetLevelRequest,
-) error
-⋮----
-func (c *StdioMCPClient) Complete(
-	ctx context.Context,
-	request mcp.CompleteRequest,
-) (*mcp.CompleteResult, error)
-⋮----
-var result mcp.CompleteResult
-</file>
-
-<file path="client/types.go">
-package client
-⋮----
-import "encoding/json"
-⋮----
-type RPCResponse struct {
-	Error    *string
-	Response *json.RawMessage
-}
+func GetStderr(c *Client) (io.Reader, bool)
 </file>
 
 <file path="examples/custom_context/main.go">
@@ -930,7 +1966,9 @@ func authFromEnv(ctx context.Context) context.Context
 func tokenFromContext(ctx context.Context) (string, error)
 ⋮----
 type response struct {
-	Args    map[string]interface{} `json:"args"`
+	Args    map[string]any    `json:"args"`
+	Headers map[string]string `json:"headers"`
+}
 ⋮----
 // makeRequest makes a request to httpbin.org including the auth token in the request
 // headers and the message in the query string.
@@ -962,7 +2000,7 @@ func main()
 var transport string
 </file>
 
-<file path="examples/everything/main.go">
+<file path="examples/dynamic_path/main.go">
 package main
 ⋮----
 import (
@@ -970,7 +2008,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"time"
+	"net/http"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -980,6 +2018,42 @@ import (
 "flag"
 "fmt"
 "log"
+"net/http"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+"github.com/mark3labs/mcp-go/server"
+⋮----
+func main()
+⋮----
+var addr string
+⋮----
+// Add a trivial tool for demonstration
+⋮----
+// Use a dynamic base path based on a path parameter (Go 1.22+)
+</file>
+
+<file path="examples/everything/main.go">
+package main
+⋮----
+import (
+	"context"
+	"encoding/base64"
+	"flag"
+	"fmt"
+	"log"
+	"strconv"
+	"time"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
+)
+⋮----
+"context"
+"encoding/base64"
+"flag"
+"fmt"
+"log"
+"strconv"
 "time"
 ⋮----
 "github.com/mark3labs/mcp-go/mcp"
@@ -1004,17 +2078,19 @@ const (
 ⋮----
 func NewMCPServer() *server.MCPServer
 ⋮----
+// authorization verification and other preprocessing tasks are performed.
+⋮----
 // s.server.AddTool(mcp.Tool{
 // 	Name:        string(SAMPLE_LLM),
 // 	Description: "Samples from an LLM using MCP's sampling feature",
 // 	InputSchema: mcp.ToolInputSchema{
 // 		Type: "object",
-// 		Properties: map[string]interface{}{
-// 			"prompt": map[string]interface{}{
+// 		Properties: map[string]any{
+// 			"prompt": map[string]any{
 // 				"type":        "string",
 // 				"description": "The prompt to send to the LLM",
 // 			},
-// 			"maxTokens": map[string]interface{}{
+// 			"maxTokens": map[string]any{
 // 				"type":        "number",
 // 				"description": "Maximum number of tokens to generate",
 // 				"default":     100,
@@ -1025,27 +2101,6 @@ func NewMCPServer() *server.MCPServer
 ⋮----
 func generateResources() []mcp.Resource
 ⋮----
-func runUpdateInterval()
-⋮----
-// for range s.updateTicker.C {
-// 	for uri := range s.subscriptions {
-// 		s.server.HandleMessage(
-// 			context.Background(),
-// 			mcp.JSONRPCNotification{
-// 				JSONRPC: mcp.JSONRPC_VERSION,
-// 				Notification: mcp.Notification{
-// 					Method: "resources/updated",
-// 					Params: struct {
-// 						Meta map[string]interface{} `json:"_meta,omitempty"`
-// 					}{
-// 						Meta: map[string]interface{}{"uri": uri},
-// 					},
-// 				},
-⋮----
-// 		)
-// 	}
-// }
-⋮----
 func handleReadResource(
 	ctx context.Context,
 	request mcp.ReadResourceRequest,
@@ -1055,6 +2110,13 @@ func handleResourceTemplate(
 	ctx context.Context,
 	request mcp.ReadResourceRequest,
 ) ([]mcp.ResourceContents, error)
+⋮----
+func handleGeneratedResource(
+	ctx context.Context,
+	request mcp.ReadResourceRequest,
+) ([]mcp.ResourceContents, error)
+⋮----
+var resourceNumber string
 ⋮----
 func handleSimplePrompt(
 	ctx context.Context,
@@ -1086,7 +2148,7 @@ func handleLongRunningOperationTool(
 	request mcp.CallToolRequest,
 ) (*mcp.CallToolResult, error)
 ⋮----
-// func (s *MCPServer) handleSampleLLMTool(arguments map[string]interface{}) (*mcp.CallToolResult, error) {
+// func (s *MCPServer) handleSampleLLMTool(arguments map[string]any) (*mcp.CallToolResult, error) {
 // 	prompt, _ := arguments["prompt"].(string)
 // 	maxTokens, _ := arguments["maxTokens"].(float64)
 ⋮----
@@ -1098,7 +2160,7 @@ func handleLongRunningOperationTool(
 // 	)
 ⋮----
 // 	return &mcp.CallToolResult{
-// 		Content: []interface{}{
+// 		Content: []any{
 // 			mcp.TextContent{
 // 				Type: "text",
 // 				Text: fmt.Sprintf("LLM sampling result: %s", result),
@@ -1175,6 +2237,82 @@ func main()
 func printToolResult(result *mcp.CallToolResult)
 </file>
 
+<file path="examples/simple_client/main.go">
+package main
+⋮----
+import (
+	"context"
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"time"
+
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/client/transport"
+	"github.com/mark3labs/mcp-go/mcp"
+)
+⋮----
+"context"
+"flag"
+"fmt"
+"io"
+"log"
+"os"
+"time"
+⋮----
+"github.com/mark3labs/mcp-go/client"
+"github.com/mark3labs/mcp-go/client/transport"
+"github.com/mark3labs/mcp-go/mcp"
+⋮----
+func main()
+⋮----
+// Define command line flags
+⋮----
+// Validate flags
+⋮----
+// Create a context with timeout
+⋮----
+// Create client based on transport type
+var c *client.Client
+var err error
+⋮----
+// Parse command and arguments
+⋮----
+// Create command and stdio transport
+⋮----
+// Create stdio transport with verbose logging
+⋮----
+// Start the transport
+⋮----
+// Create client with the transport
+⋮----
+// Set up logging for stderr if available
+⋮----
+// Create SSE transport
+⋮----
+// Set up notification handler
+⋮----
+// Initialize the client
+⋮----
+// Display server information
+⋮----
+// List available tools if the server supports them
+⋮----
+// List available resources if the server supports them
+⋮----
+// parseCommand splits a command string into command and arguments
+func parseCommand(cmd string) []string
+⋮----
+// This is a simple implementation that doesn't handle quotes or escapes
+// For a more robust solution, consider using a shell parser library
+var result []string
+var current string
+var inQuote bool
+var quoteChar rune
+</file>
+
 <file path="mcp/prompts.go">
 package mcp
 ⋮----
@@ -1240,6 +2378,9 @@ type Prompt struct {
 // A list of arguments to use for templating the prompt.
 // The presence of arguments indicates this is a template prompt.
 ⋮----
+// GetName returns the name of the prompt.
+func (p Prompt) GetName() string
+⋮----
 // PromptArgument describes an argument that a prompt template can accept.
 // When a prompt includes arguments, clients must provide values for all
 // required arguments when making a prompts/get request.
@@ -1275,10 +2416,10 @@ const (
 // resources from the MCP server.
 type PromptMessage struct {
 	Role    Role    `json:"role"`
-	Content Content `json:"content"` // Can be TextContent, ImageContent, or EmbeddedResource
+	Content Content `json:"content"` // Can be TextContent, ImageContent, AudioContent or EmbeddedResource
 }
 ⋮----
-Content Content `json:"content"` // Can be TextContent, ImageContent, or EmbeddedResource
+Content Content `json:"content"` // Can be TextContent, ImageContent, AudioContent or EmbeddedResource
 ⋮----
 // PromptListChangedNotification is an optional notification from the server
 // to the client, informing it that the list of prompts it offers has changed. This
@@ -1374,12 +2515,14 @@ package mcp
 ⋮----
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 ⋮----
 "encoding/json"
+"fmt"
 "testing"
 ⋮----
 "github.com/stretchr/testify/assert"
@@ -1406,7 +2549,7 @@ func TestToolWithRawSchema(t *testing.T)
 // Marshal to JSON
 ⋮----
 // Unmarshal to verify the structure
-var result map[string]interface{}
+var result map[string]any
 ⋮----
 // Verify tool properties
 ⋮----
@@ -1431,6 +2574,8 @@ func TestToolWithObjectAndArray(t *testing.T)
 // Verify array items schema
 ⋮----
 // Verify required fields
+⋮----
+func TestParseToolCallToolRequest(t *testing.T)
 </file>
 
 <file path="mcp/tools.go">
@@ -1473,14 +2618,14 @@ type ListToolsResult struct {
 // should be reported as an MCP error response.
 type CallToolResult struct {
 	Result
-	Content []Content `json:"content"` // Can be TextContent, ImageContent, or      EmbeddedResource
+	Content []Content `json:"content"` // Can be TextContent, ImageContent, AudioContent, or EmbeddedResource
 	// Whether the tool call ended in an error.
 	//
 	// If not set, this is assumed to be false (the call was successful).
 	IsError bool `json:"isError,omitempty"`
 }
 ⋮----
-Content []Content `json:"content"` // Can be TextContent, ImageContent, or      EmbeddedResource
+Content []Content `json:"content"` // Can be TextContent, ImageContent, AudioContent, or EmbeddedResource
 // Whether the tool call ended in an error.
 //
 // If not set, this is assumed to be false (the call was successful).
@@ -1489,8 +2634,17 @@ Content []Content `json:"content"` // Can be TextContent, ImageContent, or      
 type CallToolRequest struct {
 	Request
 	Params struct {
-		Name      string                 `json:"name"`
-		Arguments map[string]interface{} `json:"arguments,omitempty"`
+		Name      string         `json:"name"`
+		Arguments map[string]any `json:"arguments,omitempty"`
+		Meta      *struct {
+			// If specified, the caller is requesting out-of-band progress
+			// notifications for this request (as represented by
+			// notifications/progress). The value of this parameter is an
+			// opaque token that will be attached to any subsequent
+			// notifications. The receiver is not obligated to provide these
+			// notifications.
+			ProgressToken ProgressToken `json:"progressToken,omitempty"`
+		} `json:"_meta,omitempty"`
 ⋮----
 // If specified, the caller is requesting out-of-band progress
 // notifications for this request (as represented by
@@ -1516,6 +2670,8 @@ type Tool struct {
 	InputSchema ToolInputSchema `json:"inputSchema"`
 	// Alternative to InputSchema - allows arbitrary JSON Schema to be provided
 	RawInputSchema json.RawMessage `json:"-"` // Hide this from JSON marshaling
+	// Optional properties describing tool behavior
+	Annotations ToolAnnotation `json:"annotations"`
 }
 ⋮----
 // The name of the tool.
@@ -1526,6 +2682,10 @@ type Tool struct {
 ⋮----
 // Alternative to InputSchema - allows arbitrary JSON Schema to be provided
 RawInputSchema json.RawMessage `json:"-"` // Hide this from JSON marshaling
+// Optional properties describing tool behavior
+⋮----
+// GetName returns the name of the tool.
+func (t Tool) GetName() string
 ⋮----
 // MarshalJSON implements the json.Marshaler interface for Tool.
 // It handles marshaling either InputSchema or RawInputSchema based on which is set.
@@ -1540,8 +2700,37 @@ func (t Tool) MarshalJSON() ([]byte, error)
 // Use the structured InputSchema
 ⋮----
 type ToolInputSchema struct {
-	Type       string                 `json:"type"`
-	Properties map[string]interface{} `json:"properties"`
+	Type       string         `json:"type"`
+	Properties map[string]any `json:"properties,omitempty"`
+	Required   []string       `json:"required,omitempty"`
+}
+⋮----
+// MarshalJSON implements the json.Marshaler interface for ToolInputSchema.
+⋮----
+// Marshal Properties to '{}' rather than `nil` when its length equals zero
+⋮----
+type ToolAnnotation struct {
+	// Human-readable title for the tool
+	Title string `json:"title,omitempty"`
+	// If true, the tool does not modify its environment
+	ReadOnlyHint *bool `json:"readOnlyHint,omitempty"`
+	// If true, the tool may perform destructive updates
+	DestructiveHint *bool `json:"destructiveHint,omitempty"`
+	// If true, repeated calls with same args have no additional effect
+	IdempotentHint *bool `json:"idempotentHint,omitempty"`
+	// If true, tool interacts with external entities
+	OpenWorldHint *bool `json:"openWorldHint,omitempty"`
+}
+⋮----
+// Human-readable title for the tool
+⋮----
+// If true, the tool does not modify its environment
+⋮----
+// If true, the tool may perform destructive updates
+⋮----
+// If true, repeated calls with same args have no additional effect
+⋮----
+// If true, tool interacts with external entities
 ⋮----
 // ToolOption is a function that configures a Tool.
 // It provides a flexible way to set various properties of a Tool using the functional options pattern.
@@ -1549,7 +2738,7 @@ type ToolOption func(*Tool)
 ⋮----
 // PropertyOption is a function that configures a property in a Tool's input schema.
 // It allows for flexible configuration of JSON Schema properties using the functional options pattern.
-type PropertyOption func(map[string]interface{})
+type PropertyOption func(map[string]any)
 ⋮----
 // Core Tool Functions
 ⋮----
@@ -1572,6 +2761,29 @@ func NewToolWithRawSchema(name, description string, schema json.RawMessage) Tool
 // WithDescription adds a description to the Tool.
 // The description should provide a clear, human-readable explanation of what the tool does.
 func WithDescription(description string) ToolOption
+⋮----
+// WithToolAnnotation adds optional hints about the Tool.
+func WithToolAnnotation(annotation ToolAnnotation) ToolOption
+⋮----
+// WithTitleAnnotation sets the Title field of the Tool's Annotations.
+// It provides a human-readable title for the tool.
+func WithTitleAnnotation(title string) ToolOption
+⋮----
+// WithReadOnlyHintAnnotation sets the ReadOnlyHint field of the Tool's Annotations.
+// If true, it indicates the tool does not modify its environment.
+func WithReadOnlyHintAnnotation(value bool) ToolOption
+⋮----
+// WithDestructiveHintAnnotation sets the DestructiveHint field of the Tool's Annotations.
+// If true, it indicates the tool may perform destructive updates.
+func WithDestructiveHintAnnotation(value bool) ToolOption
+⋮----
+// WithIdempotentHintAnnotation sets the IdempotentHint field of the Tool's Annotations.
+// If true, it indicates repeated calls with the same arguments have no additional effect.
+func WithIdempotentHintAnnotation(value bool) ToolOption
+⋮----
+// WithOpenWorldHintAnnotation sets the OpenWorldHint field of the Tool's Annotations.
+// If true, it indicates the tool interacts with external entities.
+func WithOpenWorldHintAnnotation(value bool) ToolOption
 ⋮----
 // Common Property Options
 ⋮----
@@ -1633,6 +2845,12 @@ func MultipleOf(value float64) PropertyOption
 ⋮----
 func DefaultBool(value bool) PropertyOption
 ⋮----
+// Array Property Options
+⋮----
+// DefaultArray sets the default value for an array property.
+⋮----
+func DefaultArray[T any](value []T) PropertyOption
+⋮----
 // Property Type Helpers
 ⋮----
 // WithBoolean adds a boolean property to the tool schema.
@@ -1658,11 +2876,11 @@ func WithObject(name string, opts ...PropertyOption) ToolOption
 func WithArray(name string, opts ...PropertyOption) ToolOption
 ⋮----
 // Properties defines the properties for an object schema
-func Properties(props map[string]interface
+func Properties(props map[string]any) PropertyOption
 ⋮----
 // AdditionalProperties specifies whether additional properties are allowed in the object
 // or defines a schema for additional properties
-func AdditionalProperties(schema interface
+func AdditionalProperties(schema any) PropertyOption
 ⋮----
 // MinProperties sets the minimum number of properties for an object
 func MinProperties(min int) PropertyOption
@@ -1671,10 +2889,10 @@ func MinProperties(min int) PropertyOption
 func MaxProperties(max int) PropertyOption
 ⋮----
 // PropertyNames defines a schema for property names in an object
-func PropertyNames(schema map[string]interface
+func PropertyNames(schema map[string]any) PropertyOption
 ⋮----
 // Items defines the schema for array items
-func Items(schema interface
+func Items(schema any) PropertyOption
 ⋮----
 // MinItems sets the minimum number of items for an array
 func MinItems(min int) PropertyOption
@@ -1687,7 +2905,7 @@ func UniqueItems(unique bool) PropertyOption
 </file>
 
 <file path="mcp/types.go">
-// Package mcp defines the core types and interfaces for the Model Control Protocol (MCP).
+// Package mcp defines the core types and interfaces for the Model Context Protocol (MCP).
 // MCP is a protocol for communication between LLM-powered applications and their supporting services.
 package mcp
 ⋮----
@@ -1704,65 +2922,88 @@ import (
 type MCPMethod string
 ⋮----
 const (
-	// Initiates connection and negotiates protocol capabilities.
-	// https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/lifecycle/#initialization
+	// MethodInitialize initiates connection and negotiates protocol capabilities.
+	// https://modelcontextprotocol.io/specification/2024-11-05/basic/lifecycle/#initialization
 	MethodInitialize MCPMethod = "initialize"
 
-	// Verifies connection liveness between client and server.
-	// https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/utilities/ping/
+	// MethodPing verifies connection liveness between client and server.
+	// https://modelcontextprotocol.io/specification/2024-11-05/basic/utilities/ping/
 	MethodPing MCPMethod = "ping"
 
-	// Lists all available server resources.
-	// https://spec.modelcontextprotocol.io/specification/2024-11-05/server/resources/
+	// MethodResourcesList lists all available server resources.
+	// https://modelcontextprotocol.io/specification/2024-11-05/server/resources/
 	MethodResourcesList MCPMethod = "resources/list"
 
-	// Provides URI templates for constructing resource URIs.
-	// https://spec.modelcontextprotocol.io/specification/2024-11-05/server/resources/
+	// MethodResourcesTemplatesList provides URI templates for constructing resource URIs.
+	// https://modelcontextprotocol.io/specification/2024-11-05/server/resources/
 	MethodResourcesTemplatesList MCPMethod = "resources/templates/list"
 
-	// Retrieves content of a specific resource by URI.
-	// https://spec.modelcontextprotocol.io/specification/2024-11-05/server/resources/
+	// MethodResourcesRead retrieves content of a specific resource by URI.
+	// https://modelcontextprotocol.io/specification/2024-11-05/server/resources/
 	MethodResourcesRead MCPMethod = "resources/read"
 
-	// Lists all available prompt templates.
-	// https://spec.modelcontextprotocol.io/specification/2024-11-05/server/prompts/
+	// MethodPromptsList lists all available prompt templates.
+	// https://modelcontextprotocol.io/specification/2024-11-05/server/prompts/
 	MethodPromptsList MCPMethod = "prompts/list"
 
-	// Retrieves a specific prompt template with filled parameters.
-	// https://spec.modelcontextprotocol.io/specification/2024-11-05/server/prompts/
+	// MethodPromptsGet retrieves a specific prompt template with filled parameters.
+	// https://modelcontextprotocol.io/specification/2024-11-05/server/prompts/
 	MethodPromptsGet MCPMethod = "prompts/get"
 
-	// Lists all available executable tools.
-	// https://spec.modelcontextprotocol.io/specification/2024-11-05/server/tools/
+	// MethodToolsList lists all available executable tools.
+	// https://modelcontextprotocol.io/specification/2024-11-05/server/tools/
 	MethodToolsList MCPMethod = "tools/list"
 
-	// Invokes a specific tool with provided parameters.
-	// https://spec.modelcontextprotocol.io/specification/2024-11-05/server/tools/
+	// MethodToolsCall invokes a specific tool with provided parameters.
+	// https://modelcontextprotocol.io/specification/2024-11-05/server/tools/
 	MethodToolsCall MCPMethod = "tools/call"
+
+	// MethodNotificationResourcesListChanged notifies when the list of available resources changes.
+	// https://modelcontextprotocol.io/specification/2025-03-26/server/resources#list-changed-notification
+	MethodNotificationResourcesListChanged = "notifications/resources/list_changed"
+
+	MethodNotificationResourceUpdated = "notifications/resources/updated"
+
+	// MethodNotificationPromptsListChanged notifies when the list of available prompt templates changes.
+	// https://modelcontextprotocol.io/specification/2025-03-26/server/prompts#list-changed-notification
+	MethodNotificationPromptsListChanged = "notifications/prompts/list_changed"
+
+	// MethodNotificationToolsListChanged notifies when the list of available tools changes.
+	// https://spec.modelcontextprotocol.io/specification/2024-11-05/server/tools/list_changed/
+	MethodNotificationToolsListChanged = "notifications/tools/list_changed"
 )
 ⋮----
-// Initiates connection and negotiates protocol capabilities.
-// https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/lifecycle/#initialization
+// MethodInitialize initiates connection and negotiates protocol capabilities.
+// https://modelcontextprotocol.io/specification/2024-11-05/basic/lifecycle/#initialization
 ⋮----
-// Verifies connection liveness between client and server.
-// https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/utilities/ping/
+// MethodPing verifies connection liveness between client and server.
+// https://modelcontextprotocol.io/specification/2024-11-05/basic/utilities/ping/
 ⋮----
-// Lists all available server resources.
-// https://spec.modelcontextprotocol.io/specification/2024-11-05/server/resources/
+// MethodResourcesList lists all available server resources.
+// https://modelcontextprotocol.io/specification/2024-11-05/server/resources/
 ⋮----
-// Provides URI templates for constructing resource URIs.
+// MethodResourcesTemplatesList provides URI templates for constructing resource URIs.
 ⋮----
-// Retrieves content of a specific resource by URI.
+// MethodResourcesRead retrieves content of a specific resource by URI.
 ⋮----
-// Lists all available prompt templates.
-// https://spec.modelcontextprotocol.io/specification/2024-11-05/server/prompts/
+// MethodPromptsList lists all available prompt templates.
+// https://modelcontextprotocol.io/specification/2024-11-05/server/prompts/
 ⋮----
-// Retrieves a specific prompt template with filled parameters.
+// MethodPromptsGet retrieves a specific prompt template with filled parameters.
 ⋮----
-// Lists all available executable tools.
-// https://spec.modelcontextprotocol.io/specification/2024-11-05/server/tools/
+// MethodToolsList lists all available executable tools.
+// https://modelcontextprotocol.io/specification/2024-11-05/server/tools/
 ⋮----
-// Invokes a specific tool with provided parameters.
+// MethodToolsCall invokes a specific tool with provided parameters.
+⋮----
+// MethodNotificationResourcesListChanged notifies when the list of available resources changes.
+// https://modelcontextprotocol.io/specification/2025-03-26/server/resources#list-changed-notification
+⋮----
+// MethodNotificationPromptsListChanged notifies when the list of available prompt templates changes.
+// https://modelcontextprotocol.io/specification/2025-03-26/server/prompts#list-changed-notification
+⋮----
+// MethodNotificationToolsListChanged notifies when the list of available tools changes.
+// https://spec.modelcontextprotocol.io/specification/2024-11-05/server/tools/list_changed/
 ⋮----
 type URITemplate struct {
 	*uritemplate.Template
@@ -1777,7 +3018,7 @@ var raw string
 /* JSON-RPC types */
 ⋮----
 // JSONRPCMessage represents either a JSONRPCRequest, JSONRPCNotification, JSONRPCResponse, or JSONRPCError
-type JSONRPCMessage interface{}
+type JSONRPCMessage any
 ⋮----
 // LATEST_PROTOCOL_VERSION is the most recent version of the MCP protocol.
 const LATEST_PROTOCOL_VERSION = "2024-11-05"
@@ -1786,7 +3027,7 @@ const LATEST_PROTOCOL_VERSION = "2024-11-05"
 const JSONRPC_VERSION = "2.0"
 ⋮----
 // ProgressToken is used to associate progress notifications with the original request.
-type ProgressToken interface{}
+type ProgressToken any
 ⋮----
 // Cursor is an opaque token used to represent a cursor for pagination.
 type Cursor string
@@ -1811,7 +3052,7 @@ type Request struct {
 // notifications. The receiver is not obligated to provide these
 // notifications.
 ⋮----
-type Params map[string]interface{}
+type Params map[string]any
 ⋮----
 type Notification struct {
 	Method string             `json:"method"`
@@ -1821,7 +3062,11 @@ type Notification struct {
 type NotificationParams struct {
 	// This parameter name is reserved by MCP to allow clients and
 	// servers to attach additional metadata to their notifications.
-	Meta map[string]interface{} `json:"_meta,omitempty"`
+	Meta map[string]any `json:"_meta,omitempty"`
+
+	// Additional fields can be added to this map
+	AdditionalFields map[string]any `json:"-"`
+}
 ⋮----
 // This parameter name is reserved by MCP to allow clients and
 // servers to attach additional metadata to their notifications.
@@ -1840,7 +3085,7 @@ type NotificationParams struct {
 ⋮----
 // UnmarshalJSON implements custom JSON unmarshaling
 ⋮----
-var m map[string]interface{}
+var m map[string]any
 ⋮----
 // Initialize maps if they're nil
 ⋮----
@@ -1853,20 +3098,23 @@ var m map[string]interface{}
 type Result struct {
 	// This result property is reserved by the protocol to allow clients and
 	// servers to attach additional metadata to their responses.
-	Meta map[string]interface{} `json:"_meta,omitempty"`
+	Meta map[string]any `json:"_meta,omitempty"`
+}
 ⋮----
 // This result property is reserved by the protocol to allow clients and
 // servers to attach additional metadata to their responses.
 ⋮----
 // RequestId is a uniquely identifying ID for a request in JSON-RPC.
 // It can be any JSON-serializable value, typically a number or string.
-type RequestId interface{}
+type RequestId any
 ⋮----
 // JSONRPCRequest represents a request that expects a response.
 type JSONRPCRequest struct {
-	JSONRPC string      `json:"jsonrpc"`
-	ID      RequestId   `json:"id"`
-	Params  interface{} `json:"params,omitempty"`
+	JSONRPC string    `json:"jsonrpc"`
+	ID      RequestId `json:"id"`
+	Params  any       `json:"params,omitempty"`
+	Request
+}
 ⋮----
 // JSONRPCNotification represents a notification which does not expect a response.
 type JSONRPCNotification struct {
@@ -1876,9 +3124,10 @@ type JSONRPCNotification struct {
 ⋮----
 // JSONRPCResponse represents a successful (non-error) response to a request.
 type JSONRPCResponse struct {
-	JSONRPC string      `json:"jsonrpc"`
-	ID      RequestId   `json:"id"`
-	Result  interface{} `json:"result"`
+	JSONRPC string    `json:"jsonrpc"`
+	ID      RequestId `json:"id"`
+	Result  any       `json:"result"`
+}
 ⋮----
 // JSONRPCError represents a non-successful (error) response to a request.
 type JSONRPCError struct {
@@ -1892,7 +3141,8 @@ type JSONRPCError struct {
 		Message string `json:"message"`
 		// Additional information about the error. The value of this member
 		// is defined by the sender (e.g. detailed error information, nested errors etc.).
-		Data interface{} `json:"data,omitempty"`
+		Data any `json:"data,omitempty"`
+	} `json:"error"`
 ⋮----
 // The error type that occurred.
 ⋮----
@@ -1909,6 +3159,11 @@ const (
 	METHOD_NOT_FOUND = -32601
 	INVALID_PARAMS   = -32602
 	INTERNAL_ERROR   = -32603
+)
+⋮----
+// MCP error codes
+const (
+	RESOURCE_NOT_FOUND = -32002
 )
 ⋮----
 /* Empty result */
@@ -2007,7 +3262,12 @@ type InitializedNotification struct {
 // client can define its own, additional capabilities.
 type ClientCapabilities struct {
 	// Experimental, non-standard capabilities that the client supports.
-	Experimental map[string]interface{} `json:"experimental,omitempty"`
+	Experimental map[string]any `json:"experimental,omitempty"`
+	// Present if the client supports listing roots.
+	Roots *struct {
+		// Whether the client supports notifications for changes to the roots list.
+		ListChanged bool `json:"listChanged,omitempty"`
+	} `json:"roots,omitempty"`
 ⋮----
 // Experimental, non-standard capabilities that the client supports.
 ⋮----
@@ -2022,7 +3282,9 @@ type ClientCapabilities struct {
 // server can define its own, additional capabilities.
 type ServerCapabilities struct {
 	// Experimental, non-standard capabilities that the server supports.
-	Experimental map[string]interface{} `json:"experimental,omitempty"`
+	Experimental map[string]any `json:"experimental,omitempty"`
+	// Present if the server supports sending log messages to the client.
+	Logging *struct{} `json:"logging,omitempty"`
 ⋮----
 // Experimental, non-standard capabilities that the server supports.
 ⋮----
@@ -2073,6 +3335,9 @@ type ProgressNotification struct {
 		Progress float64 `json:"progress"`
 		// Total number of items to process (or total progress required), if known.
 		Total float64 `json:"total,omitempty"`
+		// Message related to progress. This should provide relevant human-readable
+		// progress information.
+		Message string `json:"message,omitempty"`
 	} `json:"params"`
 ⋮----
 // The progress token which was given in the initial request, used to
@@ -2082,6 +3347,9 @@ type ProgressNotification struct {
 // even if the total is unknown.
 ⋮----
 // Total number of items to process (or total progress required), if known.
+⋮----
+// Message related to progress. This should provide relevant human-readable
+// progress information.
 ⋮----
 /* Pagination */
 ⋮----
@@ -2145,7 +3413,8 @@ type ReadResourceRequest struct {
 		// to the server how to interpret it.
 		URI string `json:"uri"`
 		// Arguments to pass to the resource handler
-		Arguments map[string]interface{} `json:"arguments,omitempty"`
+		Arguments map[string]any `json:"arguments,omitempty"`
+	} `json:"params"`
 ⋮----
 // The URI of the resource to read. The URI can use any protocol; it is up
 // to the server how to interpret it.
@@ -2238,6 +3507,9 @@ type Resource struct {
 ⋮----
 // The MIME type of this resource, if known.
 ⋮----
+// GetName returns the name of the resource.
+func (r Resource) GetName() string
+⋮----
 // ResourceTemplate represents a template description for resources available
 // on the server.
 type ResourceTemplate struct {
@@ -2268,6 +3540,8 @@ type ResourceTemplate struct {
 ⋮----
 // The MIME type for all resources that match this template. This should only
 // be included if all resources matching this template have the same type.
+⋮----
+// GetName returns the name of the resourceTemplate.
 ⋮----
 // ResourceContents represents the contents of a specific resource or sub-
 // resource.
@@ -2330,7 +3604,8 @@ type LoggingMessageNotification struct {
 		Logger string `json:"logger,omitempty"`
 		// The data to be logged, such as a string message or an object. Any JSON
 		// serializable type is allowed here.
-		Data interface{} `json:"data"`
+		Data any `json:"data"`
+	} `json:"params"`
 ⋮----
 // The severity of this log message.
 ⋮----
@@ -2372,7 +3647,8 @@ type CreateMessageRequest struct {
 		Temperature      float64           `json:"temperature,omitempty"`
 		MaxTokens        int               `json:"maxTokens"`
 		StopSequences    []string          `json:"stopSequences,omitempty"`
-		Metadata         interface{}       `json:"metadata,omitempty"`
+		Metadata         any               `json:"metadata,omitempty"`
+	} `json:"params"`
 ⋮----
 // CreateMessageResult is the client's response to a sampling/create_message
 // request from the server. The client should inform the user before returning the
@@ -2393,29 +3669,26 @@ type CreateMessageResult struct {
 ⋮----
 // SamplingMessage describes a message issued to or received from an LLM API.
 type SamplingMessage struct {
-	Role    Role        `json:"role"`
-	Content interface{} `json:"content"` // Can be TextContent or ImageContent
+	Role    Role `json:"role"`
+	Content any  `json:"content"` // Can be TextContent, ImageContent or AudioContent
+}
 ⋮----
-Content interface{} `json:"content"` // Can be TextContent or ImageContent
+Content any  `json:"content"` // Can be TextContent, ImageContent or AudioContent
 ⋮----
-// Annotated is the base for objects that include optional annotations for the
-// client. The client can use annotations to inform how objects are used or
-// displayed
-type Annotated struct {
-	Annotations *struct {
-		// Describes who the intended customer of this object or data is.
-		//
-		// It can include multiple entries to indicate content useful for multiple
-		// audiences (e.g., `["user", "assistant"]`).
-		Audience []Role `json:"audience,omitempty"`
+type Annotations struct {
+	// Describes who the intended customer of this object or data is.
+	//
+	// It can include multiple entries to indicate content useful for multiple
+	// audiences (e.g., `["user", "assistant"]`).
+	Audience []Role `json:"audience,omitempty"`
 
-		// Describes how important this data is for operating the server.
-		//
-		// A value of 1 means "most important," and indicates that the data is
-		// effectively required, while 0 means "least important," and indicates that
-		// the data is entirely optional.
-		Priority float64 `json:"priority,omitempty"`
-	} `json:"annotations,omitempty"`
+	// Describes how important this data is for operating the server.
+	//
+	// A value of 1 means "most important," and indicates that the data is
+	// effectively required, while 0 means "least important," and indicates that
+	// the data is entirely optional.
+	Priority float64 `json:"priority,omitempty"`
+}
 ⋮----
 // Describes who the intended customer of this object or data is.
 ⋮----
@@ -2427,6 +3700,13 @@ type Annotated struct {
 // A value of 1 means "most important," and indicates that the data is
 // effectively required, while 0 means "least important," and indicates that
 // the data is entirely optional.
+⋮----
+// Annotated is the base for objects that include optional annotations for the
+// client. The client can use annotations to inform how objects are used or
+// displayed
+type Annotated struct {
+	Annotations *Annotations `json:"annotations,omitempty"`
+}
 ⋮----
 type Content interface {
 	isContent()
@@ -2461,6 +3741,22 @@ Type string `json:"type"` // Must be "image"
 // The base64-encoded image data.
 ⋮----
 // The MIME type of the image. Different providers may support different image types.
+⋮----
+// AudioContent represents the contents of audio, embedded into a prompt or tool call result.
+// It must have Type set to "audio".
+type AudioContent struct {
+	Annotated
+	Type string `json:"type"` // Must be "audio"
+	// The base64-encoded audio data.
+	Data string `json:"data"`
+	// The MIME type of the audio. Different providers may support different audio types.
+	MIMEType string `json:"mimeType"`
+}
+⋮----
+Type string `json:"type"` // Must be "audio"
+// The base64-encoded audio data.
+⋮----
+// The MIME type of the audio. Different providers may support different audio types.
 ⋮----
 // EmbeddedResource represents the contents of a resource, embedded into a prompt or tool call result.
 ⋮----
@@ -2565,9 +3861,15 @@ type ModelHint struct {
 type CompleteRequest struct {
 	Request
 	Params struct {
-		Ref      interface{} `json:"ref"` // Can be PromptReference or ResourceReference
+		Ref      any `json:"ref"` // Can be PromptReference or ResourceReference
+		Argument struct {
+			// The name of the argument
+			Name string `json:"name"`
+			// The value of the argument to use for completion matching.
+			Value string `json:"value"`
+		} `json:"argument"`
 ⋮----
-Ref      interface{} `json:"ref"` // Can be PromptReference or ResourceReference
+Ref      any `json:"ref"` // Can be PromptReference or ResourceReference
 ⋮----
 // The name of the argument
 ⋮----
@@ -2662,25 +3964,27 @@ type RootsListChangedNotification struct {
 	Notification
 }
 ⋮----
-/* Client messages */
 // ClientRequest represents any request that can be sent from client to server.
-type ClientRequest interface{}
+type ClientRequest any
 ⋮----
 // ClientNotification represents any notification that can be sent from client to server.
-type ClientNotification interface{}
+type ClientNotification any
 ⋮----
 // ClientResult represents any result that can be sent from client to server.
-type ClientResult interface{}
+type ClientResult any
 ⋮----
-/* Server messages */
 // ServerRequest represents any request that can be sent from server to client.
-type ServerRequest interface{}
+type ServerRequest any
 ⋮----
 // ServerNotification represents any notification that can be sent from server to client.
-type ServerNotification interface{}
+type ServerNotification any
 ⋮----
 // ServerResult represents any result that can be sent from server to client.
-type ServerResult interface{}
+type ServerResult any
+⋮----
+type Named interface {
+	GetName() string
+}
 </file>
 
 <file path="mcp/utils.go">
@@ -2689,10 +3993,14 @@ package mcp
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/spf13/cast"
 )
 ⋮----
 "encoding/json"
 "fmt"
+⋮----
+"github.com/spf13/cast"
 ⋮----
 // ClientRequest types
 var _ ClientRequest = &PingRequest{}
@@ -2747,22 +4055,25 @@ var _ ServerResult = &ListToolsResult{}
 // Helper functions for type assertions
 ⋮----
 // asType attempts to cast the given interface to the given type
-func asType[T any](content interface
+func asType[T any](content any) (*T, bool)
 ⋮----
 // AsTextContent attempts to cast the given interface to TextContent
-func AsTextContent(content interface
+func AsTextContent(content any) (*TextContent, bool)
 ⋮----
 // AsImageContent attempts to cast the given interface to ImageContent
-func AsImageContent(content interface
+func AsImageContent(content any) (*ImageContent, bool)
+⋮----
+// AsAudioContent attempts to cast the given interface to AudioContent
+func AsAudioContent(content any) (*AudioContent, bool)
 ⋮----
 // AsEmbeddedResource attempts to cast the given interface to EmbeddedResource
-func AsEmbeddedResource(content interface
+func AsEmbeddedResource(content any) (*EmbeddedResource, bool)
 ⋮----
 // AsTextResourceContents attempts to cast the given interface to TextResourceContents
-func AsTextResourceContents(content interface
+func AsTextResourceContents(content any) (*TextResourceContents, bool)
 ⋮----
 // AsBlobResourceContents attempts to cast the given interface to BlobResourceContents
-func AsBlobResourceContents(content interface
+func AsBlobResourceContents(content any) (*BlobResourceContents, bool)
 ⋮----
 // Helper function for JSON-RPC
 ⋮----
@@ -2774,29 +4085,40 @@ func NewJSONRPCError(
 	id RequestId,
 	code int,
 	message string,
-	data interface
+	data any,
+) JSONRPCError
 ⋮----
+// NewProgressNotification
 // Helper function for creating a progress notification
 func NewProgressNotification(
 	token ProgressToken,
 	progress float64,
 	total *float64,
+	message *string,
 ) ProgressNotification
 ⋮----
+// NewLoggingMessageNotification
 // Helper function for creating a logging message notification
 func NewLoggingMessageNotification(
 	level LoggingLevel,
 	logger string,
-	data interface
+	data any,
+) LoggingMessageNotification
 ⋮----
+// NewPromptMessage
 // Helper function to create a new PromptMessage
 func NewPromptMessage(role Role, content Content) PromptMessage
 ⋮----
+// NewTextContent
 // Helper function to create a new TextContent
 func NewTextContent(text string) TextContent
 ⋮----
+// NewImageContent
 // Helper function to create a new ImageContent
 func NewImageContent(data, mimeType string) ImageContent
+⋮----
+// Helper function to create a new AudioContent
+func NewAudioContent(data, mimeType string) AudioContent
 ⋮----
 // Helper function to create a new EmbeddedResource
 func NewEmbeddedResource(resource ResourceContents) EmbeddedResource
@@ -2807,6 +4129,9 @@ func NewToolResultText(text string) *CallToolResult
 // NewToolResultImage creates a new CallToolResult with both text and image content
 func NewToolResultImage(text, imageData, mimeType string) *CallToolResult
 ⋮----
+// NewToolResultAudio creates a new CallToolResult with both text and audio content
+func NewToolResultAudio(text, imageData, mimeType string) *CallToolResult
+⋮----
 // NewToolResultResource creates a new CallToolResult with an embedded resource
 func NewToolResultResource(
 	text string,
@@ -2816,6 +4141,11 @@ func NewToolResultResource(
 // NewToolResultError creates a new CallToolResult with an error message.
 // Any errors that originate from the tool SHOULD be reported inside the result object.
 func NewToolResultError(text string) *CallToolResult
+⋮----
+// NewToolResultErrorFromErr creates a new CallToolResult with an error message.
+// If an error is provided, its details will be appended to the text message.
+⋮----
+func NewToolResultErrorFromErr(text string, err error) *CallToolResult
 ⋮----
 // NewListResourcesResult creates a new ListResourcesResult
 func NewListResourcesResult(
@@ -2855,6 +4185,7 @@ func NewInitializeResult(
 	instructions string,
 ) *InitializeResult
 ⋮----
+// FormatNumberResult
 // Helper for formatting numbers in tool results
 func FormatNumberResult(value float64) *CallToolResult
 ⋮----
@@ -2889,6 +4220,188 @@ func ParseResourceContents(contentMap map[string]any) (ResourceContents, error)
 func ParseReadResourceResult(rawMessage *json.RawMessage) (*ReadResourceResult, error)
 ⋮----
 var result ReadResourceResult
+⋮----
+func ParseArgument(request CallToolRequest, key string, defaultVal any) any
+⋮----
+// ParseBoolean extracts and converts a boolean parameter from a CallToolRequest.
+// If the key is not found in the Arguments map, the defaultValue is returned.
+// The function uses cast.ToBool for conversion which handles various string representations
+// such as "true", "yes", "1", etc.
+func ParseBoolean(request CallToolRequest, key string, defaultValue bool) bool
+⋮----
+// ParseInt64 extracts and converts an int64 parameter from a CallToolRequest.
+⋮----
+func ParseInt64(request CallToolRequest, key string, defaultValue int64) int64
+⋮----
+// ParseInt32 extracts and converts an int32 parameter from a CallToolRequest.
+func ParseInt32(request CallToolRequest, key string, defaultValue int32) int32
+⋮----
+// ParseInt16 extracts and converts an int16 parameter from a CallToolRequest.
+func ParseInt16(request CallToolRequest, key string, defaultValue int16) int16
+⋮----
+// ParseInt8 extracts and converts an int8 parameter from a CallToolRequest.
+func ParseInt8(request CallToolRequest, key string, defaultValue int8) int8
+⋮----
+// ParseInt extracts and converts an int parameter from a CallToolRequest.
+func ParseInt(request CallToolRequest, key string, defaultValue int) int
+⋮----
+// ParseUInt extracts and converts an uint parameter from a CallToolRequest.
+func ParseUInt(request CallToolRequest, key string, defaultValue uint) uint
+⋮----
+// ParseUInt64 extracts and converts an uint64 parameter from a CallToolRequest.
+func ParseUInt64(request CallToolRequest, key string, defaultValue uint64) uint64
+⋮----
+// ParseUInt32 extracts and converts an uint32 parameter from a CallToolRequest.
+func ParseUInt32(request CallToolRequest, key string, defaultValue uint32) uint32
+⋮----
+// ParseUInt16 extracts and converts an uint16 parameter from a CallToolRequest.
+func ParseUInt16(request CallToolRequest, key string, defaultValue uint16) uint16
+⋮----
+// ParseUInt8 extracts and converts an uint8 parameter from a CallToolRequest.
+func ParseUInt8(request CallToolRequest, key string, defaultValue uint8) uint8
+⋮----
+// ParseFloat32 extracts and converts a float32 parameter from a CallToolRequest.
+func ParseFloat32(request CallToolRequest, key string, defaultValue float32) float32
+⋮----
+// ParseFloat64 extracts and converts a float64 parameter from a CallToolRequest.
+func ParseFloat64(request CallToolRequest, key string, defaultValue float64) float64
+⋮----
+// ParseString extracts and converts a string parameter from a CallToolRequest.
+func ParseString(request CallToolRequest, key string, defaultValue string) string
+⋮----
+// ParseStringMap extracts and converts a string map parameter from a CallToolRequest.
+func ParseStringMap(request CallToolRequest, key string, defaultValue map[string]any) map[string]any
+⋮----
+// ToBoolPtr returns a pointer to the given boolean value
+func ToBoolPtr(b bool) *bool
+</file>
+
+<file path="mcptest/mcptest_test.go">
+package mcptest_test
+⋮----
+import (
+	"context"
+	"fmt"
+	"strings"
+	"testing"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/mcptest"
+	"github.com/mark3labs/mcp-go/server"
+)
+⋮----
+"context"
+"fmt"
+"strings"
+"testing"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+"github.com/mark3labs/mcp-go/mcptest"
+"github.com/mark3labs/mcp-go/server"
+⋮----
+func TestServer(t *testing.T)
+⋮----
+var req mcp.CallToolRequest
+⋮----
+func helloWorldHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error)
+⋮----
+// Extract name from request arguments
+⋮----
+func resultToString(result *mcp.CallToolResult) (string, error)
+⋮----
+var b strings.Builder
+</file>
+
+<file path="mcptest/mcptest.go">
+// Package mcptest implements helper functions for testing MCP servers.
+package mcptest
+⋮----
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"log"
+	"sync"
+	"testing"
+
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/client/transport"
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
+)
+⋮----
+"bytes"
+"context"
+"fmt"
+"io"
+"log"
+"sync"
+"testing"
+⋮----
+"github.com/mark3labs/mcp-go/client"
+"github.com/mark3labs/mcp-go/client/transport"
+"github.com/mark3labs/mcp-go/mcp"
+"github.com/mark3labs/mcp-go/server"
+⋮----
+// Server encapsulates an MCP server and manages resources like pipes and context.
+type Server struct {
+	name  string
+	tools []server.ServerTool
+
+	ctx    context.Context
+	cancel func()
+
+	serverReader *io.PipeReader
+	serverWriter *io.PipeWriter
+	clientReader *io.PipeReader
+	clientWriter *io.PipeWriter
+
+	logBuffer bytes.Buffer
+
+	transport transport.Interface
+	client    *client.Client
+
+	wg sync.WaitGroup
+}
+⋮----
+// NewServer starts a new MCP server with the provided tools and returns the server instance.
+func NewServer(t *testing.T, tools ...server.ServerTool) (*Server, error)
+⋮----
+// NewUnstartedServer creates a new MCP server instance with the given name, but does not start the server.
+// Useful for tests where you need to add tools before starting the server.
+func NewUnstartedServer(t *testing.T) *Server
+⋮----
+// Use t.Context() once we switch to go >= 1.24
+⋮----
+// Set up context with cancellation, used to stop the server
+⋮----
+// Set up pipes for client-server communication
+⋮----
+// Return the configured server
+⋮----
+// AddTools adds multiple tools to an unstarted server.
+func (s *Server) AddTools(tools ...server.ServerTool)
+⋮----
+// AddTool adds a tool to an unstarted server.
+func (s *Server) AddTool(tool mcp.Tool, handler server.ToolHandlerFunc)
+⋮----
+// Start starts the server in a goroutine. Make sure to defer Close() after Start().
+// When using NewServer(), the returned server is already started.
+func (s *Server) Start() error
+⋮----
+// Start the MCP server in a goroutine
+⋮----
+var initReq mcp.InitializeRequest
+⋮----
+// Close stops the server and cleans up resources like temporary directories.
+func (s *Server) Close()
+⋮----
+// Wait for server goroutine to finish
+⋮----
+// Client returns an MCP client connected to the server.
+// The client is already initialized, i.e. you do _not_ need to call Client.Initialize().
+func (s *Server) Client() *client.Client
 </file>
 
 <file path="server/internal/gen/data.go">
@@ -3012,6 +4525,8 @@ import (
 // OnRegisterSessionHookFunc is a hook that will be called when a new session is registered.
 type OnRegisterSessionHookFunc func(ctx context.Context, session ClientSession)
 
+// OnUnregisterSessionHookFunc is a hook that will be called when a session is being unregistered.
+type OnUnregisterSessionHookFunc func(ctx context.Context, session ClientSession)
 
 // BeforeAnyHookFunc is a function that is called after the request is
 // parsed but before the method is called.
@@ -3023,7 +4538,7 @@ type OnSuccessHookFunc func(ctx context.Context, id any, method mcp.MCPMethod, m
 
 // OnErrorHookFunc is a hook that will be called when an error occurs,
 // either during the request parsing or the method execution.
-//
+// 
 // Example usage:
 // ```
 // hooks.AddOnError(func(ctx context.Context, id any, method mcp.MCPMethod, message any, err error) {
@@ -3034,10 +4549,10 @@ type OnSuccessHookFunc func(ctx context.Context, id any, method mcp.MCPMethod, m
 //   }
 //
 //   // Use errors.As to get specific error types
-//   var parseErr = &UnparseableMessageError{}
+//   var parseErr = &UnparsableMessageError{}
 //   if errors.As(err, &parseErr) {
 //     // Access specific methods/fields of the error type
-//     log.Printf("Failed to parse message for method %s: %v",
+//     log.Printf("Failed to parse message for method %s: %v", 
 //                parseErr.GetMethod(), parseErr.Unwrap())
 //     // Access the raw message that failed to parse
 //     rawMsg := parseErr.GetMessage()
@@ -3055,16 +4570,23 @@ type OnSuccessHookFunc func(ctx context.Context, id any, method mcp.MCPMethod, m
 // })
 type OnErrorHookFunc func(ctx context.Context, id any, method mcp.MCPMethod, message any, err error)
 
+// OnRequestInitializationFunc is a function that called before handle diff request method
+// Should any errors arise during func execution, the service will promptly return the corresponding error message.
+type OnRequestInitializationFunc func(ctx context.Context, id any, message any) error
+
+
 {{range .}}
 type OnBefore{{.HookName}}Func func(ctx context.Context, id any, message *mcp.{{.ParamType}})
 type OnAfter{{.HookName}}Func func(ctx context.Context, id any, message *mcp.{{.ParamType}}, result *mcp.{{.ResultType}})
 {{end}}
 
 type Hooks struct {
-    OnRegisterSession []OnRegisterSessionHookFunc
+    OnRegisterSession   []OnRegisterSessionHookFunc
+	OnUnregisterSession   []OnUnregisterSessionHookFunc
 	OnBeforeAny      []BeforeAnyHookFunc
 	OnSuccess        []OnSuccessHookFunc
 	OnError          []OnErrorHookFunc
+	OnRequestInitialization       []OnRequestInitializationFunc
 {{- range .}}
 	OnBefore{{.HookName}} []OnBefore{{.HookName}}Func
 	OnAfter{{.HookName}}  []OnAfter{{.HookName}}Func
@@ -3087,7 +4609,7 @@ func (c *Hooks) AddOnSuccess(hook OnSuccessHookFunc) {
 // ```
 // // Create a channel to receive errors for testing
 // errChan := make(chan error, 1)
-//
+// 
 // // Register hook to capture and inspect errors
 // hooks := &Hooks{}
 // hooks.AddOnError(func(ctx context.Context, id any, method mcp.MCPMethod, message any, err error) {
@@ -3099,10 +4621,10 @@ func (c *Hooks) AddOnSuccess(hook OnSuccessHookFunc) {
 //     }
 //
 //     // For parsing errors
-//     var parseErr = &UnparseableMessageError{}
+//     var parseErr = &UnparsableMessageError{}
 //     if errors.As(err, &parseErr) {
-//         // Handle unparseable message errors
-//         fmt.Printf("Failed to parse %s request: %v\n",
+//         // Handle unparsable message errors
+//         fmt.Printf("Failed to parse %s request: %v\n", 
 //                    parseErr.GetMethod(), parseErr.Unwrap())
 //         errChan <- parseErr
 //         return
@@ -3155,7 +4677,7 @@ func (c *Hooks) onSuccess(ctx context.Context, id any, method mcp.MCPMethod, mes
 //
 // Common error types include:
 // - ErrUnsupported: When a capability is not enabled
-// - UnparseableMessageError: When request parsing fails
+// - UnparsableMessageError: When request parsing fails
 // - ErrResourceNotFound: When a resource is not found
 // - ErrPromptNotFound: When a prompt is not found
 // - ErrToolNotFound: When a tool is not found
@@ -3179,6 +4701,36 @@ func (c *Hooks) RegisterSession(ctx context.Context, session ClientSession) {
     for _, hook := range c.OnRegisterSession {
         hook(ctx, session)
     }
+}
+
+func (c *Hooks) AddOnUnregisterSession(hook OnUnregisterSessionHookFunc) {
+    c.OnUnregisterSession = append(c.OnUnregisterSession, hook)
+}
+
+func (c *Hooks) UnregisterSession(ctx context.Context, session ClientSession) {
+    if c == nil {
+        return
+    }
+    for _, hook := range c.OnUnregisterSession {
+        hook(ctx, session)
+    }
+}
+
+func (c *Hooks) AddOnRequestInitialization(hook OnRequestInitializationFunc) {
+	c.OnRequestInitialization = append(c.OnRequestInitialization, hook)
+}
+
+func (c *Hooks) onRequestInitialization(ctx context.Context, id any, message any) error {
+	if c == nil {
+		return nil
+	}
+	for _, hook := range c.OnRequestInitialization {
+		err := hook(ctx, id, message)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 {{- range .}}
@@ -3316,6 +4868,7 @@ func (s *MCPServer) HandleMessage(
 		JSONRPC string      `json:"jsonrpc"`
 		Method  mcp.MCPMethod `json:"method"`
 		ID      any           `json:"id,omitempty"`
+		Result  any           `json:"result,omitempty"`
 	}
 
 	if err := json.Unmarshal(message, &baseMessage); err != nil {
@@ -3348,6 +4901,21 @@ func (s *MCPServer) HandleMessage(
 		return nil // Return nil for notifications
 	}
 
+	if baseMessage.Result != nil {
+		// this is a response to a request sent by the server (e.g. from a ping
+		// sent due to WithKeepAlive option)
+		return nil
+	}
+
+	handleErr := s.hooks.onRequestInitialization(ctx, baseMessage.ID, message)
+    if handleErr != nil {
+    	return createErrorResponse(
+    		baseMessage.ID,
+    		mcp.INVALID_REQUEST,
+    		handleErr.Error(),
+    	)
+    }
+
 	switch baseMessage.Method {
 	{{- range .}}
 	case mcp.{{.MethodName}}:
@@ -3363,7 +4931,7 @@ func (s *MCPServer) HandleMessage(
 			err = &requestError{
 				id:   baseMessage.ID,
 				code: mcp.INVALID_REQUEST,
-				err:  &UnparseableMessageError{message: message, err: unmarshalErr, method: baseMessage.Method},
+				err:  &UnparsableMessageError{message: message, err: unmarshalErr, method: baseMessage.Method},
 			}
 		} else {
 			s.hooks.before{{.HookName}}(ctx, baseMessage.ID, &request)
@@ -3386,6 +4954,35 @@ func (s *MCPServer) HandleMessage(
 }
 </file>
 
+<file path="server/errors.go">
+package server
+⋮----
+import (
+	"errors"
+	"fmt"
+)
+⋮----
+"errors"
+"fmt"
+⋮----
+var (
+	// Common server errors
+	ErrUnsupported      = errors.New("not supported")
+⋮----
+// Common server errors
+⋮----
+// Session-related errors
+⋮----
+// Notification-related errors
+⋮----
+// ErrDynamicPathConfig is returned when attempting to use static path methods with dynamic path configuration
+type ErrDynamicPathConfig struct {
+	Method string
+}
+⋮----
+func (e *ErrDynamicPathConfig) Error() string
+</file>
+
 <file path="server/hooks.go">
 // Code generated by `go generate`. DO NOT EDIT.
 // source: server/internal/gen/hooks.go.tmpl
@@ -3403,6 +5000,9 @@ import (
 ⋮----
 // OnRegisterSessionHookFunc is a hook that will be called when a new session is registered.
 type OnRegisterSessionHookFunc func(ctx context.Context, session ClientSession)
+⋮----
+// OnUnregisterSessionHookFunc is a hook that will be called when a session is being unregistered.
+type OnUnregisterSessionHookFunc func(ctx context.Context, session ClientSession)
 ⋮----
 // BeforeAnyHookFunc is a function that is called after the request is
 // parsed but before the method is called.
@@ -3426,7 +5026,7 @@ type OnSuccessHookFunc func(ctx context.Context, id any, method mcp.MCPMethod, m
 //	  }
 ⋮----
 //	  // Use errors.As to get specific error types
-//	  var parseErr = &UnparseableMessageError{}
+//	  var parseErr = &UnparsableMessageError{}
 //	  if errors.As(err, &parseErr) {
 //	    // Access specific methods/fields of the error type
 //	    log.Printf("Failed to parse message for method %s: %v",
@@ -3445,6 +5045,10 @@ type OnSuccessHookFunc func(ctx context.Context, id any, method mcp.MCPMethod, m
 ⋮----
 //	})
 type OnErrorHookFunc func(ctx context.Context, id any, method mcp.MCPMethod, message any, err error)
+⋮----
+// OnRequestInitializationFunc is a function that called before handle diff request method
+// Should any errors arise during func execution, the service will promptly return the corresponding error message.
+type OnRequestInitializationFunc func(ctx context.Context, id any, message any) error
 ⋮----
 type OnBeforeInitializeFunc func(ctx context.Context, id any, message *mcp.InitializeRequest)
 type OnAfterInitializeFunc func(ctx context.Context, id any, message *mcp.InitializeRequest, result *mcp.InitializeResult)
@@ -3475,9 +5079,11 @@ type OnAfterCallToolFunc func(ctx context.Context, id any, message *mcp.CallTool
 ⋮----
 type Hooks struct {
 	OnRegisterSession             []OnRegisterSessionHookFunc
+	OnUnregisterSession           []OnUnregisterSessionHookFunc
 	OnBeforeAny                   []BeforeAnyHookFunc
 	OnSuccess                     []OnSuccessHookFunc
 	OnError                       []OnErrorHookFunc
+	OnRequestInitialization       []OnRequestInitializationFunc
 	OnBeforeInitialize            []OnBeforeInitializeFunc
 	OnAfterInitialize             []OnAfterInitializeFunc
 	OnBeforePing                  []OnBeforePingFunc
@@ -3522,9 +5128,9 @@ func (c *Hooks) AddOnSuccess(hook OnSuccessHookFunc)
 //	    }
 ⋮----
 //	    // For parsing errors
-//	    var parseErr = &UnparseableMessageError{}
+//	    var parseErr = &UnparsableMessageError{}
 //	    if errors.As(err, &parseErr) {
-//	        // Handle unparseable message errors
+//	        // Handle unparsable message errors
 //	        fmt.Printf("Failed to parse %s request: %v\n",
 //	                   parseErr.GetMethod(), parseErr.Unwrap())
 //	        errChan <- parseErr
@@ -3556,7 +5162,7 @@ func (c *Hooks) onSuccess(ctx context.Context, id any, method mcp.MCPMethod, mes
 ⋮----
 // Common error types include:
 // - ErrUnsupported: When a capability is not enabled
-// - UnparseableMessageError: When request parsing fails
+// - UnparsableMessageError: When request parsing fails
 // - ErrResourceNotFound: When a resource is not found
 // - ErrPromptNotFound: When a prompt is not found
 // - ErrToolNotFound: When a tool is not found
@@ -3565,6 +5171,14 @@ func (c *Hooks) onError(ctx context.Context, id any, method mcp.MCPMethod, messa
 func (c *Hooks) AddOnRegisterSession(hook OnRegisterSessionHookFunc)
 ⋮----
 func (c *Hooks) RegisterSession(ctx context.Context, session ClientSession)
+⋮----
+func (c *Hooks) AddOnUnregisterSession(hook OnUnregisterSessionHookFunc)
+⋮----
+func (c *Hooks) UnregisterSession(ctx context.Context, session ClientSession)
+⋮----
+func (c *Hooks) AddOnRequestInitialization(hook OnRequestInitializationFunc)
+⋮----
+func (c *Hooks) onRequestInitialization(ctx context.Context, id any, message any) error
 func (c *Hooks) AddBeforeInitialize(hook OnBeforeInitializeFunc)
 ⋮----
 func (c *Hooks) AddAfterInitialize(hook OnAfterInitializeFunc)
@@ -3630,6 +5244,138 @@ func (c *Hooks) beforeCallTool(ctx context.Context, id any, message *mcp.CallToo
 func (c *Hooks) afterCallTool(ctx context.Context, id any, message *mcp.CallToolRequest, result *mcp.CallToolResult)
 </file>
 
+<file path="server/http_transport_options.go">
+package server
+⋮----
+import (
+	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+)
+⋮----
+"context"
+"net/http"
+"net/url"
+"strings"
+"time"
+⋮----
+// HTTPContextFunc is a function that takes an existing context and the current
+// request and returns a potentially modified context based on the request
+// content. This can be used to inject context values from headers, for example.
+type HTTPContextFunc func(ctx context.Context, r *http.Request) context.Context
+⋮----
+// httpTransportConfigurable is an internal interface for shared HTTP transport configuration.
+type httpTransportConfigurable interface {
+	setBasePath(string)
+	setDynamicBasePath(DynamicBasePathFunc)
+	setKeepAliveInterval(time.Duration)
+	setKeepAlive(bool)
+	setContextFunc(HTTPContextFunc)
+	setHTTPServer(*http.Server)
+	setBaseURL(string)
+}
+⋮----
+// HTTPTransportOption is a function that configures an httpTransportConfigurable.
+type HTTPTransportOption func(httpTransportConfigurable)
+⋮----
+// Option interfaces and wrappers for server configuration
+// Base option interface
+type HTTPServerOption interface {
+	isHTTPServerOption()
+}
+⋮----
+// SSE-specific option interface
+type SSEOption interface {
+	HTTPServerOption
+	applyToSSE(*SSEServer)
+}
+⋮----
+// StreamableHTTP-specific option interface
+type StreamableHTTPOption interface {
+	HTTPServerOption
+	applyToStreamableHTTP(*StreamableHTTPServer)
+}
+⋮----
+// Common options that work with both server types
+type CommonHTTPServerOption interface {
+	SSEOption
+	StreamableHTTPOption
+}
+⋮----
+// Wrapper for SSE-specific functional options
+type sseOption func(*SSEServer)
+⋮----
+func (o sseOption) isHTTPServerOption()
+func (o sseOption) applyToSSE(s *SSEServer)
+⋮----
+// Wrapper for StreamableHTTP-specific functional options
+type streamableHTTPOption func(*StreamableHTTPServer)
+⋮----
+func (o streamableHTTPOption) applyToStreamableHTTP(s *StreamableHTTPServer)
+⋮----
+// Refactor commonOption to use a single apply func(httpTransportConfigurable)
+type commonOption struct {
+	apply func(httpTransportConfigurable)
+}
+⋮----
+// TODO: This is a stub implementation of StreamableHTTPServer just to show how
+// to use it with the new options interfaces.
+type StreamableHTTPServer struct{}
+⋮----
+// Add stub methods to satisfy httpTransportConfigurable
+⋮----
+func (s *StreamableHTTPServer) setBasePath(string)
+func (s *StreamableHTTPServer) setDynamicBasePath(DynamicBasePathFunc)
+func (s *StreamableHTTPServer) setKeepAliveInterval(time.Duration)
+func (s *StreamableHTTPServer) setKeepAlive(bool)
+func (s *StreamableHTTPServer) setContextFunc(HTTPContextFunc)
+func (s *StreamableHTTPServer) setHTTPServer(srv *http.Server)
+func (s *StreamableHTTPServer) setBaseURL(baseURL string)
+⋮----
+// Ensure the option types implement the correct interfaces
+var (
+	_ httpTransportConfigurable = (*StreamableHTTPServer)(nil)
+⋮----
+// WithStaticBasePath adds a new option for setting a static base path.
+// This is useful for mounting the server at a known, fixed path.
+func WithStaticBasePath(basePath string) CommonHTTPServerOption
+⋮----
+// DynamicBasePathFunc allows the user to provide a function to generate the
+// base path for a given request and sessionID. This is useful for cases where
+// the base path is not known at the time of SSE server creation, such as when
+// using a reverse proxy or when the base path is dynamically generated. The
+// function should return the base path (e.g., "/mcp/tenant123").
+type DynamicBasePathFunc func(r *http.Request, sessionID string) string
+⋮----
+// WithDynamicBasePath accepts a function for generating the base path.
+// This is useful for cases where the base path is not known at the time of server creation,
+// such as when using a reverse proxy or when the server is mounted at a dynamic path.
+func WithDynamicBasePath(fn DynamicBasePathFunc) CommonHTTPServerOption
+⋮----
+// WithKeepAliveInterval sets the keep-alive interval for the transport.
+// When enabled, the server will periodically send ping events to keep the connection alive.
+func WithKeepAliveInterval(interval time.Duration) CommonHTTPServerOption
+⋮----
+// WithKeepAlive enables or disables keep-alive for the transport.
+// When enabled, the server will send periodic keep-alive events to clients.
+func WithKeepAlive(keepAlive bool) CommonHTTPServerOption
+⋮----
+// WithHTTPContextFunc sets a function that will be called to customize the context
+// for the server using the incoming request. This is useful for injecting
+// context values from headers or other request properties.
+func WithHTTPContextFunc(fn HTTPContextFunc) CommonHTTPServerOption
+⋮----
+// WithBaseURL sets the base URL for the HTTP transport server.
+// This is useful for configuring the externally visible base URL for clients.
+func WithBaseURL(baseURL string) CommonHTTPServerOption
+⋮----
+// WithHTTPServer sets the HTTP server instance for the transport.
+// This is useful for advanced scenarios where you want to provide your own http.Server.
+func WithHTTPServer(srv *http.Server) CommonHTTPServerOption
+</file>
+
 <file path="server/request_handler.go">
 // Code generated by `go generate`. DO NOT EDIT.
 // source: server/internal/gen/request_handler.go.tmpl
@@ -3663,6 +5409,7 @@ var baseMessage struct {
 		JSONRPC string        `json:"jsonrpc"`
 		Method  mcp.MCPMethod `json:"method"`
 		ID      any           `json:"id,omitempty"`
+		Result  any           `json:"result,omitempty"`
 	}
 ⋮----
 // Check for valid JSONRPC version
@@ -3670,6 +5417,9 @@ var baseMessage struct {
 var notification mcp.JSONRPCNotification
 ⋮----
 return nil // Return nil for notifications
+⋮----
+// this is a response to a request sent by the server (e.g. from a ping
+// sent due to WithKeepAlive option)
 ⋮----
 var request mcp.InitializeRequest
 var result *mcp.InitializeResult
@@ -3699,6 +5449,141 @@ var request mcp.CallToolRequest
 var result *mcp.CallToolResult
 </file>
 
+<file path="server/resource_test.go">
+package server
+⋮----
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+⋮----
+"context"
+"testing"
+"time"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+"github.com/stretchr/testify/assert"
+"github.com/stretchr/testify/require"
+⋮----
+func TestMCPServer_RemoveResource(t *testing.T)
+⋮----
+// Add a test resource
+⋮----
+// Add a second resource
+⋮----
+// First, verify we have two resources
+⋮----
+// Now register session to receive notifications
+⋮----
+// Now remove one resource
+⋮----
+// Check that we received a list_changed notification
+⋮----
+// Verify we now have only one resource
+⋮----
+// Register session to receive notifications
+⋮----
+// Remove a non-existent resource
+⋮----
+expectedNotifications: 0, // No notifications expected
+⋮----
+// verify that no notifications were sent
+⋮----
+// The original resource should still be there
+⋮----
+// Create a new server without listChanged capability
+⋮----
+WithResourceCapabilities(true, false), // Subscribe but not listChanged
+⋮----
+// Add a resource
+⋮----
+// Remove the resource
+⋮----
+// The test can now proceed without waiting for notifications
+// since we don't expect any
+⋮----
+// Nothing to do here, we're just verifying that no notifications were sent
+⋮----
+// Initialize the server
+⋮----
+// Collect notifications with a timeout
+⋮----
+// If no notifications expected, wait a brief period to ensure none are sent
+⋮----
+// This is the expected path - no notifications
+⋮----
+// Get final resources list
+⋮----
+// Validate the results
+</file>
+
+<file path="server/server_race_test.go">
+package server
+⋮----
+import (
+	"context"
+	"fmt"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+⋮----
+"context"
+"fmt"
+"sync"
+"testing"
+"time"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+"github.com/stretchr/testify/assert"
+"github.com/stretchr/testify/require"
+⋮----
+// TestRaceConditions attempts to trigger race conditions by performing
+// concurrent operations on different resources of the MCPServer.
+func TestRaceConditions(t *testing.T)
+⋮----
+// Create a server with all capabilities
+⋮----
+// Create a context
+⋮----
+// Create a sync.WaitGroup to coordinate test goroutines
+var wg sync.WaitGroup
+⋮----
+// Define test duration
+⋮----
+// Start goroutines to perform concurrent operations
+⋮----
+// Add and immediately delete
+⋮----
+// Add a persistent tool for testing tool calls
+⋮----
+// Wait for all operations to complete
+⋮----
+// Helper function to run an operation concurrently for a specified duration
+func runConcurrentOperation(wg *sync.WaitGroup, duration time.Duration, name string, operation func())
+⋮----
+// TestConcurrentPromptAdd specifically tests for the deadlock scenario where adding a prompt
+// from a goroutine can cause a deadlock
+func TestConcurrentPromptAdd(t *testing.T)
+⋮----
+// Add a prompt with a handler that adds another prompt in a goroutine
+⋮----
+// Create request and channel to track completion
+⋮----
+// Try to get the prompt - this would deadlock with a single mutex
+⋮----
+// Assert the operation completes without deadlock
+</file>
+
 <file path="server/server_test.go">
 package server
 ⋮----
@@ -3708,6 +5593,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -3721,6 +5608,8 @@ import (
 "encoding/json"
 "errors"
 "fmt"
+"reflect"
+"sort"
 "testing"
 "time"
 ⋮----
@@ -3744,6 +5633,12 @@ func TestMCPServer_Tools(t *testing.T)
 ⋮----
 // Expect a successful response with an empty list of tools
 ⋮----
+// Remove non-existing tools
+⋮----
+// Only one notification expected for SetTools
+⋮----
+// Confirm the tool list does not change
+⋮----
 func TestMCPServer_HandleValidMessages(t *testing.T)
 ⋮----
 func TestMCPServer_HandlePagination(t *testing.T)
@@ -3752,6 +5647,24 @@ func TestMCPServer_HandleNotifications(t *testing.T)
 ⋮----
 func TestMCPServer_SendNotificationToClient(t *testing.T)
 ⋮----
+func TestMCPServer_SendNotificationToAllClients(t *testing.T)
+⋮----
+// Create 5 active sessions
+⋮----
+// Send 10 notifications to all sessions
+⋮----
+// Verify each session received all 10 notifications
+⋮----
+// Read all notifications from the channel
+⋮----
+// Verify notification method
+⋮----
+// Verify count parameter
+⋮----
+// Verify no more notifications
+⋮----
+// Channel empty as expected
+⋮----
 func TestMCPServer_PromptHandling(t *testing.T)
 ⋮----
 // Add a test prompt
@@ -3759,9 +5672,6 @@ func TestMCPServer_PromptHandling(t *testing.T)
 func TestMCPServer_HandleInvalidMessages(t *testing.T)
 ⋮----
 var errs []error
-⋮----
-var unparseableErr = &UnparseableMessageError{}
-var ok = errors.As(err, &unparseableErr)
 ⋮----
 errs = nil // Reset errors for each test case
 ⋮----
@@ -3820,13 +5730,14 @@ func TestMCPServer_WithHooks(t *testing.T)
 ⋮----
 // Create hook counters to verify calls
 var (
-		beforeAnyCount   int
-		onSuccessCount   int
-		onErrorCount     int
-		beforePingCount  int
-		afterPingCount   int
-		beforeToolsCount int
-		afterToolsCount  int
+		beforeAnyCount               int
+		onSuccessCount               int
+		onErrorCount                 int
+		beforePingCount              int
+		afterPingCount               int
+		beforeToolsCount             int
+		afterToolsCount              int
+		onRequestInitializationCount int
 	)
 ⋮----
 // Collectors for message and result types
@@ -3874,6 +5785,8 @@ var afterPingData []struct {
 // General hooks should be called for all methods
 // beforeAny is called for all 4 methods (initialize, ping, tools/list, tools/call)
 ⋮----
+// onRequestInitialization is called for all 4 methods (initialize, ping, tools/list, tools/call)
+⋮----
 // onSuccess is called for all 3 success methods (initialize, ping, tools/list)
 ⋮----
 // Error hook should be called once for the failed tools/call
@@ -3881,19 +5794,49 @@ var afterPingData []struct {
 // Verify type matching between BeforeAny and BeforePing
 ⋮----
 // Verify type matching between OnSuccess and AfterPing
+⋮----
+func TestMCPServer_SessionHooks(t *testing.T)
+⋮----
+var (
+		registerCalled   bool
+		unregisterCalled bool
+
+		registeredContext   context.Context
+		unregisteredContext context.Context
+
+		registeredSession   ClientSession
+		unregisteredSession ClientSession
+	)
+⋮----
+func TestMCPServer_SessionHooks_NilHooks(t *testing.T)
+⋮----
+func TestMCPServer_WithRecover(t *testing.T)
+⋮----
+func getTools(length int) []mcp.Tool
+⋮----
+func listByPaginationForReflect[T any](
+	ctx context.Context,
+	s *MCPServer,
+	cursor mcp.Cursor,
+	allElements []T,
+) ([]T, mcp.Cursor, error)
+⋮----
+// set the next cursor
+⋮----
+func BenchmarkMCPServer_Pagination(b *testing.B)
+⋮----
+func BenchmarkMCPServer_PaginationForReflect(b *testing.B)
 </file>
 
 <file path="server/server.go">
-// Package server provides MCP (Model Control Protocol) server implementations.
+// Package server provides MCP (Model Context Protocol) server implementations.
 package server
 ⋮----
 import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"reflect"
 	"sort"
 	"sync"
 
@@ -3903,9 +5846,7 @@ import (
 "context"
 "encoding/base64"
 "encoding/json"
-"errors"
 "fmt"
-"reflect"
 "sort"
 "sync"
 ⋮----
@@ -3938,53 +5879,39 @@ type PromptHandlerFunc func(ctx context.Context, request mcp.GetPromptRequest) (
 // ToolHandlerFunc handles tool calls with given arguments.
 type ToolHandlerFunc func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error)
 ⋮----
+// ToolHandlerMiddleware is a middleware function that wraps a ToolHandlerFunc.
+type ToolHandlerMiddleware func(ToolHandlerFunc) ToolHandlerFunc
+⋮----
+// ToolFilterFunc is a function that filters tools based on context, typically using session information.
+type ToolFilterFunc func(ctx context.Context, tools []mcp.Tool) []mcp.Tool
+⋮----
 // ServerTool combines a Tool with its ToolHandlerFunc.
 type ServerTool struct {
 	Tool    mcp.Tool
 	Handler ToolHandlerFunc
 }
 ⋮----
-// ClientSession represents an active session that can be used by MCPServer to interact with client.
-type ClientSession interface {
-	// Initialize marks session as fully initialized and ready for notifications
-	Initialize()
-	// Initialized returns if session is ready to accept notifications
-	Initialized() bool
-	// NotificationChannel provides a channel suitable for sending notifications to client.
-	NotificationChannel() chan<- mcp.JSONRPCNotification
-	// SessionID is a unique identifier used to track user session.
-	SessionID() string
-}
+// serverKey is the context key for storing the server instance
+type serverKey struct{}
 ⋮----
-// Initialize marks session as fully initialized and ready for notifications
+// ServerFromContext retrieves the MCPServer instance from a context
+func ServerFromContext(ctx context.Context) *MCPServer
 ⋮----
-// Initialized returns if session is ready to accept notifications
-⋮----
-// NotificationChannel provides a channel suitable for sending notifications to client.
-⋮----
-// SessionID is a unique identifier used to track user session.
-⋮----
-// clientSessionKey is the context key for storing current client notification channel.
-type clientSessionKey struct{}
-⋮----
-// ClientSessionFromContext retrieves current client notification context from context.
-func ClientSessionFromContext(ctx context.Context) ClientSession
-⋮----
-// UnparseableMessageError is attached to the RequestError when json.Unmarshal
+// UnparsableMessageError is attached to the RequestError when json.Unmarshal
 // fails on the request.
-type UnparseableMessageError struct {
+type UnparsableMessageError struct {
 	message json.RawMessage
 	method  mcp.MCPMethod
 	err     error
 }
 ⋮----
-func (e *UnparseableMessageError) Error() string
+func (e *UnparsableMessageError) Error() string
 ⋮----
-func (e *UnparseableMessageError) Unwrap() error
+func (e *UnparsableMessageError) Unwrap() error
 ⋮----
-func (e *UnparseableMessageError) GetMessage() json.RawMessage
+func (e *UnparsableMessageError) GetMessage() json.RawMessage
 ⋮----
-func (e *UnparseableMessageError) GetMethod() mcp.MCPMethod
+func (e *UnparsableMessageError) GetMethod() mcp.MCPMethod
 ⋮----
 // RequestError is an error that can be converted to a JSON-RPC error.
 // Implements Unwrap() to allow inspecting the error chain.
@@ -3996,73 +5923,42 @@ type requestError struct {
 ⋮----
 func (e *requestError) ToJSONRPCError() mcp.JSONRPCError
 ⋮----
-var (
-	ErrUnsupported      = errors.New("not supported")
-⋮----
 // NotificationHandlerFunc handles incoming notifications.
 type NotificationHandlerFunc func(ctx context.Context, notification mcp.JSONRPCNotification)
 ⋮----
-// MCPServer implements a Model Control Protocol server that can handle various types of requests
+// MCPServer implements a Model Context Protocol server that can handle various types of requests
 // including resources, prompts, and tools.
 type MCPServer struct {
-	mu                   sync.RWMutex // Add mutex for protecting shared resources
-	name                 string
-	version              string
-	instructions         string
-	resources            map[string]resourceEntry
-	resourceTemplates    map[string]resourceTemplateEntry
-	prompts              map[string]mcp.Prompt
-	promptHandlers       map[string]PromptHandlerFunc
-	tools                map[string]ServerTool
-	notificationHandlers map[string]NotificationHandlerFunc
-	capabilities         serverCapabilities
-	paginationLimit      *int
-	sessions             sync.Map
-	hooks                *Hooks
+	// Separate mutexes for different resource types
+	resourcesMu            sync.RWMutex
+	promptsMu              sync.RWMutex
+	toolsMu                sync.RWMutex
+	middlewareMu           sync.RWMutex
+	notificationHandlersMu sync.RWMutex
+	capabilitiesMu         sync.RWMutex
+	toolFiltersMu          sync.RWMutex
+
+	name                   string
+	version                string
+	instructions           string
+	resources              map[string]resourceEntry
+	resourceTemplates      map[string]resourceTemplateEntry
+	prompts                map[string]mcp.Prompt
+	promptHandlers         map[string]PromptHandlerFunc
+	tools                  map[string]ServerTool
+	toolHandlerMiddlewares []ToolHandlerMiddleware
+	toolFilters            []ToolFilterFunc
+	notificationHandlers   map[string]NotificationHandlerFunc
+	capabilities           serverCapabilities
+	paginationLimit        *int
+	sessions               sync.Map
+	hooks                  *Hooks
 }
 ⋮----
-mu                   sync.RWMutex // Add mutex for protecting shared resources
-⋮----
-// serverKey is the context key for storing the server instance
-type serverKey struct{}
-⋮----
-// ServerFromContext retrieves the MCPServer instance from a context
-func ServerFromContext(ctx context.Context) *MCPServer
+// Separate mutexes for different resource types
 ⋮----
 // WithPaginationLimit sets the pagination limit for the server.
 func WithPaginationLimit(limit int) ServerOption
-⋮----
-// WithContext sets the current client session and returns the provided context
-func (s *MCPServer) WithContext(
-	ctx context.Context,
-	session ClientSession,
-) context.Context
-⋮----
-// RegisterSession saves session that should be notified in case if some server attributes changed.
-func (s *MCPServer) RegisterSession(
-	ctx context.Context,
-	session ClientSession,
-) error
-⋮----
-// UnregisterSession removes from storage session that is shut down.
-func (s *MCPServer) UnregisterSession(
-	sessionID string,
-)
-⋮----
-// sendNotificationToAllClients sends a notification to all the currently active clients.
-func (s *MCPServer) sendNotificationToAllClients(
-	method string,
-	params map[string]any,
-)
-⋮----
-// TODO: log blocked channel in the future versions
-⋮----
-// SendNotificationToClient sends a notification to the current client
-func (s *MCPServer) SendNotificationToClient(
-	ctx context.Context,
-	method string,
-	params map[string]any,
-) error
 ⋮----
 // serverCapabilities defines the supported features of the MCP server
 type serverCapabilities struct {
@@ -4093,6 +5989,20 @@ func WithResourceCapabilities(subscribe, listChanged bool) ServerOption
 ⋮----
 // Always create a non-nil capability object
 ⋮----
+// WithToolHandlerMiddleware allows adding a middleware for the
+// tool handler call chain.
+func WithToolHandlerMiddleware(
+	toolHandlerMiddleware ToolHandlerMiddleware,
+) ServerOption
+⋮----
+// WithToolFilter adds a filter function that will be applied to tools before they are returned in list_tools
+func WithToolFilter(
+	toolFilter ToolFilterFunc,
+) ServerOption
+⋮----
+// WithRecovery adds a middleware that recovers from panics in tool handlers.
+func WithRecovery() ServerOption
+⋮----
 // WithHooks allows adding hooks that will be called before or after
 // either [all] requests or before / after specific request methods, or else
 // prior to returning an error to the client.
@@ -4122,6 +6032,15 @@ func (s *MCPServer) AddResource(
 	handler ResourceHandlerFunc,
 )
 ⋮----
+// When the list of available resources changes, servers that declared the listChanged capability SHOULD send a notification
+⋮----
+// Send notification to all initialized sessions
+⋮----
+// RemoveResource removes a resource from the server
+func (s *MCPServer) RemoveResource(uri string)
+⋮----
+// Send notification to all initialized sessions if listChanged capability is enabled and we actually remove a resource
+⋮----
 // AddResourceTemplate registers a new resource template and its handler
 func (s *MCPServer) AddResourceTemplate(
 	template mcp.ResourceTemplate,
@@ -4131,19 +6050,23 @@ func (s *MCPServer) AddResourceTemplate(
 // AddPrompt registers a new prompt handler with the given name
 func (s *MCPServer) AddPrompt(prompt mcp.Prompt, handler PromptHandlerFunc)
 ⋮----
+// When the list of available resources changes, servers that declared the listChanged capability SHOULD send a notification.
+⋮----
 // AddTool registers a new tool and its handler
 func (s *MCPServer) AddTool(tool mcp.Tool, handler ToolHandlerFunc)
 ⋮----
 // AddTools registers multiple tools at once
 func (s *MCPServer) AddTools(tools ...ServerTool)
 ⋮----
-// Send notification to all initialized sessions
+// When the list of available tools changes, servers that declared the listChanged capability SHOULD send a notification.
 ⋮----
 // SetTools replaces all existing tools with the provided list
 func (s *MCPServer) SetTools(tools ...ServerTool)
 ⋮----
 // DeleteTools removes a tool from the server
 func (s *MCPServer) DeleteTools(names ...string)
+⋮----
+var exists bool
 ⋮----
 // AddNotificationHandler registers a new handler for incoming notifications
 func (s *MCPServer) AddNotificationHandler(
@@ -4153,7 +6076,9 @@ func (s *MCPServer) AddNotificationHandler(
 ⋮----
 func (s *MCPServer) handleInitialize(
 	ctx context.Context,
-	id interface
+	id any,
+	request mcp.InitializeRequest,
+) (*mcp.InitializeResult, *requestError)
 ⋮----
 // Only add resource capabilities if they're configured
 ⋮----
@@ -4163,9 +6088,11 @@ func (s *MCPServer) handleInitialize(
 ⋮----
 func (s *MCPServer) handlePing(
 	ctx context.Context,
-	id interface
+	id any,
+	request mcp.PingRequest,
+) (*mcp.EmptyResult, *requestError)
 ⋮----
-func listByPagination[T any](
+func listByPagination[T mcp.Named](
 	ctx context.Context,
 	s *MCPServer,
 	cursor mcp.Cursor,
@@ -4176,17 +6103,23 @@ func listByPagination[T any](
 ⋮----
 func (s *MCPServer) handleListResources(
 	ctx context.Context,
-	id interface
+	id any,
+	request mcp.ListResourcesRequest,
+) (*mcp.ListResourcesResult, *requestError)
 ⋮----
 // Sort the resources by name
 ⋮----
 func (s *MCPServer) handleListResourceTemplates(
 	ctx context.Context,
-	id interface
+	id any,
+	request mcp.ListResourceTemplatesRequest,
+) (*mcp.ListResourceTemplatesResult, *requestError)
 ⋮----
 func (s *MCPServer) handleReadResource(
 	ctx context.Context,
-	id interface
+	id any,
+	request mcp.ReadResourceRequest,
+) (*mcp.ReadResourceResult, *requestError)
 ⋮----
 // First try direct resource handlers
 ⋮----
@@ -4201,17 +6134,25 @@ func matchesTemplate(uri string, template *mcp.URITemplate) bool
 ⋮----
 func (s *MCPServer) handleListPrompts(
 	ctx context.Context,
-	id interface
+	id any,
+	request mcp.ListPromptsRequest,
+) (*mcp.ListPromptsResult, *requestError)
 ⋮----
 // sort prompts by name
 ⋮----
 func (s *MCPServer) handleGetPrompt(
 	ctx context.Context,
-	id interface
+	id any,
+	request mcp.GetPromptRequest,
+) (*mcp.GetPromptResult, *requestError)
 ⋮----
 func (s *MCPServer) handleListTools(
 	ctx context.Context,
-	id interface
+	id any,
+	request mcp.ListToolsRequest,
+) (*mcp.ListToolsResult, *requestError)
+⋮----
+// Get the base tools from the server
 ⋮----
 // Get all tool names for consistent ordering
 ⋮----
@@ -4219,29 +6160,398 @@ func (s *MCPServer) handleListTools(
 ⋮----
 // Add tools in sorted order
 ⋮----
+// Check if there are session-specific tools
+⋮----
+// Override or add session-specific tools
+// We need to create a map first to merge the tools properly
+⋮----
+// Add global tools first
+⋮----
+// Then override with session-specific tools
+⋮----
+// Convert back to slice
+⋮----
+// Sort again to maintain consistent ordering
+⋮----
+// Apply tool filters if any are defined
+⋮----
+// Apply pagination
+⋮----
 func (s *MCPServer) handleToolCall(
 	ctx context.Context,
-	id interface
+	id any,
+	request mcp.CallToolRequest,
+) (*mcp.CallToolResult, *requestError)
+⋮----
+// First check session-specific tools
+var tool ServerTool
+var ok bool
+⋮----
+var sessionOk bool
+⋮----
+// If not found in session tools, check global tools
+⋮----
+// Apply middlewares in reverse order
 ⋮----
 func (s *MCPServer) handleNotification(
 	ctx context.Context,
 	notification mcp.JSONRPCNotification,
 ) mcp.JSONRPCMessage
 ⋮----
-func createResponse(id interface
+func createResponse(id any, result any) mcp.JSONRPCMessage
 ⋮----
 func createErrorResponse(
-	id interface
+	id any,
+	code int,
+	message string,
+) mcp.JSONRPCMessage
+</file>
+
+<file path="server/session_test.go">
+package server
+⋮----
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+⋮----
+"context"
+"encoding/json"
+"errors"
+"sync"
+"testing"
+"time"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+"github.com/stretchr/testify/assert"
+"github.com/stretchr/testify/require"
+⋮----
+// sessionTestClient implements the basic ClientSession interface for testing
+type sessionTestClient struct {
+	sessionID           string
+	notificationChannel chan mcp.JSONRPCNotification
+	initialized         bool
+}
+⋮----
+func (f sessionTestClient) SessionID() string
+⋮----
+func (f sessionTestClient) NotificationChannel() chan<- mcp.JSONRPCNotification
+⋮----
+// Initialize marks the session as initialized
+// This implementation properly sets the initialized flag to true
+// as required by the interface contract
+func (f *sessionTestClient) Initialize()
+⋮----
+// Initialized returns whether the session has been initialized
+func (f sessionTestClient) Initialized() bool
+⋮----
+// sessionTestClientWithTools implements the SessionWithTools interface for testing
+type sessionTestClientWithTools struct {
+	sessionID           string
+	notificationChannel chan mcp.JSONRPCNotification
+	initialized         bool
+	sessionTools        map[string]ServerTool
+	mu                  sync.RWMutex // Mutex to protect concurrent access to sessionTools
+}
+⋮----
+mu                  sync.RWMutex // Mutex to protect concurrent access to sessionTools
+⋮----
+func (f *sessionTestClientWithTools) GetSessionTools() map[string]ServerTool
+⋮----
+// Return a copy of the map to prevent concurrent modification
+⋮----
+func (f *sessionTestClientWithTools) SetSessionTools(tools map[string]ServerTool)
+⋮----
+// Create a copy of the map to prevent concurrent modification
+⋮----
+// Verify that both implementations satisfy their respective interfaces
+var _ ClientSession = &sessionTestClient{}
+var _ SessionWithTools = &sessionTestClientWithTools{}
+⋮----
+func TestSessionWithTools_Integration(t *testing.T)
+⋮----
+// Create session-specific tools
+⋮----
+// Create a session with tools
+⋮----
+// Register the session
+⋮----
+// Test that we can access the session-specific tool
+⋮----
+// Call using session context
+⋮----
+// Check if the session was stored in the context correctly
+⋮----
+// Check if the session can be cast to SessionWithTools
+⋮----
+// Check if the tools are accessible
+⋮----
+// Test session tool access with session context
+⋮----
+// First test directly getting the tool from session tools
+⋮----
+// Now test calling directly with the handler
+⋮----
+func TestMCPServer_ToolsWithSessionTools(t *testing.T)
+⋮----
+// Basic test to verify that session-specific tools are returned correctly in a tools list
+⋮----
+// Add global tools
+⋮----
+// List tools with session context
+⋮----
+// Should have 3 tools - 2 global tools (one overridden) and 1 session-specific tool
+⋮----
+// Find the overridden tool and verify its description
+var found bool
+⋮----
+func TestMCPServer_AddSessionTools(t *testing.T)
+⋮----
+// Create a session
+⋮----
+// Add session-specific tools
+⋮----
+// Check that notification was sent
+⋮----
+// Verify tool was added to session
+⋮----
+func TestMCPServer_AddSessionTool(t *testing.T)
+⋮----
+// Add session-specific tool using the new helper method
+⋮----
+func TestMCPServer_CallSessionTool(t *testing.T)
+⋮----
+// Add global tool
+⋮----
+// Add session-specific tool with the same name to override the global tool
+⋮----
+// Call the tool using session context
+⋮----
+// Since we specify a tool with the same name for current session, the expected text should be "session result"
+⋮----
+func TestMCPServer_DeleteSessionTools(t *testing.T)
+⋮----
+// Delete one of the session tools
+⋮----
+// Verify tool was removed from session
+⋮----
+func TestMCPServer_ToolFiltering(t *testing.T)
+⋮----
+// Create a filter that filters tools by prefix
+⋮----
+var filtered []mcp.Tool
+⋮----
+// Create a server with a tool filter
+⋮----
+// Add tools with different prefixes
+⋮----
+// Should only include tools with the "allow-" prefix
+⋮----
+// Verify all tools start with "allow-"
+⋮----
+func TestMCPServer_SendNotificationToSpecificClient(t *testing.T)
+⋮----
+initialized:         false, // Not initialized - deliberately not calling Initialize()
+⋮----
+// Register sessions
+⋮----
+// Send notification to session 1
+⋮----
+// Check that only session 1 received the notification
+⋮----
+// Verify session 2 did not receive notification
+⋮----
+// Expected, no notification for session 2
+⋮----
+// Test sending to non-existent session
+⋮----
+// Test sending to uninitialized session
+⋮----
+func TestMCPServer_NotificationChannelBlocked(t *testing.T)
+⋮----
+// Set up a hooks object to capture error notifications
+var mu sync.Mutex
+⋮----
+// Extract session ID and method from the error message metadata
+⋮----
+// Verify the error is a notification channel blocked error
+⋮----
+// Create a server with hooks
+⋮----
+// Create a session with a very small buffer that will get blocked
+⋮----
+// Fill the buffer first to ensure it gets blocked
+⋮----
+// This will cause the buffer to block
+⋮----
+// Wait a bit for the goroutine to execute
+⋮----
+// Verify the error was logged via hooks
+⋮----
+// Also test SendNotificationToAllClients with a blocked channel
+// Reset the captured data
+⋮----
+// Send to all clients (which includes our blocked one)
+</file>
+
+<file path="server/session.go">
+package server
+⋮----
+import (
+	"context"
+	"fmt"
+
+	"github.com/mark3labs/mcp-go/mcp"
+)
+⋮----
+"context"
+"fmt"
+⋮----
+"github.com/mark3labs/mcp-go/mcp"
+⋮----
+// ClientSession represents an active session that can be used by MCPServer to interact with client.
+type ClientSession interface {
+	// Initialize marks session as fully initialized and ready for notifications
+	Initialize()
+	// Initialized returns if session is ready to accept notifications
+	Initialized() bool
+	// NotificationChannel provides a channel suitable for sending notifications to client.
+	NotificationChannel() chan<- mcp.JSONRPCNotification
+	// SessionID is a unique identifier used to track user session.
+	SessionID() string
+}
+⋮----
+// Initialize marks session as fully initialized and ready for notifications
+⋮----
+// Initialized returns if session is ready to accept notifications
+⋮----
+// NotificationChannel provides a channel suitable for sending notifications to client.
+⋮----
+// SessionID is a unique identifier used to track user session.
+⋮----
+// SessionWithTools is an extension of ClientSession that can store session-specific tool data
+type SessionWithTools interface {
+	ClientSession
+	// GetSessionTools returns the tools specific to this session, if any
+	// This method must be thread-safe for concurrent access
+	GetSessionTools() map[string]ServerTool
+	// SetSessionTools sets tools specific to this session
+	// This method must be thread-safe for concurrent access
+	SetSessionTools(tools map[string]ServerTool)
+}
+⋮----
+// GetSessionTools returns the tools specific to this session, if any
+// This method must be thread-safe for concurrent access
+⋮----
+// SetSessionTools sets tools specific to this session
+⋮----
+// clientSessionKey is the context key for storing current client notification channel.
+type clientSessionKey struct{}
+⋮----
+// ClientSessionFromContext retrieves current client notification context from context.
+func ClientSessionFromContext(ctx context.Context) ClientSession
+⋮----
+// WithContext sets the current client session and returns the provided context
+func (s *MCPServer) WithContext(
+	ctx context.Context,
+	session ClientSession,
+) context.Context
+⋮----
+// RegisterSession saves session that should be notified in case if some server attributes changed.
+func (s *MCPServer) RegisterSession(
+	ctx context.Context,
+	session ClientSession,
+) error
+⋮----
+// UnregisterSession removes from storage session that is shut down.
+func (s *MCPServer) UnregisterSession(
+	ctx context.Context,
+	sessionID string,
+)
+⋮----
+// SendNotificationToAllClients sends a notification to all the currently active clients.
+func (s *MCPServer) SendNotificationToAllClients(
+	method string,
+	params map[string]any,
+)
+⋮----
+// Successfully sent notification
+⋮----
+// Channel is blocked, if there's an error hook, use it
+⋮----
+// Copy hooks pointer to local variable to avoid race condition
+⋮----
+// Use the error hook to report the blocked channel
+⋮----
+// SendNotificationToClient sends a notification to the current client
+func (s *MCPServer) SendNotificationToClient(
+	ctx context.Context,
+	method string,
+	params map[string]any,
+) error
+⋮----
+// Channel is blocked, if there's an error hook, use it
+⋮----
+// Copy hooks pointer to local variable to avoid race condition
+⋮----
+// Use the error hook to report the blocked channel
+⋮----
+// SendNotificationToSpecificClient sends a notification to a specific client by session ID
+func (s *MCPServer) SendNotificationToSpecificClient(
+	sessionID string,
+	method string,
+	params map[string]any,
+) error
+⋮----
+// AddSessionTool adds a tool for a specific session
+func (s *MCPServer) AddSessionTool(sessionID string, tool mcp.Tool, handler ToolHandlerFunc) error
+⋮----
+// AddSessionTools adds tools for a specific session
+func (s *MCPServer) AddSessionTools(sessionID string, tools ...ServerTool) error
+⋮----
+// Get existing tools (this should return a thread-safe copy)
+⋮----
+// Create a new map to avoid concurrent modification issues
+⋮----
+// Copy existing tools
+⋮----
+// Add new tools
+⋮----
+// Set the tools (this should be thread-safe)
+⋮----
+// Send notification only to this session
+⋮----
+// Log the error but don't fail the operation
+// The tools were successfully added, but notification failed
+⋮----
+// DeleteSessionTools removes tools from a specific session
+func (s *MCPServer) DeleteSessionTools(sessionID string, names ...string) error
+⋮----
+// Copy existing tools except those being deleted
+⋮----
+// Remove specified tools
+⋮----
+// The tools were successfully deleted, but notification failed
 </file>
 
 <file path="server/sse_test.go">
 package server
 ⋮----
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -4251,12 +6561,15 @@ import (
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/stretchr/testify/require"
 )
 ⋮----
+"bufio"
 "bytes"
 "context"
 "encoding/json"
 "fmt"
+"io"
 "math/rand"
 "net/http"
 "net/http/httptest"
@@ -4266,6 +6579,7 @@ import (
 "time"
 ⋮----
 "github.com/mark3labs/mcp-go/mcp"
+"github.com/stretchr/testify/require"
 ⋮----
 func TestSSEServer(t *testing.T)
 ⋮----
@@ -4277,9 +6591,6 @@ func TestSSEServer(t *testing.T)
 ⋮----
 // Send initialize request
 ⋮----
-// Verify response
-var response map[string]interface{}
-⋮----
 var wg sync.WaitGroup
 ⋮----
 // Connect to SSE endpoint
@@ -4288,7 +6599,7 @@ var wg sync.WaitGroup
 ⋮----
 // Send initialize request
 ⋮----
-var response map[string]interface{}
+var response map[string]any
 ⋮----
 // Wait with timeout
 ⋮----
@@ -4309,6 +6620,14 @@ var response map[string]interface{}
 ⋮----
 // Clean up SSE connection
 ⋮----
+// Read the endpoint event using a bufio.Reader loop to ensure we get the full SSE frame
+⋮----
+var endpointEvent strings.Builder
+⋮----
+break // End of SSE frame
+⋮----
+// Extract message endpoint and check correctness
+⋮----
 // Use a custom context key to store a test value.
 type testContextKey struct{}
 ⋮----
@@ -4321,11 +6640,97 @@ const testHeader = "X-Test-Header"
 ⋮----
 // Note this is agnostic to the transport type i.e. doesn't know about request headers.
 ⋮----
+// Verify response
+⋮----
+var response map[string]any
+⋮----
 // Call the tool.
+⋮----
+var req *http.Request
 ⋮----
 // Set the test header to a custom value.
 ⋮----
 var options []SSEOption
+⋮----
+var messageURL string
+var pingID float64
+⋮----
+var pingMsg mcp.JSONRPCRequest
+⋮----
+break // We got the ping, exit the loop
+⋮----
+var response map[string]any
+⋮----
+// MessageEndpointFunc that extracts tenant from the path using Go 1.22+ PathValue
+⋮----
+// Use a dynamic tenant
+⋮----
+// Optionally, test sending a message to the message endpoint
+⋮----
+// The message endpoint is relative, so prepend the test server URL
+⋮----
+// Read the response from the SSE stream
+⋮----
+var initResponse strings.Builder
+⋮----
+// Extract and parse the response data
+⋮----
+// Test CompleteSseEndpoint
+⋮----
+var dynamicPathErr *ErrDynamicPathConfig
+⋮----
+// Test CompleteMessageEndpoint
+⋮----
+// Test that path methods still work and return fallback values
+⋮----
+// Basic path joining
+⋮----
+// Leading slash handling
+⋮----
+// Trailing slash handling
+⋮----
+// Path normalization
+⋮----
+// Complex cases
+⋮----
+// Create hooks to track sessions
+⋮----
+var registeredSession *sseSession
+⋮----
+// Read the endpoint event to ensure session is established
+⋮----
+// Verify we got a session
+⋮----
+// Test setting and getting tools
+⋮----
+// Test SetSessionTools
+⋮----
+// Test GetSessionTools
+⋮----
+// Test concurrent access
+⋮----
+// Verify we can still get and set tools after concurrent access
+⋮----
+result.Meta = map[string]any{"invalid": func() {}} // marshal will fail
+⋮----
+close(processingStarted) // signal for processing started
+⋮----
+case <-ctx.Done(): // If this happens, the test will fail because processingCompleted won't be closed
+⋮----
+case <-time.After(1 * time.Second): // Simulate processing time
+// Successfully completed processing, now close the completed channel to signal completion
+⋮----
+// Wait for processing to start
+⋮----
+case <-processingStarted: // Processing has started, now cancel the client context to simulate disconnection
+⋮----
+cancel() // cancel the client context to simulate disconnection
+⋮----
+// wait for processing to complete, if the test passes, it means the processing continued despite client disconnection
+⋮----
+// Wait a bit to ensure the server is running
+⋮----
+func readSSEEvent(sseResp *http.Response) (string, error)
 </file>
 
 <file path="server/sse.go">
@@ -4335,9 +6740,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -4350,9 +6757,11 @@ import (
 "context"
 "encoding/json"
 "fmt"
+"log"
 "net/http"
 "net/http/httptest"
 "net/url"
+"path"
 "strings"
 "sync"
 "sync/atomic"
@@ -4369,6 +6778,8 @@ type sseSession struct {
 ⋮----
 eventQueue          chan string // Channel for queuing events
 ⋮----
+tools               sync.Map // stores session-specific tools
+⋮----
 // SSEContextFunc is a function that takes an existing context and the current
 // request and returns a potentially modified context based on the request
 // content. This can be used to inject context values from headers, for example.
@@ -4382,40 +6793,71 @@ func (s *sseSession) Initialize()
 ⋮----
 func (s *sseSession) Initialized() bool
 ⋮----
-var _ ClientSession = (*sseSession)(nil)
+func (s *sseSession) GetSessionTools() map[string]ServerTool
+⋮----
+func (s *sseSession) SetSessionTools(tools map[string]ServerTool)
+⋮----
+// Clear existing tools
+⋮----
+// Set new tools
+⋮----
+var (
+	_ ClientSession    = (*sseSession)(nil)
 ⋮----
 // SSEServer implements a Server-Sent Events (SSE) based MCP server.
 // It provides real-time communication capabilities over HTTP using the SSE protocol.
 type SSEServer struct {
-	server          *MCPServer
-	baseURL         string
-	basePath        string
-  useFullURLForMessageEndpoint bool
-	messageEndpoint string
-	sseEndpoint     string
-	sessions        sync.Map
-	srv             *http.Server
-	contextFunc     SSEContextFunc
+	server                       *MCPServer
+	baseURL                      string
+	basePath                     string
+	appendQueryToMessageEndpoint bool
+	useFullURLForMessageEndpoint bool
+	messageEndpoint              string
+	sseEndpoint                  string
+	sessions                     sync.Map
+	srv                          *http.Server
+	contextFunc                  HTTPContextFunc
+	dynamicBasePathFunc          DynamicBasePathFunc
 
 	keepAlive         bool
 	keepAliveInterval time.Duration
+
+	mu sync.RWMutex
 }
 ⋮----
-// SSEOption defines a function type for configuring SSEServer
-type SSEOption func(*SSEServer)
+// Ensure SSEServer implements httpTransportConfigurable
+var _ httpTransportConfigurable = (*SSEServer)(nil)
 ⋮----
-// WithBaseURL sets the base URL for the SSE server
-func WithBaseURL(baseURL string) SSEOption
+func (s *SSEServer) setBasePath(basePath string)
 ⋮----
-// Check if the host is empty or only contains a port
+func (s *SSEServer) setDynamicBasePath(fn DynamicBasePathFunc)
 ⋮----
-// Add a new option for setting base path
+func (s *SSEServer) setKeepAliveInterval(interval time.Duration)
+⋮----
+func (s *SSEServer) setKeepAlive(keepAlive bool)
+⋮----
+func (s *SSEServer) setContextFunc(fn HTTPContextFunc)
+⋮----
+func (s *SSEServer) setHTTPServer(srv *http.Server)
+⋮----
+func (s *SSEServer) setBaseURL(baseURL string)
+⋮----
+// WithBasePath adds a new option for setting a static base path.
+//
+// Deprecated: Use WithStaticBasePath instead. This will be removed in a future version.
+⋮----
+//go:deprecated
 func WithBasePath(basePath string) SSEOption
-⋮----
-// Ensure the path starts with / and doesn't end with /
 ⋮----
 // WithMessageEndpoint sets the message endpoint path
 func WithMessageEndpoint(endpoint string) SSEOption
+⋮----
+// WithAppendQueryToMessageEndpoint configures the SSE server to append the original request's
+// query parameters to the message endpoint URL that is sent to clients during the SSE connection
+// initialization. This is useful when you need to preserve query parameters from the initial
+// SSE connection request and carry them over to subsequent message requests, maintaining
+// context or authentication details across the communication channel.
+func WithAppendQueryToMessageEndpoint() SSEOption
 ⋮----
 // WithUseFullURLForMessageEndpoint controls whether the SSE server returns a complete URL (including baseURL)
 // or just the path portion for the message endpoint. Set to false when clients will concatenate
@@ -4425,15 +6867,11 @@ func WithUseFullURLForMessageEndpoint(useFullURLForMessageEndpoint bool) SSEOpti
 // WithSSEEndpoint sets the SSE endpoint path
 func WithSSEEndpoint(endpoint string) SSEOption
 ⋮----
-// WithHTTPServer sets the HTTP server instance
-func WithHTTPServer(srv *http.Server) SSEOption
-⋮----
-func WithKeepAliveInterval(keepAliveInterval time.Duration) SSEOption
-⋮----
-func WithKeepAlive(keepAlive bool) SSEOption
-⋮----
-// WithContextFunc sets a function that will be called to customise the context
+// WithSSEContextFunc sets a function that will be called to customise the context
 // to the server using the incoming request.
+⋮----
+// Deprecated: Use WithHTTPContextFunc instead. This will be removed in a future version.
+⋮----
 func WithSSEContextFunc(fn SSEContextFunc) SSEOption
 ⋮----
 // NewSSEServer creates a new SSE server instance with the given MCP server and options.
@@ -4441,7 +6879,7 @@ func NewSSEServer(server *MCPServer, opts ...SSEOption) *SSEServer
 ⋮----
 // Apply all options
 ⋮----
-// NewTestServer creates a test server for testing purposes
+// NewTestServer creates a test server for testing purposes.
 func NewTestServer(server *MCPServer, opts ...SSEOption) *httptest.Server
 ⋮----
 // Start begins serving SSE connections on the specified address.
@@ -4464,7 +6902,7 @@ eventQueue:          make(chan string, 100), // Buffer for events
 ⋮----
 // Start keep alive : ping
 ⋮----
-//: ping - 2025-03-27 07:44:38.682659+00:00
+// Message sent successfully
 ⋮----
 // Send the initial endpoint event
 ⋮----
@@ -4473,11 +6911,12 @@ eventQueue:          make(chan string, 100), // Buffer for events
 // Write the event to the response
 ⋮----
 // GetMessageEndpointForClient returns the appropriate message endpoint URL with session ID
-// based on the useFullURLForMessageEndpoint configuration.
-func (s *SSEServer) GetMessageEndpointForClient(sessionID string) string
+// for the given request. This is the canonical way to compute the message endpoint for a client.
+// It handles both dynamic and static path modes, and honors the WithUseFullURLForMessageEndpoint flag.
+func (s *SSEServer) GetMessageEndpointForClient(r *http.Request, sessionID string) string
 ⋮----
 // handleMessage processes incoming JSON-RPC messages from clients and sends responses
-// back through both the SSE connection and HTTP response.
+// back through the SSE connection and 202 code to HTTP response.
 func (s *SSEServer) handleMessage(w http.ResponseWriter, r *http.Request)
 ⋮----
 // Set the client context before handling the message
@@ -4485,9 +6924,21 @@ func (s *SSEServer) handleMessage(w http.ResponseWriter, r *http.Request)
 // Parse message as raw JSON
 var rawMessage json.RawMessage
 ⋮----
+// Create a context that preserves all values from parent ctx but won't be canceled when the parent is canceled.
+// this is required because the http ctx will be canceled when the client disconnects
+⋮----
+// quick return request, send 202 Accepted with no body, then deal the message and sent response via SSE
+⋮----
+// Create a new context for handling the message that will be canceled when the message handling is done
+⋮----
+// Use the context that will be canceled when session is done
 // Process message through MCPServer
 ⋮----
 // Only send response if there is one (not for notifications)
+⋮----
+var message string
+⋮----
+// If there is an error marshalling the response, send a generic error response
 ⋮----
 // Queue the event for sending via SSE
 ⋮----
@@ -4495,37 +6946,80 @@ var rawMessage json.RawMessage
 ⋮----
 // Session is closed, don't try to queue
 ⋮----
-// Queue is full, could log this
-⋮----
-// Send HTTP response
-⋮----
-// For notifications, just send 202 Accepted with no body
+// Queue is full, log this situation
 ⋮----
 // writeJSONRPCError writes a JSON-RPC error response with the given error details.
 func (s *SSEServer) writeJSONRPCError(
 	w http.ResponseWriter,
-	id interface
+	id any,
+	code int,
+	message string,
+)
 ⋮----
 // SendEventToSession sends an event to a specific SSE session identified by sessionID.
 // Returns an error if the session is not found or closed.
 func (s *SSEServer) SendEventToSession(
 	sessionID string,
-	event interface
+	event any,
+) error
 ⋮----
 // Queue the event for sending via SSE
 ⋮----
 func (s *SSEServer) GetUrlPath(input string) (string, error)
 ⋮----
-func (s *SSEServer) CompleteSseEndpoint() string
+func (s *SSEServer) CompleteSseEndpoint() (string, error)
+⋮----
 func (s *SSEServer) CompleteSsePath() string
 ⋮----
-func (s *SSEServer) CompleteMessageEndpoint() string
+func (s *SSEServer) CompleteMessageEndpoint() (string, error)
+⋮----
 func (s *SSEServer) CompleteMessagePath() string
+⋮----
+// SSEHandler returns an http.Handler for the SSE endpoint.
+⋮----
+// This method allows you to mount the SSE handler at any arbitrary path
+// using your own router (e.g. net/http, gorilla/mux, chi, etc.). It is
+// intended for advanced scenarios where you want to control the routing or
+// support dynamic segments.
+⋮----
+// IMPORTANT: When using this handler in advanced/dynamic mounting scenarios,
+// you must use the WithDynamicBasePath option to ensure the correct base path
+// is communicated to clients.
+⋮----
+// Example usage:
+⋮----
+//	// Advanced/dynamic:
+//	sseServer := NewSSEServer(mcpServer,
+//		WithDynamicBasePath(func(r *http.Request, sessionID string) string {
+//			tenant := r.PathValue("tenant")
+//			return "/mcp/" + tenant
+//		}),
+//		WithBaseURL("http://localhost:8080")
+//	)
+//	mux.Handle("/mcp/{tenant}/sse", sseServer.SSEHandler())
+//	mux.Handle("/mcp/{tenant}/message", sseServer.MessageHandler())
+⋮----
+// For non-dynamic cases, use ServeHTTP method instead.
+func (s *SSEServer) SSEHandler() http.Handler
+⋮----
+// MessageHandler returns an http.Handler for the message endpoint.
+⋮----
+// This method allows you to mount the message handler at any arbitrary path
+⋮----
+func (s *SSEServer) MessageHandler() http.Handler
 ⋮----
 // ServeHTTP implements the http.Handler interface.
 func (s *SSEServer) ServeHTTP(w http.ResponseWriter, r *http.Request)
 ⋮----
 // Use exact path matching rather than Contains
+⋮----
+// normalizeURLPath joins path elements like path.Join but ensures the
+// result always starts with a leading slash and never ends with a slash
+func normalizeURLPath(elem ...string) string
+⋮----
+// Ensure leading slash
+⋮----
+// Remove trailing slash if not just "/"
 </file>
 
 <file path="server/stdio_test.go">
@@ -4571,7 +7065,7 @@ func TestStdioServer(t *testing.T)
 ⋮----
 // Read response
 ⋮----
-var response map[string]interface{}
+var response map[string]any
 ⋮----
 // Verify response structure
 ⋮----
@@ -4646,7 +7140,7 @@ type StdioOption func(*StdioServer)
 // WithErrorLogger sets the error logger for the server
 func WithErrorLogger(logger *log.Logger) StdioOption
 ⋮----
-// WithContextFunc sets a function that will be called to customise the context
+// WithStdioContextFunc sets a function that will be called to customise the context
 // to the server. Note that the stdio server uses the same context for all requests,
 // so this function will only be called once per server instance.
 func WithStdioContextFunc(fn StdioContextFunc) StdioOption
@@ -4772,27 +7266,221 @@ import (
 ⋮----
 type JSONRPCRequest struct {
 	JSONRPC string          `json:"jsonrpc"`
-	ID      int64           `json:"id"`
+	ID      *int64          `json:"id,omitempty"`
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params"`
 }
 ⋮----
 type JSONRPCResponse struct {
-	JSONRPC string      `json:"jsonrpc"`
-	ID      int64       `json:"id"`
-	Result  interface{} `json:"result,omitempty"`
+	JSONRPC string `json:"jsonrpc"`
+	ID      *int64 `json:"id,omitempty"`
+	Result  any    `json:"result,omitempty"`
+	Error   *struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error,omitempty"`
 ⋮----
 func main()
 ⋮----
 var request JSONRPCRequest
 ⋮----
 func handleRequest(request JSONRPCRequest) JSONRPCResponse
+⋮----
+// Debug methods for testing transport.
+⋮----
+// send notification to client
 </file>
 
 <file path=".gitignore">
 .aider*
 .env
 .idea
+.opencode
+.claude
+</file>
+
+<file path=".golangci.yml">
+version: "2"
+linters:
+  exclusions:
+    presets:
+      - std-error-handling
+</file>
+
+<file path="CODE_OF_CONDUCT.md">
+# Contributor Covenant Code of Conduct
+
+## Our Pledge
+
+We as members, contributors, and leaders pledge to make participation in our
+community a harassment-free experience for everyone, regardless of age, body
+size, visible or invisible disability, ethnicity, sex characteristics, gender
+identity and expression, level of experience, education, socio-economic status,
+nationality, personal appearance, race, religion, or sexual identity
+and orientation.
+
+We pledge to act and interact in ways that contribute to an open, welcoming,
+diverse, inclusive, and healthy community.
+
+## Our Standards
+
+Examples of behavior that contributes to a positive environment for our
+community include:
+
+* Demonstrating empathy and kindness toward other people
+* Being respectful of differing opinions, viewpoints, and experiences
+* Giving and gracefully accepting constructive feedback
+* Accepting responsibility and apologizing to those affected by our mistakes,
+  and learning from the experience
+* Focusing on what is best not just for us as individuals, but for the
+  overall community
+
+Examples of unacceptable behavior include:
+
+* The use of sexualized language or imagery, and sexual attention or
+  advances of any kind
+* Trolling, insulting or derogatory comments, and personal or political attacks
+* Public or private harassment
+* Publishing others' private information, such as a physical or email
+  address, without their explicit permission
+* Other conduct which could reasonably be considered inappropriate in a
+  professional setting
+
+## Enforcement Responsibilities
+
+Community leaders are responsible for clarifying and enforcing our standards of
+acceptable behavior and will take appropriate and fair corrective action in
+response to any behavior that they deem inappropriate, threatening, offensive,
+or harmful.
+
+Community leaders have the right and responsibility to remove, edit, or reject
+comments, commits, code, wiki edits, issues, and other contributions that are
+not aligned to this Code of Conduct, and will communicate reasons for moderation
+decisions when appropriate.
+
+## Scope
+
+This Code of Conduct applies within all community spaces, and also applies when
+an individual is officially representing the community in public spaces.
+Examples of representing our community include using an official e-mail address,
+posting via an official social media account, or acting as an appointed
+representative at an online or offline event.
+
+## Enforcement
+
+Instances of abusive, harassing, or otherwise unacceptable behavior may be
+reported to the community leaders responsible for enforcement at the 
+[mcp-go Discord server](https://discord.gg/RqSS2NQVsY). All complaints
+will be reviewed and investigated promptly and fairly.
+
+All community leaders are obligated to respect the privacy and security of the
+reporter of any incident.
+
+## Enforcement Guidelines
+
+Community leaders will follow these Community Impact Guidelines in determining
+the consequences for any action they deem in violation of this Code of Conduct:
+
+### 1. Correction
+
+**Community Impact**: Use of inappropriate language or other behavior deemed
+unprofessional or unwelcome in the community.
+
+**Consequence**: A private, written warning from community leaders, providing
+clarity around the nature of the violation and an explanation of why the
+behavior was inappropriate. A public apology may be requested.
+
+### 2. Warning
+
+**Community Impact**: A violation through a single incident or series
+of actions.
+
+**Consequence**: A warning with consequences for continued behavior. No
+interaction with the people involved, including unsolicited interaction with
+those enforcing the Code of Conduct, for a specified period of time. This
+includes avoiding interactions in community spaces as well as external channels
+like social media. Violating these terms may lead to a temporary or
+permanent ban.
+
+### 3. Temporary Ban
+
+**Community Impact**: A serious violation of community standards, including
+sustained inappropriate behavior.
+
+**Consequence**: A temporary ban from any sort of interaction or public
+communication with the community for a specified period of time. No public or
+private interaction with the people involved, including unsolicited interaction
+with those enforcing the Code of Conduct, is allowed during this period.
+Violating these terms may lead to a permanent ban.
+
+### 4. Permanent Ban
+
+**Community Impact**: Demonstrating a pattern of violation of community
+standards, including sustained inappropriate behavior,  harassment of an
+individual, or aggression toward or disparagement of classes of individuals.
+
+**Consequence**: A permanent ban from any sort of public interaction within
+the community.
+
+## Attribution
+
+This Code of Conduct is adapted from the [Contributor Covenant][homepage],
+version 2.0, available at
+https://www.contributor-covenant.org/version/2/0/code_of_conduct.html.
+
+Community Impact Guidelines were inspired by [Mozilla's code of conduct
+enforcement ladder](https://github.com/mozilla/diversity).
+
+[homepage]: https://www.contributor-covenant.org
+
+For answers to common questions about this code of conduct, see the FAQ at
+https://www.contributor-covenant.org/faq. Translations are available at
+https://www.contributor-covenant.org/translations.
+</file>
+
+<file path="CONTRIBUTING.md">
+# Contributing
+
+Thank you for your interest in contributing to the MCP Go SDK! We welcome contributions of all kinds, including bug fixes, new features, and documentation improvements. This document outlines the process for contributing to the project.
+
+## Development Guidelines
+
+### Prerequisites
+
+Make sure you have Go 1.23 or later installed on your machine. You can check your Go version by running:
+
+```bash
+go version
+```
+
+### Setup
+
+1. Fork the repository
+2. Clone your fork:
+   
+   ```bash
+    git clone https://github.com/YOUR_USERNAME/mcp-go.git
+    cd mcp-go
+    ```
+3. Install the required packages:
+
+    ```bash
+    go mod tidy
+    ```
+
+### Workflow
+
+1. Create a new branch.
+2. Make your changes.
+3. Ensure you have added tests for any new functionality.
+4. Run the tests as shown below from the root directory:
+
+    ```bash
+    go test -v './...'
+    ```
+5. Submit a pull request to the main branch.
+
+Feel free to reach out if you have any questions or need help either by [opening an issue](https://github.com/mark3labs/mcp-go/issues) or by reaching out in the [Discord channel](https://discord.gg/RqSS2NQVsY).
 </file>
 
 <file path="go.mod">
@@ -4802,6 +7490,7 @@ go 1.23
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/spf13/cast v1.7.1
 	github.com/stretchr/testify v1.9.0
 	github.com/yosida95/uritemplate/v3 v3.0.2
 )
@@ -4839,12 +7528,12 @@ SOFTWARE.
 
 <file path="README.md">
 <!-- omit in toc -->
-# MCP Go 🚀
+<div align="center">
+<img src="./logo.png" alt="MCP Go Logo">
+
 [![Build](https://github.com/mark3labs/mcp-go/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/mark3labs/mcp-go/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mark3labs/mcp-go?cache)](https://goreportcard.com/report/github.com/mark3labs/mcp-go)
 [![GoDoc](https://pkg.go.dev/badge/github.com/mark3labs/mcp-go.svg)](https://pkg.go.dev/github.com/mark3labs/mcp-go)
-
-<div align="center">
 
 <strong>A Go implementation of the Model Context Protocol (MCP), enabling seamless integration between LLM applications and external data sources and tools.</strong>
 
@@ -4852,7 +7541,12 @@ SOFTWARE.
 
 [![Tutorial](http://img.youtube.com/vi/qoaeYMrXJH0/0.jpg)](http://www.youtube.com/watch?v=qoaeYMrXJH0 "Tutorial")
 
+<br>
+
+Discuss the SDK on [Discord](https://discord.gg/RqSS2NQVsY)
+
 </div>
+
 
 ```go
 package main
@@ -4867,10 +7561,11 @@ import (
 )
 
 func main() {
-    // Create MCP server
+    // Create a new MCP server
     s := server.NewMCPServer(
         "Demo 🚀",
         "1.0.0",
+        server.WithToolCapabilities(false),
     )
 
     // Add tool
@@ -4912,7 +7607,7 @@ MCP Go handles all the complex protocol details and server management, so you ca
 
 (\*emphasis on *aims*)
 
-🚨 🚧 🏗️ *MCP Go is under active development, as is the MCP specification itself. Core features are working but some advanced capabilities are still in progress.*
+🚨 🚧 🏗️ *MCP Go is under active development, as is the MCP specification itself. Core features are working but some advanced capabilities are still in progress.* 
 
 
 <!-- omit in toc -->
@@ -4927,6 +7622,10 @@ MCP Go handles all the complex protocol details and server management, so you ca
   - [Tools](#tools)
   - [Prompts](#prompts)
 - [Examples](#examples)
+- [Extras](#extras)
+  - [Session Management](#session-management)
+  - [Request Hooks](#request-hooks)
+  - [Tool Handler Middleware](#tool-handler-middleware)
 - [Contributing](#contributing)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation-1)
@@ -4948,7 +7647,6 @@ package main
 
 import (
     "context"
-    "errors"
     "fmt"
 
     "github.com/mark3labs/mcp-go/mcp"
@@ -4960,8 +7658,8 @@ func main() {
     s := server.NewMCPServer(
         "Calculator Demo",
         "1.0.0",
-        server.WithResourceCapabilities(true, true),
-        server.WithLogging(),
+        server.WithToolCapabilities(false),
+        server.WithRecovery(),
     )
 
     // Add a calculator tool
@@ -4998,7 +7696,7 @@ func main() {
             result = x * y
         case "divide":
             if y == 0 {
-                return nil, errors.New("Cannot divide by zero")
+                return mcp.NewToolResultError("cannot divide by zero"), nil
             }
             result = x / y
         }
@@ -5012,6 +7710,7 @@ func main() {
     }
 }
 ```
+
 ## What is MCP?
 
 The [Model Context Protocol (MCP)](https://modelcontextprotocol.io) lets you build servers that expose data and functionality to LLM applications in a secure, standardized way. Think of it like a web API, but specifically designed for LLM interactions. MCP servers can:
@@ -5063,7 +7762,7 @@ Here's a simple example of a static resource:
 resource := mcp.NewResource(
     "docs://readme",
     "Project README",
-    mcp.WithResourceDescription("The project's README file"),
+    mcp.WithResourceDescription("The project's README file"), 
     mcp.WithMIMEType("text/markdown"),
 )
 
@@ -5073,7 +7772,7 @@ s.AddResource(resource, func(ctx context.Context, request mcp.ReadResourceReques
     if err != nil {
         return nil, err
     }
-
+    
     return []mcp.ResourceContents{
         mcp.TextResourceContents{
             URI:      "docs://readme",
@@ -5100,12 +7799,12 @@ s.AddResourceTemplate(template, func(ctx context.Context, request mcp.ReadResour
     // Extract ID from the URI using regex matching
     // The server automatically matches URIs to templates
     userID := extractIDFromURI(request.Params.URI)
-
+    
     profile, err := getUserProfile(userID)  // Your DB/API call here
     if err != nil {
         return nil, err
     }
-
+    
     return []mcp.ResourceContents{
         mcp.TextResourceContents{
             URI:      request.Params.URI,
@@ -5160,11 +7859,11 @@ s.AddTool(calculatorTool, func(ctx context.Context, request mcp.CallToolRequest)
         result = x * y
     case "divide":
         if y == 0 {
-            return nil, errors.New("Division by zero is not allowed")
+            return mcp.NewToolResultError("cannot divide by zero"), nil
         }
         result = x / y
     }
-
+    
     return mcp.FormatNumberResult(result), nil
 })
 ```
@@ -5205,20 +7904,20 @@ s.AddTool(httpTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp
         req, err = http.NewRequest(method, url, nil)
     }
     if err != nil {
-        return nil, fmt.Errorf("Failed to create request: %v", err)
+        return mcp.NewToolResultErrorFromErr("unable to create request", err), nil
     }
 
     client := &http.Client{}
     resp, err := client.Do(req)
     if err != nil {
-        return nil, fmt.Errorf("Request failed: %v", err)
+        return mcp.NewToolResultErrorFromErr("unable to execute request", err), nil
     }
     defer resp.Body.Close()
 
     // Return response
     respBody, err := io.ReadAll(resp.Body)
     if err != nil {
-        return nil, fmt.Errorf("Failed to read response: %v", err)
+        return mcp.NewToolResultErrorFromErr("unable to read request response", err), nil
     }
 
     return mcp.NewToolResultText(fmt.Sprintf("Status: %d\nBody: %s", resp.StatusCode, string(respBody))), nil
@@ -5227,7 +7926,7 @@ s.AddTool(httpTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp
 
 Tools can be used for any kind of computation or side effect:
 - Database queries
-- File operations
+- File operations  
 - External API calls
 - Calculations
 - System operations
@@ -5235,7 +7934,7 @@ Tools can be used for any kind of computation or side effect:
 Each tool should:
 - Have a clear description
 - Validate inputs
-- Handle errors gracefully
+- Handle errors gracefully 
 - Return structured responses
 - Use appropriate result types
 
@@ -5260,7 +7959,7 @@ s.AddPrompt(mcp.NewPrompt("greeting",
     if name == "" {
         name = "friend"
     }
-
+    
     return mcp.NewGetPromptResult(
         "A friendly greeting",
         []mcp.PromptMessage{
@@ -5284,13 +7983,13 @@ s.AddPrompt(mcp.NewPrompt("code_review",
     if prNumber == "" {
         return nil, fmt.Errorf("pr_number is required")
     }
-
+    
     return mcp.NewGetPromptResult(
         "Code review assistance",
         []mcp.PromptMessage{
             mcp.NewPromptMessage(
-                mcp.RoleSystem,
-                mcp.NewTextContent("You are a helpful code reviewer. Review the changes and provide constructive feedback."),
+                mcp.RoleUser,
+                mcp.NewTextContent("Review the changes and provide constructive feedback."),
             ),
             mcp.NewPromptMessage(
                 mcp.RoleAssistant,
@@ -5315,16 +8014,16 @@ s.AddPrompt(mcp.NewPrompt("query_builder",
     if tableName == "" {
         return nil, fmt.Errorf("table name is required")
     }
-
+    
     return mcp.NewGetPromptResult(
         "SQL query builder assistance",
         []mcp.PromptMessage{
             mcp.NewPromptMessage(
-                mcp.RoleSystem,
-                mcp.NewTextContent("You are a SQL expert. Help construct efficient and safe queries."),
+                mcp.RoleUser,
+                mcp.NewTextContent("Help construct efficient and safe queries for the provided schema."),
             ),
             mcp.NewPromptMessage(
-                mcp.RoleAssistant,
+                mcp.RoleUser,
                 mcp.NewEmbeddedResource(mcp.ResourceContents{
                     URI: fmt.Sprintf("db://schema/%s", tableName),
                     MIMEType: "application/json",
@@ -5351,6 +8050,214 @@ For examples, see the `examples/` directory.
 
 ## Extras
 
+### Session Management
+
+MCP-Go provides a robust session management system that allows you to:
+- Maintain separate state for each connected client
+- Register and track client sessions
+- Send notifications to specific clients
+- Provide per-session tool customization
+
+<details>
+<summary>Show Session Management Examples</summary>
+
+#### Basic Session Handling
+
+```go
+// Create a server with session capabilities
+s := server.NewMCPServer(
+    "Session Demo",
+    "1.0.0",
+    server.WithToolCapabilities(true),
+)
+
+// Implement your own ClientSession
+type MySession struct {
+    id           string
+    notifChannel chan mcp.JSONRPCNotification
+    isInitialized bool
+    // Add custom fields for your application
+}
+
+// Implement the ClientSession interface
+func (s *MySession) SessionID() string {
+    return s.id
+}
+
+func (s *MySession) NotificationChannel() chan<- mcp.JSONRPCNotification {
+    return s.notifChannel
+}
+
+func (s *MySession) Initialize() {
+    s.isInitialized = true
+}
+
+func (s *MySession) Initialized() bool {
+    return s.isInitialized
+}
+
+// Register a session
+session := &MySession{
+    id:           "user-123",
+    notifChannel: make(chan mcp.JSONRPCNotification, 10),
+}
+if err := s.RegisterSession(context.Background(), session); err != nil {
+    log.Printf("Failed to register session: %v", err)
+}
+
+// Send notification to a specific client
+err := s.SendNotificationToSpecificClient(
+    session.SessionID(),
+    "notification/update",
+    map[string]any{"message": "New data available!"},
+)
+if err != nil {
+    log.Printf("Failed to send notification: %v", err)
+}
+
+// Unregister session when done
+s.UnregisterSession(context.Background(), session.SessionID())
+```
+
+#### Per-Session Tools
+
+For more advanced use cases, you can implement the `SessionWithTools` interface to support per-session tool customization:
+
+```go
+// Implement SessionWithTools interface for per-session tools
+type MyAdvancedSession struct {
+    MySession  // Embed the basic session
+    sessionTools map[string]server.ServerTool
+}
+
+// Implement additional methods for SessionWithTools
+func (s *MyAdvancedSession) GetSessionTools() map[string]server.ServerTool {
+    return s.sessionTools
+}
+
+func (s *MyAdvancedSession) SetSessionTools(tools map[string]server.ServerTool) {
+    s.sessionTools = tools
+}
+
+// Create and register a session with tools support
+advSession := &MyAdvancedSession{
+    MySession: MySession{
+        id:           "user-456",
+        notifChannel: make(chan mcp.JSONRPCNotification, 10),
+    },
+    sessionTools: make(map[string]server.ServerTool),
+}
+if err := s.RegisterSession(context.Background(), advSession); err != nil {
+    log.Printf("Failed to register session: %v", err)
+}
+
+// Add session-specific tools
+userSpecificTool := mcp.NewTool(
+    "user_data",
+    mcp.WithDescription("Access user-specific data"),
+)
+// You can use AddSessionTool (similar to AddTool)
+err := s.AddSessionTool(
+    advSession.SessionID(),
+    userSpecificTool,
+    func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+        // This handler is only available to this specific session
+        return mcp.NewToolResultText("User-specific data for " + advSession.SessionID()), nil
+    },
+)
+if err != nil {
+    log.Printf("Failed to add session tool: %v", err)
+}
+
+// Or use AddSessionTools directly with ServerTool
+/*
+err := s.AddSessionTools(
+    advSession.SessionID(),
+    server.ServerTool{
+        Tool: userSpecificTool,
+        Handler: func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+            // This handler is only available to this specific session
+            return mcp.NewToolResultText("User-specific data for " + advSession.SessionID()), nil
+        },
+    },
+)
+if err != nil {
+    log.Printf("Failed to add session tool: %v", err)
+}
+*/
+
+// Delete session-specific tools when no longer needed
+err = s.DeleteSessionTools(advSession.SessionID(), "user_data")
+if err != nil {
+    log.Printf("Failed to delete session tool: %v", err)
+}
+```
+
+#### Tool Filtering
+
+You can also apply filters to control which tools are available to certain sessions:
+
+```go
+// Add a tool filter that only shows tools with certain prefixes
+s := server.NewMCPServer(
+    "Tool Filtering Demo",
+    "1.0.0",
+    server.WithToolCapabilities(true),
+    server.WithToolFilter(func(ctx context.Context, tools []mcp.Tool) []mcp.Tool {
+        // Get session from context
+        session := server.ClientSessionFromContext(ctx)
+        if session == nil {
+            return tools // Return all tools if no session
+        }
+        
+        // Example: filter tools based on session ID prefix
+        if strings.HasPrefix(session.SessionID(), "admin-") {
+            // Admin users get all tools
+            return tools
+        } else {
+            // Regular users only get tools with "public-" prefix
+            var filteredTools []mcp.Tool
+            for _, tool := range tools {
+                if strings.HasPrefix(tool.Name, "public-") {
+                    filteredTools = append(filteredTools, tool)
+                }
+            }
+            return filteredTools
+        }
+    }),
+)
+```
+
+#### Working with Context
+
+The session context is automatically passed to tool and resource handlers:
+
+```go
+s.AddTool(mcp.NewTool("session_aware"), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+    // Get the current session from context
+    session := server.ClientSessionFromContext(ctx)
+    if session == nil {
+        return mcp.NewToolResultError("No active session"), nil
+    }
+    
+    return mcp.NewToolResultText("Hello, session " + session.SessionID()), nil
+})
+
+// When using handlers in HTTP/SSE servers, you need to pass the context with the session
+httpHandler := func(w http.ResponseWriter, r *http.Request) {
+    // Get session from somewhere (like a cookie or header)
+    session := getSessionFromRequest(r)
+    
+    // Add session to context
+    ctx := s.WithContext(r.Context(), session)
+    
+    // Use this context when handling requests
+    // ...
+}
+```
+
+</details>
+
 ### Request Hooks
 
 Hook into the request lifecycle by creating a `Hooks` object with your
@@ -5362,60 +8269,11 @@ initialization.
 Add the `Hooks` to the server at the time of creation using the
 `server.WithHooks` option.
 
-## Contributing
+### Tool Handler Middleware
 
-<details>
+Add middleware to tool call handlers using the `server.WithToolHandlerMiddleware` option. Middlewares can be registered on server creation and are applied on every tool call.
 
-<summary><h3>Open Developer Guide</h3></summary>
-
-### Prerequisites
-
-Go version >= 1.23
-
-### Installation
-
-Create a fork of this repository, then clone it:
-
-```bash
-git clone https://github.com/mark3labs/mcp-go.git
-cd mcp-go
-```
-
-### Testing
-
-Please make sure to test any new functionality. Your tests should be simple and atomic and anticipate change rather than cement complex patterns.
-
-Run tests from the root directory:
-
-```bash
-go test -v './...'
-```
-
-### Opening a Pull Request
-
-Fork the repository and create a new branch:
-
-```bash
-git checkout -b my-branch
-```
-
-Make your changes and commit them:
-
-
-```bash
-git add . && git commit -m "My changes"
-```
-
-Push your changes to your fork:
-
-
-```bash
-git push origin my-branch
-```
-
-Feel free to reach out in a GitHub issue or discussion if you have any questions!
-
-</details>
+A recovery middleware option is available to recover from panics in a tool call and can be added to the server with the `server.WithRecovery` option.
 </file>
 
 </files>

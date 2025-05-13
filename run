@@ -92,6 +92,12 @@ case $CMD in
         check_command "golangci-lint"
         golangci-lint run ./... --verbose
         ;;
+    update-external-docs)
+        echo -e "${BLUE}Updating external docs...${NC}"
+        repomix --remote https://github.com/mark3labs/mcp-go --compress --output documents/mcp-go.xml
+        repomix --remote https://github.com/modelcontextprotocol/modelcontextprotocol --compress --output documents/mcp-proto.xml
+        echo -e "${GREEN}External docs updated!${NC}"
+        ;;
     build)
         echo -e "${BLUE}Building project...${NC}"
         mkdir -p bin

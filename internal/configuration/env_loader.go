@@ -31,6 +31,10 @@ func (l *EnvLoader) LoadConfiguration() (*types.Configuration, error) {
 	if os.Getenv("SPL_LOG_OUTPUT") != "" {
 		config.Runtime.Log.RawOutput = os.Getenv("SPL_LOG_OUTPUT")
 	}
+	// Log format (text or json)
+	if os.Getenv("SPL_LOG_FORMAT") != "" {
+		config.Runtime.Log.RawFormat = os.Getenv("SPL_LOG_FORMAT")
+	}
 
 	// Runtime transport configuration
 	if os.Getenv("SPL_TRANSPORTS_STDIO_ENABLED") != "" {

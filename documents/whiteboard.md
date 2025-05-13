@@ -83,3 +83,13 @@
 - [ ] Plan next feature or refactor as needed.
 
 ---
+
+## [DONE] Logger JSON Output and Configurable Format
+- Added `format` (RawFormat) to logging config (YAML/JSON/env).
+- Default: `text`. Supports `json`.
+- Main uses config to select formatter (`logrus.JSONFormatter` or custom).
+- All config loaders and Apply logic updated.
+- Tests for default, env, YAML, JSON config, and logger output.
+- All tests pass.
+
+---
