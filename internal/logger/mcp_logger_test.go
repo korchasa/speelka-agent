@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/korchasa/speelka-agent-go/internal/configuration"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -109,8 +110,9 @@ func TestMCPLogger_DoesNotCreateFile(t *testing.T) {
 
 	// Симулируем установку output = "mcp" через Apply
 	cfg := &types.Configuration{}
-	cfg.Runtime.Log.RawOutput = types.LogOutputMCP
-	_, err := cfg.Apply(cfg)
+	cfg.Runtime.Log.Output = types.LogOutputMCP
+	mgr := configuration.NewConfigurationManager(nil)
+	_, err := mgr.Apply(cfg, cfg)
 	assert.NoError(t, err)
 
 	// Проверяем, что файл не появился

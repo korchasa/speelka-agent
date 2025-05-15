@@ -25,23 +25,12 @@ func LoadConfiguration(ctx context.Context, configPath string, logger types.Logg
 	return configManager, nil
 }
 
-// NewLogger creates a new logger instance based on LogConfig.RawOutput (":mcp:" or ":stderr:").
+// NewLogger creates a new logger instance based on LogConfig.UseMCPLogs.
 func NewLogger(cfg types.LogConfig) types.LoggerSpec {
-	// По-умолчанию — MCPLogger
-	output := cfg.RawOutput
-	if output == "" {
-		output = types.LogOutputMCP
-	}
-
-	switch output {
-	case types.LogOutputStderr:
-		return logger.NewIOWriterLogger(nil)
-	case types.LogOutputMCP:
-		return logger.NewMCPLogger()
-	default:
-		// Если указано что-то иное — используем MCPLogger как безопасный дефолт
+	if cfg.UseMCPLogs {
 		return logger.NewMCPLogger()
 	}
+	return logger.NewIOWriterLogger(nil)
 }
 
 // NewAgentWithDeps wires up all agent dependencies and returns an agent instance.

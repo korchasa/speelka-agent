@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -77,9 +76,9 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		assert.Equal(t, "Process this {{input}}. Available tools: {{tools}}", config.Agent.LLM.PromptTemplate)
 
 		// Assert that optional values were set to defaults
-		assert.Equal(t, "", config.Runtime.Log.RawDefaultLevel)
-		assert.Equal(t, "", config.Runtime.Log.RawOutput)
-		assert.Equal(t, "", config.Runtime.Log.RawFormat)
+		assert.Equal(t, "", config.Runtime.Log.DefaultLevel)
+		assert.Equal(t, "", config.Runtime.Log.Output)
+		assert.Equal(t, "", config.Runtime.Log.Format)
 	})
 
 	// Test scenario: Override default values
@@ -114,13 +113,13 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 		require.NotNil(t, config, "Configuration should not be nil when required env vars are set")
 
 		// Assert overridden values
-		assert.Equal(t, "debug", config.Runtime.Log.RawDefaultLevel)
-		assert.Equal(t, ":stdout:", config.Runtime.Log.RawOutput)
-		assert.Equal(t, "json", config.Runtime.Log.RawFormat)
+		assert.Equal(t, "debug", config.Runtime.Log.DefaultLevel)
+		assert.Equal(t, ":stdout:", config.Runtime.Log.Output)
+		assert.Equal(t, "json", config.Runtime.Log.Format)
 		// After Apply, check parsed fields
-		config, _ = config.Apply(config)
-		assert.Equal(t, ":stdout:", config.Runtime.Log.RawOutput)
-		assert.Equal(t, logrus.DebugLevel, config.Runtime.Log.LogLevel)
+		mgr := NewConfigurationManager(nil)
+		config, _ = mgr.Apply(config, config)
+		assert.Equal(t, ":stdout:", config.Runtime.Log.Output)
 		assert.Equal(t, 1000, config.Agent.LLM.MaxTokens)
 		assert.Equal(t, 0.5, config.Agent.LLM.Temperature)
 		assert.Equal(t, 5, config.Agent.LLM.Retry.MaxRetries)

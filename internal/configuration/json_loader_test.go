@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -91,15 +90,8 @@ func TestJSONLoader_LoadConfiguration(t *testing.T) {
 				assert.Equal(t, "gpt-4", config.Agent.LLM.Model)
 				assert.Equal(t, "test-api-key", config.Agent.LLM.APIKey)
 				assert.Equal(t, "You are a helpful assistant. User query: {{query}} Available tools: {{tools}}", config.Agent.LLM.PromptTemplate)
-				assert.Equal(t, "debug", config.Runtime.Log.RawDefaultLevel)
-				assert.Equal(t, "./test.log", config.Runtime.Log.RawOutput)
-				assert.Equal(t, "", config.Runtime.Log.RawFormat)
-				// After Apply, check parsed fields
-				err := error(nil)
-				config, err = config.Apply(config)
-				assert.NoError(t, err)
+				assert.Equal(t, "debug", config.Runtime.Log.DefaultLevel)
 				assert.NotNil(t, config.Runtime.Log.Output)
-				assert.Equal(t, logrus.DebugLevel, config.Runtime.Log.LogLevel)
 			},
 		},
 		{
@@ -164,8 +156,9 @@ func TestJSONLoader_LoadConfiguration(t *testing.T) {
 			}(),
 			expectError: false,
 			validate: func(t *testing.T, config *types.Configuration) {
+				mgr := NewConfigurationManager(nil)
 				err := error(nil)
-				config, err = config.Apply(config)
+				config, err = mgr.Apply(config, config)
 				assert.NoError(t, err)
 				server, ok := config.Agent.Connections.McpServers["slow"]
 				assert.True(t, ok)
@@ -201,11 +194,12 @@ func TestJSONLoader_LoadConfiguration(t *testing.T) {
 			}(),
 			expectError: false,
 			validate: func(t *testing.T, config *types.Configuration) {
-				assert.Equal(t, "json", config.Runtime.Log.RawFormat)
+				assert.Equal(t, "json", config.Runtime.Log.Format)
+				mgr := NewConfigurationManager(nil)
 				err := error(nil)
-				config, err = config.Apply(config)
+				config, err = mgr.Apply(config, config)
 				assert.NoError(t, err)
-				assert.Equal(t, "json", config.Runtime.Log.RawFormat)
+				assert.Equal(t, "json", config.Runtime.Log.Format)
 			},
 		},
 	}

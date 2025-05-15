@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,9 +26,9 @@ func TestDefaultLoader_LoadConfiguration(t *testing.T) {
 	assert.NotNil(t, config)
 
 	// Verify default runtime values
-	assert.Equal(t, "info", config.Runtime.Log.RawDefaultLevel)
-	assert.Equal(t, types.LogOutputMCP, config.Runtime.Log.RawOutput)
-	assert.Equal(t, "text", config.Runtime.Log.RawFormat)
+	assert.Equal(t, "info", config.Runtime.Log.DefaultLevel)
+	assert.Equal(t, types.LogOutputMCP, config.Runtime.Log.Output)
+	assert.Equal(t, "text", config.Runtime.Log.Format)
 
 	// Verify default transport values
 	assert.Equal(t, true, config.Runtime.Transports.Stdio.Enabled)
@@ -73,18 +72,17 @@ func TestDefaultLoader_LoadConfiguration(t *testing.T) {
 	assert.Empty(t, config.Agent.Connections.McpServers)
 
 	// After Apply, check parsed fields
-	config, err = config.Apply(config)
+	mgr := NewConfigurationManager(nil)
+	config, err = mgr.Apply(config, config)
 	assert.NoError(t, err)
-	assert.Equal(t, "info", config.Runtime.Log.RawDefaultLevel)
-	assert.Equal(t, types.LogOutputMCP, config.Runtime.Log.RawOutput)
-	assert.Equal(t, "text", config.Runtime.Log.RawFormat)
-	assert.Nil(t, config.Runtime.Log.Output)
-	assert.Equal(t, logrus.InfoLevel, config.Runtime.Log.LogLevel)
+	assert.Equal(t, "info", config.Runtime.Log.DefaultLevel)
+	assert.Equal(t, types.LogOutputMCP, config.Runtime.Log.Output)
+	assert.Equal(t, "text", config.Runtime.Log.Format)
 
 	// Override RawFormat and check
 	config2 := types.NewConfiguration()
-	config2.Runtime.Log.RawFormat = "json"
-	config, err = config.Apply(config2)
+	config2.Runtime.Log.Format = "json"
+	config, err = mgr.Apply(config, config2)
 	assert.NoError(t, err)
-	assert.Equal(t, "json", config.Runtime.Log.RawFormat)
+	assert.Equal(t, "json", config.Runtime.Log.Format)
 }

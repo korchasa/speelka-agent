@@ -3,9 +3,7 @@
     "log": {
       "default_level": "",
       "output": "",
-      "format": "",
-      "LogLevel": "panic",
-      "Output": null
+      "format": ""
     },
     "transports": {
       "stdio": {

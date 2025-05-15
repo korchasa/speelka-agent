@@ -19,9 +19,9 @@ func (l *DefaultLoader) LoadConfiguration() (*types.Configuration, error) {
 	config := types.NewConfiguration()
 
 	// Set default values for RuntimeConfig
-	config.Runtime.Log.RawOutput = types.LogOutputMCP
-	config.Runtime.Log.RawFormat = "text"
-	config.Runtime.Log.RawDefaultLevel = "info"
+	config.Runtime.Log.Output = types.LogOutputMCP
+	config.Runtime.Log.Format = "text"
+	config.Runtime.Log.DefaultLevel = "info"
 
 	// Set default values for Runtime Transport
 	config.Runtime.Transports.Stdio.Enabled = true

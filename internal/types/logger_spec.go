@@ -5,26 +5,32 @@ package types
 
 import (
 	"context"
-	"io"
 
 	"github.com/sirupsen/logrus"
+)
+
+const (
+	LogOutputStdout = ":stdout:"
+	LogOutputStderr = ":stderr:"
+	LogOutputMCP    = ":mcp:"
 )
 
 // LogConfig represents the configuration for logging.
 // Responsibility: Storing logging system settings
 // Features: Defines the level, format, and output location for logs
+// LogConfig используется только для бизнес-логики, не для парсинга.
 type LogConfig struct {
-	// Level is the log level.
+	// DefaultLevel is the string value from config ("info", "debug" и т.д.)
+	DefaultLevel string
+	// Output is строка-идентификатор вывода (":stdout:", ":stderr:", ":mcp:", путь к файлу)
+	Output string
+	// Format — строка-идентификатор форматтера ("custom", "json", "text" и т.д.)
+	Format string
+
+	// Level — вычисленный уровень логирования (logrus.Level)
 	Level logrus.Level
-
-	// RawOutput is the raw output of the log level.
-	RawOutput string
-
-	// RawFormat is the raw format for log output ("text" or "json").
-	RawFormat string
-
-	// Output is the log output.
-	Output io.Writer
+	// UseMCPLogs — использовать ли MCP-логирование
+	UseMCPLogs bool
 }
 
 // LogEntrySpec defines the interface for a log entry with fields.
