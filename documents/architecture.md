@@ -145,4 +145,47 @@ graph TD
 - Dynamic log level via protocol
 - No secrets/PII in logs
 
-// See implementation.md for test details and coverage.
+## Configuration Overlay Testing
+
+### Property-based overlay tests
+- Используется пакет `testing/quick` для генерации случайных пар конфигураций.
+- Проверяется, что overlay не затирает дефолтные значения zero-value полями, корректно мержит map, не теряет значения.
+- Включены edge-cases: пустые строки, нули, nil map, частично заполненные структуры.
+- Тест: `TestConfiguration_Overlay_PropertyBased` в `internal/types/configuration_test.go`.
+
+### Golden-тесты обратной совместимости
+- Для контроля совместимости сериализации структуры `types.Configuration` используется golden-файл `testdata/configuration_golden.json`.
+- Тест сериализует дефолтную конфигурацию и сравнивает с эталоном.
+- При изменении структуры тест сигнализирует о несовместимости.
+- Тест: `TestConfiguration_Serialization_Golden` в `internal/types/configuration_test.go`.
+
+# Архитектура логирования MCPConnector
+
+## Логика маршрутизации логов
+
+- После инициализации соединения с MCP-сервером (метод ConnectServer) коннектор сохраняет capabilities сервера.
+- Если capabilities.Logging присутствует:
+    - Для stdio-серверов: подписка на notifications/message через OnNotification, маршрутизация логов в основной логгер.
+    - Для HTTP-серверов: (аналогично, через SSE, если реализовано).
+- Если capabilities.Logging отсутствует:
+    - Для stdio-серверов: запускается отдельная горутина, читающая stderr дочернего процесса и пробрасывающая строки в основной логгер.
+    - Для HTTP fallback не реализован (невозможно получить stderr).
+
+## Место реализации
+- Вся логика выбора маршрута логирования теперь вынесена:
+    - internal/mcp_connector/connection.go — логика подключения и инициализации MCP клиентов
+    - internal/mcp_connector/logging.go — маршрутизация логов (MCP-логи или fallback на stderr)
+- Для чтения stderr используется client.GetStderr и bufio.Scanner.
+- Для подписки на MCP-логи используется OnNotification.
+
+## Тестирование
+- Покрытие тестами:
+    - Проверяется сохранение capabilities после initialize.
+    - Проверяется, что при наличии logging логи маршрутизируются через MCP.
+    - Проверяется, что при отсутствии logging логи маршрутизируются через stderr.
+- Тесты: internal/mcp_connector/mcp_connector_test.go
+
+## Паттерны и принципы
+- Применён паттерн feature toggle (capabilities как флаг).
+- Используется dependency injection для логгера.
+- Все изменения покрыты unit-тестами.

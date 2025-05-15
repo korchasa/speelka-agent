@@ -98,6 +98,9 @@ type MCPServerConfig struct {
 
 	// Debug determines if debug mode is enabled.
 	Debug bool
+
+	// LogRawOutput is the raw log output string (e.g. ":mcp:", ":stdout:", etc.)
+	LogRawOutput string
 }
 
 type MCPServerToolConfig struct {

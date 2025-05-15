@@ -11,26 +11,15 @@ import (
 // Responsibility: Providing unified access to system configuration
 // Features: Supports configuration loading from files and strings,
 // provides access to various types of configuration parameters
+// Теперь: только загрузка и возврат итоговой структуры конфигурации
+// Вся бизнес-логика и валидация — в types.Configuration
 type ConfigurationManagerSpec interface {
 	// LoadConfiguration loads configuration from various sources based on context.
 	// It first tries to load from a configuration file if specified,
 	// then applies environment variables (which take precedence).
-	// Finally, it validates the loaded configuration.
-	// It returns an error if the loading or validation fails.
+	// Returns an error if the loading fails.
 	LoadConfiguration(ctx context.Context, configFilePath string) error
 
-	// GetMCPServerConfig returns the MCP server configuration.
-	GetMCPServerConfig() MCPServerConfig
-
-	// GetMCPConnectorConfig returns the MCP connector configuration.
-	GetMCPConnectorConfig() MCPConnectorConfig
-
-	// GetLLMConfig returns the LLM configuration.
-	GetLLMConfig() LLMConfig
-
-	// GetLogConfig returns the logging configuration.
-	GetLogConfig() LogConfig
-
-	// GetAgentConfig returns the agent configuration.
-	GetAgentConfig() AgentConfig
+	// GetConfiguration returns the final loaded configuration.
+	GetConfiguration() *Configuration
 }

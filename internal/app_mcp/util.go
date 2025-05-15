@@ -25,18 +25,18 @@ func LoadConfiguration(ctx context.Context, configPath string, logger types.Logg
 	return configManager, nil
 }
 
-// NewLogger creates a new logger instance based on LogConfig.RawOutput ("mcp" or "stderr").
+// NewLogger creates a new logger instance based on LogConfig.RawOutput (":mcp:" or ":stderr:").
 func NewLogger(cfg types.LogConfig) types.LoggerSpec {
 	// По-умолчанию — MCPLogger
 	output := cfg.RawOutput
 	if output == "" {
-		output = "mcp"
+		output = types.LogOutputMCP
 	}
 
 	switch output {
-	case "stderr":
+	case types.LogOutputStderr:
 		return logger.NewIOWriterLogger(nil)
-	case "mcp":
+	case types.LogOutputMCP:
 		return logger.NewMCPLogger()
 	default:
 		// Если указано что-то иное — используем MCPLogger как безопасный дефолт
@@ -46,11 +46,12 @@ func NewLogger(cfg types.LogConfig) types.LoggerSpec {
 
 // NewAgentWithDeps wires up all agent dependencies and returns an agent instance.
 func NewAgentWithDeps(cfg types.AgentConfig, logger types.LoggerSpec, configManager types.ConfigurationManagerSpec) (types.AgentSpec, error) {
-	llmService, err := llm_service.NewLLMService(configManager.GetLLMConfig(), logger)
+	conf := configManager.GetConfiguration()
+	llmService, err := llm_service.NewLLMService(conf.ToLLMConfig(), logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create LLM service: %w", err)
 	}
-	mcpConnector := mcp_connector.NewMCPConnector(configManager.GetMCPConnectorConfig(), logger)
+	mcpConnector := mcp_connector.NewMCPConnector(conf.ToMCPConnectorConfig(), logger)
 	err = mcpConnector.InitAndConnectToMCPs(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to init MCP connector: %w", err)
@@ -59,6 +60,7 @@ func NewAgentWithDeps(cfg types.AgentConfig, logger types.LoggerSpec, configMana
 	chatInstance := chat.NewChat(
 		cfg.Model,
 		cfg.SystemPromptTemplate,
+		cfg.Tool.ArgumentName,
 		logger,
 		calculator,
 		cfg.MaxTokens,
@@ -78,20 +80,21 @@ func NewAgentWithDeps(cfg types.AgentConfig, logger types.LoggerSpec, configMana
 
 // NewAgentWithServer creates the agent and MCP server, wiring all dependencies (for App).
 func NewAgentWithServer(configManager types.ConfigurationManagerSpec, logger types.LoggerSpec) (types.AgentSpec, *mcp_server.MCPServer, error) {
+	conf := configManager.GetConfiguration()
 	// Create LLM service
-	llmService, err := llm_service.NewLLMService(configManager.GetLLMConfig(), logger)
+	llmService, err := llm_service.NewLLMService(conf.ToLLMConfig(), logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create LLM service: %w", err)
 	}
 	logger.Info("LLM service instance created")
 
 	// Create MCP server
-	mcpServer := mcp_server.NewMCPServer(configManager.GetMCPServerConfig(), logger)
+	mcpServer := mcp_server.NewMCPServer(conf.ToMCPServerConfig(), logger)
 	logger.SetMCPServer(mcpServer)
 	logger.Info("MCP server instance created")
 
 	// Create MCP connector
-	mcpConnector := mcp_connector.NewMCPConnector(configManager.GetMCPConnectorConfig(), logger)
+	mcpConnector := mcp_connector.NewMCPConnector(conf.ToMCPConnectorConfig(), logger)
 	logger.Info("MCP connector instance created")
 
 	// Initialize and connect to MCPs
@@ -102,7 +105,7 @@ func NewAgentWithServer(configManager types.ConfigurationManagerSpec, logger typ
 	logger.Info("MCP connector connected successfully")
 
 	// Get Agent configuration
-	agentConfig := configManager.GetAgentConfig()
+	agentConfig := conf.ToAgentConfig()
 
 	// Create Calculator
 	calculator := llm_models.NewCalculator()
@@ -111,6 +114,7 @@ func NewAgentWithServer(configManager types.ConfigurationManagerSpec, logger typ
 	chatInstance := chat.NewChat(
 		agentConfig.Model,
 		agentConfig.SystemPromptTemplate,
+		agentConfig.Tool.ArgumentName,
 		logger,
 		calculator,
 		agentConfig.MaxTokens,

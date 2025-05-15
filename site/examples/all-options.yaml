@@ -7,7 +7,7 @@
 runtime:
   log:
     default_level: info                # Log level: debug, info, warn, error
-    output: stderr             # Log output: file path or stderr/stdout
+    output: ':stderr:'             # Log output: file path or :stderr:/:stdout:/:mcp:
   transports:
     stdio:
       enabled: true            # Enable stdio transport (CLI/daemon)

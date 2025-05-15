@@ -22,8 +22,24 @@ type directAgent interface {
 	CallDirect(ctx context.Context, input string) (string, types.MetaInfo, error)
 }
 
+// mcpLogStub реализует types.MCPServerNotifier и выводит MCP-логи в stderr
+// Используется только в direct-call режиме для отображения логов пользователю
+// Формат: [MCP level] message: ...
+type mcpLogStub struct{}
+
+func (m *mcpLogStub) SendNotificationToClient(_ context.Context, method string, data map[string]interface{}) error {
+	if method != "notifications/message" {
+		return nil
+	}
+	level, _ := data["level"].(string)
+	msg, _ := data["message"].(string)
+	fmt.Fprintf(os.Stderr, "[MCP %s] %s\n", level, msg)
+	return nil
+}
+
 // NewDirectApp creates a new DirectApp with the given logger and configuration manager.
 func NewDirectApp(logger types.LoggerSpec, configManager types.ConfigurationManagerSpec) *DirectApp {
+	logger.SetMCPServer(&mcpLogStub{})
 	return &DirectApp{
 		logger:        logger,
 		configManager: configManager,
@@ -32,6 +48,7 @@ func NewDirectApp(logger types.LoggerSpec, configManager types.ConfigurationMana
 
 // Initialize loads configuration and initializes the Agent application.
 func (d *DirectApp) Initialize(ctx context.Context) error {
+	d.logger.Debugf("DirectApp.Initialize: start")
 	agent, _, err := app_mcp.NewAgentWithServer(d.configManager, d.logger)
 	if err != nil {
 		return fmt.Errorf("failed to initialize agent: %w", err)
@@ -41,6 +58,7 @@ func (d *DirectApp) Initialize(ctx context.Context) error {
 		return fmt.Errorf("agent does not implement directAgent interface")
 	}
 	d.agent = da
+	d.logger.Debugf("DirectApp.Initialize: agent created and assigned")
 	return nil
 }
 

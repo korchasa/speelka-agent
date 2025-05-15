@@ -1,10 +1,17 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
+
+	"testing/quick"
+
+	"io"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +36,7 @@ func TestConfigurationValidate(t *testing.T) {
 				Runtime: RuntimeConfig{
 					Log: RuntimeLogConfig{
 						RawDefaultLevel: "debug",
-						RawOutput:       "stdout",
+						RawOutput:       LogOutputStdout,
 					},
 				},
 				Agent: ConfigAgent{
@@ -114,7 +121,7 @@ func TestConfigurationValidate(t *testing.T) {
 			errorContains: "LLM API key is required",
 		},
 		{
-			name: "Invalid Prompt Template - Missing tools",
+			name: "Valid Prompt Template - No tools placeholder",
 			config: &Configuration{
 				Agent: ConfigAgent{
 					Name: "TestAgent",
@@ -132,8 +139,7 @@ func TestConfigurationValidate(t *testing.T) {
 					},
 				},
 			},
-			expectError:   true,
-			errorContains: "template must contain {{tools}} placeholder",
+			expectError: false,
 		},
 		{
 			name: "Invalid Prompt Template - Missing query",
@@ -192,20 +198,19 @@ func TestValidatePromptTemplate(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("valid template with only query placeholder", func(t *testing.T) {
+		// Test a template with only query placeholder (no tools)
+		template := `Template with only {{query}} placeholder`
+		err := config.validatePromptTemplate(template, "query")
+		assert.NoError(t, err)
+	})
+
 	t.Run("invalid template missing query placeholder", func(t *testing.T) {
 		// Test a template missing the query placeholder
 		template := `Template with only {{tools}} placeholder`
 		err := config.validatePromptTemplate(template, "query")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "template must contain either {{query}} or {{input}} placeholder")
-	})
-
-	t.Run("invalid template missing tools placeholder", func(t *testing.T) {
-		// Test a template missing the tools placeholder
-		template := `Template with only {{query}} placeholder`
-		err := config.validatePromptTemplate(template, "query")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "template must contain {{tools}} placeholder")
 	})
 
 	t.Run("invalid empty template", func(t *testing.T) {
@@ -275,7 +280,7 @@ func TestConfiguration_Apply(t *testing.T) {
 		Runtime: RuntimeConfig{
 			Log: RuntimeLogConfig{
 				RawDefaultLevel: "info",
-				RawOutput:       "stdout",
+				RawOutput:       LogOutputStdout,
 				LogLevel:        logrus.InfoLevel,
 				Output:          os.Stdout,
 			},
@@ -397,7 +402,8 @@ func TestConfiguration_Apply(t *testing.T) {
 	}
 
 	// Apply the new configuration to the base
-	result := baseConfig.Apply(newConfig)
+	result, err := baseConfig.Apply(newConfig)
+	assert.NoError(t, err)
 
 	// Debug transport settings
 	fmt.Printf("Base Transports before apply:\n")
@@ -478,12 +484,13 @@ func TestConfiguration_Apply(t *testing.T) {
 		Runtime: RuntimeConfig{
 			Log: RuntimeLogConfig{
 				RawDefaultLevel: "invalid_level",
-				RawOutput:       "stderr",
+				RawOutput:       LogOutputStderr,
 			},
 		},
 	}
 
-	baseConfig.Apply(invalidLogConfig)
+	_, err = baseConfig.Apply(invalidLogConfig)
+	assert.Error(t, err)
 	assert.Equal(t, "invalid_level", baseConfig.Runtime.Log.RawDefaultLevel)
 
 	// Test with file output
@@ -502,7 +509,8 @@ func TestConfiguration_Apply(t *testing.T) {
 		},
 	}
 
-	baseConfig.Apply(fileLogConfig)
+	_, err = baseConfig.Apply(fileLogConfig)
+	assert.NoError(t, err)
 	assert.Equal(t, "warn", baseConfig.Runtime.Log.RawDefaultLevel)
 	// Writer should be a file now, not stdout or stderr
 	assert.NotEqual(t, os.Stdout, baseConfig.Runtime.Log.Output)
@@ -528,7 +536,8 @@ func TestConfiguration_Apply(t *testing.T) {
 			},
 		},
 	}
-	baseConfigWithEmptyAPIKey.Apply(overlayConfigWithEnvAPIKey)
+	_, err = baseConfigWithEmptyAPIKey.Apply(overlayConfigWithEnvAPIKey)
+	assert.NoError(t, err)
 	assert.Equal(t, "env-api-key", baseConfigWithEmptyAPIKey.Agent.LLM.APIKey, "Environment variable should override empty config file value for APIKey")
 }
 
@@ -588,7 +597,8 @@ func TestConfiguration_Apply_McpServerToolFilters(t *testing.T) {
 			},
 		},
 	}
-	base.Apply(overlay1)
+	_, err := base.Apply(overlay1)
+	assert.NoError(t, err)
 	assert.Equal(t, []string{"foo", "bar"}, base.Agent.Connections.McpServers["srv"].IncludeTools)
 	assert.Equal(t, []string{"baz"}, base.Agent.Connections.McpServers["srv"].ExcludeTools)
 
@@ -604,7 +614,8 @@ func TestConfiguration_Apply_McpServerToolFilters(t *testing.T) {
 			},
 		},
 	}
-	base.Apply(overlay2)
+	_, err = base.Apply(overlay2)
+	assert.NoError(t, err)
 	assert.Equal(t, []string{"qux"}, base.Agent.Connections.McpServers["srv"].IncludeTools)
 	assert.Equal(t, []string{"baz"}, base.Agent.Connections.McpServers["srv"].ExcludeTools)
 
@@ -621,7 +632,8 @@ func TestConfiguration_Apply_McpServerToolFilters(t *testing.T) {
 			},
 		},
 	}
-	base.Apply(overlay3)
+	_, err = base.Apply(overlay3)
+	assert.NoError(t, err)
 	assert.Equal(t, []string{"a", "b"}, base.Agent.Connections.McpServers["srv"].IncludeTools)
 	assert.Equal(t, []string{"c"}, base.Agent.Connections.McpServers["srv"].ExcludeTools)
 
@@ -638,7 +650,8 @@ func TestConfiguration_Apply_McpServerToolFilters(t *testing.T) {
 			},
 		},
 	}
-	base.Apply(overlay4)
+	_, err = base.Apply(overlay4)
+	assert.NoError(t, err)
 	assert.Equal(t, []string{"a", "b"}, base.Agent.Connections.McpServers["srv"].IncludeTools)
 	assert.Equal(t, []string{"c"}, base.Agent.Connections.McpServers["srv"].ExcludeTools)
 }
@@ -674,100 +687,319 @@ func TestConfiguration_RedactedCopy(t *testing.T) {
 	assert.Equal(t, orig.Agent.Connections.McpServers["server1"].URL, redacted.Agent.Connections.McpServers["server1"].URL)
 }
 
-/* These functions might be defined elsewhere or have been removed
-func TestLoadLevelFromName(t *testing.T) {
-	tests := []struct {
-		levelName      string
-		expectedLevel  logrus.Level
-		expectedOutput string
-		expectError    bool
-	}{
-		{"debug", logrus.DebugLevel, "debug", false},
-		{"Debug", logrus.DebugLevel, "debug", false},
-		{"DEBUG", logrus.DebugLevel, "debug", false},
-		{"info", logrus.InfoLevel, "info", false},
-		{"Info", logrus.InfoLevel, "info", false},
-		{"INFO", logrus.InfoLevel, "info", false},
-		{"warn", logrus.WarnLevel, "warn", false},
-		{"Warn", logrus.WarnLevel, "warn", false},
-		{"WARN", logrus.WarnLevel, "warn", false},
-		{"warning", logrus.WarnLevel, "warn", false},
-		{"Warning", logrus.WarnLevel, "warn", false},
-		{"WARNING", logrus.WarnLevel, "warn", false},
-		{"error", logrus.ErrorLevel, "error", false},
-		{"Error", logrus.ErrorLevel, "error", false},
-		{"ERROR", logrus.ErrorLevel, "error", false},
-		{"fatal", logrus.FatalLevel, "fatal", false},
-		{"Fatal", logrus.FatalLevel, "fatal", false},
-		{"FATAL", logrus.FatalLevel, "fatal", false},
-		{"panic", logrus.PanicLevel, "panic", false},
-		{"Panic", logrus.PanicLevel, "panic", false},
-		{"PANIC", logrus.PanicLevel, "panic", false},
-		{"unknown", logrus.InfoLevel, "info", true},
-		{"", logrus.InfoLevel, "info", true},
+func TestConfiguration_Converters(t *testing.T) {
+	baseConfig := &Configuration{
+		Runtime: RuntimeConfig{
+			Log: RuntimeLogConfig{
+				RawDefaultLevel: "info",
+				RawOutput:       LogOutputStdout,
+			},
+			Transports: RuntimeTransportConfig{
+				Stdio: RuntimeStdioConfig{
+					Enabled:    true,
+					BufferSize: 4096,
+				},
+				HTTP: RuntimeHTTPConfig{
+					Enabled: true,
+					Host:    "127.0.0.1",
+					Port:    8080,
+				},
+			},
+		},
+		Agent: ConfigAgent{
+			Name:    "agent-test",
+			Version: "v1.2.3",
+			Tool: AgentToolConfig{
+				Name:                "tool1",
+				Description:         "desc1",
+				ArgumentName:        "arg1",
+				ArgumentDescription: "argdesc1",
+			},
+			Chat: AgentChatConfig{
+				MaxTokens:        1234,
+				MaxLLMIterations: 7,
+			},
+			LLM: AgentLLMConfig{
+				Provider:         "openai",
+				Model:            "gpt-4",
+				APIKey:           "api-key-123",
+				MaxTokens:        2048,
+				IsMaxTokensSet:   true,
+				Temperature:      0.5,
+				IsTemperatureSet: true,
+				PromptTemplate:   "prompt {{arg1}}",
+				Retry: LLMRetryConfig{
+					MaxRetries:        2,
+					InitialBackoff:    1.5,
+					MaxBackoff:        10.0,
+					BackoffMultiplier: 2.5,
+				},
+			},
+			Connections: AgentConnectionsConfig{
+				McpServers: map[string]MCPServerConnection{
+					"srv1": {
+						URL:    "http://srv1",
+						APIKey: "srv1-key",
+					},
+				},
+				Retry: ConnectionRetryConfig{
+					MaxRetries:        3,
+					InitialBackoff:    2.0,
+					MaxBackoff:        20.0,
+					BackoffMultiplier: 3.0,
+				},
+			},
+		},
 	}
 
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("Level %s", test.levelName), func(t *testing.T) {
-			level, output, err := LoadLevelFromName(test.levelName)
+	t.Run("ToAgentConfig", func(t *testing.T) {
+		agentCfg := baseConfig.ToAgentConfig()
+		assert.Equal(t, "tool1", agentCfg.Tool.Name)
+		assert.Equal(t, "gpt-4", agentCfg.Model)
+		assert.Equal(t, "prompt {{arg1}}", agentCfg.SystemPromptTemplate)
+		assert.Equal(t, 1234, agentCfg.MaxTokens)
+		assert.Equal(t, 7, agentCfg.MaxLLMIterations)
+	})
 
-			if test.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+	t.Run("ToLLMConfig", func(t *testing.T) {
+		llmCfg := baseConfig.ToLLMConfig()
+		assert.Equal(t, "openai", llmCfg.Provider)
+		assert.Equal(t, "gpt-4", llmCfg.Model)
+		assert.Equal(t, "api-key-123", llmCfg.APIKey)
+		assert.Equal(t, 2048, llmCfg.MaxTokens)
+		assert.True(t, llmCfg.IsMaxTokensSet)
+		assert.Equal(t, 0.5, llmCfg.Temperature)
+		assert.True(t, llmCfg.IsTemperatureSet)
+		assert.Equal(t, "prompt {{arg1}}", llmCfg.SystemPromptTemplate)
+		assert.Equal(t, 2, llmCfg.RetryConfig.MaxRetries)
+		assert.Equal(t, 1.5, llmCfg.RetryConfig.InitialBackoff)
+		assert.Equal(t, 10.0, llmCfg.RetryConfig.MaxBackoff)
+		assert.Equal(t, 2.5, llmCfg.RetryConfig.BackoffMultiplier)
+	})
+
+	t.Run("ToMCPServerConfig", func(t *testing.T) {
+		mcpSrvCfg := baseConfig.ToMCPServerConfig()
+		assert.Equal(t, "agent-test", mcpSrvCfg.Name)
+		assert.Equal(t, "v1.2.3", mcpSrvCfg.Version)
+		assert.Equal(t, true, mcpSrvCfg.HTTP.Enabled)
+		assert.Equal(t, "127.0.0.1", mcpSrvCfg.HTTP.Host)
+		assert.Equal(t, 8080, mcpSrvCfg.HTTP.Port)
+		assert.Equal(t, true, mcpSrvCfg.Stdio.Enabled)
+		assert.Equal(t, 4096, mcpSrvCfg.Stdio.BufferSize)
+		assert.Equal(t, "tool1", mcpSrvCfg.Tool.Name)
+		assert.Equal(t, LogOutputStdout, mcpSrvCfg.LogRawOutput)
+	})
+
+	t.Run("ToMCPConnectorConfig", func(t *testing.T) {
+		mcpConnCfg := baseConfig.ToMCPConnectorConfig()
+		assert.Contains(t, mcpConnCfg.McpServers, "srv1")
+		assert.Equal(t, "http://srv1", mcpConnCfg.McpServers["srv1"].URL)
+		assert.Equal(t, "srv1-key", mcpConnCfg.McpServers["srv1"].APIKey)
+		assert.Equal(t, 3, mcpConnCfg.RetryConfig.MaxRetries)
+		assert.Equal(t, 2.0, mcpConnCfg.RetryConfig.InitialBackoff)
+		assert.Equal(t, 20.0, mcpConnCfg.RetryConfig.MaxBackoff)
+		assert.Equal(t, 3.0, mcpConnCfg.RetryConfig.BackoffMultiplier)
+	})
+}
+
+func TestConfiguration_Overlay_PropertyBased(t *testing.T) {
+	f := func(base, overlay Configuration) bool {
+		// Копируем base для overlay
+		baseCopy := base
+		result, err := baseCopy.Apply(&overlay)
+		if err != nil {
+			t.Logf("Apply error: %v", err)
+			return false
+		}
+		// Проверяем, что overlay не затирает дефолтные значения zero-value полями
+		if overlay.Agent.LLM.APIKey == "" && result.Agent.LLM.APIKey != base.Agent.LLM.APIKey {
+			t.Logf("APIKey zero-value overlay: want %q, got %q", base.Agent.LLM.APIKey, result.Agent.LLM.APIKey)
+			return false
+		}
+		// Проверяем, что overlay мержит map, а не заменяет
+		if len(base.Agent.Connections.McpServers) > 0 && len(overlay.Agent.Connections.McpServers) > 0 {
+			for k, v := range base.Agent.Connections.McpServers {
+				if _, ok := result.Agent.Connections.McpServers[k]; !ok {
+					t.Logf("McpServers map merge lost key: %q", k)
+					return false
+				}
+				// Проверяем, что overlay не затирает поля, если они zero-value
+				if overlay.Agent.Connections.McpServers[k].APIKey == "" && result.Agent.Connections.McpServers[k].APIKey != v.APIKey {
+					t.Logf("McpServers[%q].APIKey zero-value overlay: want %q, got %q", k, v.APIKey, result.Agent.Connections.McpServers[k].APIKey)
+					return false
+				}
 			}
-
-			assert.Equal(t, test.expectedLevel, level)
-			assert.Equal(t, test.expectedOutput, output)
-		})
+		}
+		return true
+	}
+	cfg := &quick.Config{
+		MaxCount: 50,
+		Values: func(args []reflect.Value, r *rand.Rand) {
+			args[0] = reflect.ValueOf(randomConfig(r))
+			args[1] = reflect.ValueOf(randomConfig(r))
+		},
+	}
+	if err := quick.Check(f, cfg); err != nil {
+		t.Error(err)
 	}
 }
 
-func TestLoadOutputFromName(t *testing.T) {
-	tests := []struct {
-		outputName   string
-		expectStdout bool
-		expectStderr bool
-		expectFile   bool
-		expectError  bool
-	}{
-		{"stdout", true, false, false, false},
-		{"STDOUT", true, false, false, false},
-		{"Stdout", true, false, false, false},
-		{"stderr", false, true, false, false},
-		{"STDERR", false, true, false, false},
-		{"Stderr", false, true, false, false},
-		{"test.log", false, false, true, false},
-		{"/var/log/app.log", false, false, true, false},
-		{"./log/app.log", false, false, true, false},
-		{"", false, true, false, false}, // Default to stderr
+// randomConfig генерирует случайную конфигурацию для property-based тестов
+func randomConfig(r *rand.Rand) Configuration {
+	cfg := NewConfiguration()
+	cfg.Agent.Name = randomString(r)
+	cfg.Agent.LLM.APIKey = randomString(r)
+	cfg.Agent.LLM.Model = randomString(r)
+	cfg.Agent.LLM.Provider = randomString(r)
+	cfg.Agent.LLM.PromptTemplate = randomString(r)
+	cfg.Agent.LLM.MaxTokens = r.Intn(10000)
+	cfg.Agent.LLM.Temperature = r.Float64()
+	cfg.Agent.Connections.McpServers = make(map[string]MCPServerConnection)
+	if r.Intn(2) == 1 {
+		key := randomString(r)
+		cfg.Agent.Connections.McpServers[key] = MCPServerConnection{
+			URL:    randomString(r),
+			APIKey: randomString(r),
+		}
 	}
+	return *cfg
+}
 
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("Output %s", test.outputName), func(t *testing.T) {
-			writer, err := LoadOutputFromName(test.outputName)
+func randomString(r *rand.Rand) string {
+	length := r.Intn(5)
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = byte(r.Intn(26) + 97)
+	}
+	return string(b)
+}
 
-			if test.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			if test.expectStdout {
-				assert.Equal(t, os.Stdout, writer)
-			}
-
-			if test.expectStderr {
-				assert.Equal(t, os.Stderr, writer)
-			}
-
-			// Can't easily check if a specific file was opened,
-			// so just check it's not stdout/stderr
-			if test.expectFile {
-				assert.NotEqual(t, os.Stdout, writer)
-				assert.NotEqual(t, os.Stderr, writer)
-			}
-		})
+func TestConfiguration_Serialization_Golden(t *testing.T) {
+	cfg := NewConfiguration()
+	goldenPath := filepath.Join("testdata", "configuration_golden.json")
+	actual, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+	goldenFile, err := os.Open(goldenPath)
+	if err != nil {
+		// Если golden-файл не найден — создаём его
+		t.Logf("Golden file not found, creating: %s", goldenPath)
+		f, err := os.Create(goldenPath)
+		if err != nil {
+			t.Fatalf("failed to create golden file: %v", err)
+		}
+		defer f.Close()
+		_, err = f.Write(actual)
+		if err != nil {
+			t.Fatalf("failed to write golden file: %v", err)
+		}
+		return
+	}
+	defer goldenFile.Close()
+	golden, err := io.ReadAll(goldenFile)
+	if err != nil {
+		t.Fatalf("failed to read golden file: %v", err)
+	}
+	if string(actual) != string(golden) {
+		t.Errorf("configuration serialization mismatch with golden file\nActual:\n%s\nGolden:\n%s", actual, golden)
 	}
 }
-*/
+
+func TestConfiguration_Apply_LogRawFields(t *testing.T) {
+	baseConfig := &Configuration{
+		Runtime: RuntimeConfig{
+			Log: RuntimeLogConfig{
+				RawDefaultLevel: "info",
+				RawOutput:       LogOutputStdout,
+				RawFormat:       "text",
+				LogLevel:        logrus.InfoLevel,
+				Output:          os.Stdout,
+			},
+		},
+	}
+
+	resetBase := func() {
+		baseConfig.Runtime.Log.RawDefaultLevel = "info"
+		baseConfig.Runtime.Log.RawOutput = LogOutputStdout
+		baseConfig.Runtime.Log.RawFormat = "text"
+		baseConfig.Runtime.Log.LogLevel = logrus.InfoLevel
+		baseConfig.Runtime.Log.Output = os.Stdout
+	}
+
+	t.Run("overlay only RawFormat", func(t *testing.T) {
+		resetBase()
+		overlay := &Configuration{
+			Runtime: RuntimeConfig{
+				Log: RuntimeLogConfig{
+					RawFormat: "json",
+				},
+			},
+		}
+		_, err := baseConfig.Apply(overlay)
+		assert.NoError(t, err)
+		assert.Equal(t, "json", baseConfig.Runtime.Log.RawFormat)
+	})
+
+	t.Run("overlay all Raw fields", func(t *testing.T) {
+		resetBase()
+		overlay := &Configuration{
+			Runtime: RuntimeConfig{
+				Log: RuntimeLogConfig{
+					RawDefaultLevel: "debug",
+					RawOutput:       LogOutputStderr,
+					RawFormat:       "json",
+				},
+			},
+		}
+		_, err := baseConfig.Apply(overlay)
+		assert.NoError(t, err)
+		assert.Equal(t, "debug", baseConfig.Runtime.Log.RawDefaultLevel)
+		assert.Equal(t, LogOutputStderr, baseConfig.Runtime.Log.RawOutput)
+		assert.Equal(t, "json", baseConfig.Runtime.Log.RawFormat)
+	})
+
+	t.Run("overlay only RawOutput (file, error)", func(t *testing.T) {
+		resetBase()
+		overlay := &Configuration{
+			Runtime: RuntimeConfig{
+				Log: RuntimeLogConfig{
+					RawOutput: "/nonexistent/forbidden.log",
+				},
+			},
+		}
+		_, err := baseConfig.Apply(overlay)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to open log file")
+	})
+
+	t.Run("overlay only RawDefaultLevel", func(t *testing.T) {
+		resetBase()
+		overlay := &Configuration{
+			Runtime: RuntimeConfig{
+				Log: RuntimeLogConfig{
+					RawDefaultLevel: "warn",
+				},
+			},
+		}
+		_, err := baseConfig.Apply(overlay)
+		assert.NoError(t, err)
+		assert.Equal(t, "warn", baseConfig.Runtime.Log.RawDefaultLevel)
+	})
+
+	// Проверка, что если RawFormat не задан, старое значение сохраняется
+	t.Run("overlay without RawFormat keeps previous", func(t *testing.T) {
+		resetBase()
+		baseConfig.Runtime.Log.RawFormat = "json"
+		overlay := &Configuration{
+			Runtime: RuntimeConfig{
+				Log: RuntimeLogConfig{
+					RawDefaultLevel: "error",
+				},
+			},
+		}
+		_, err := baseConfig.Apply(overlay)
+		assert.NoError(t, err)
+		assert.Equal(t, "json", baseConfig.Runtime.Log.RawFormat)
+	})
+}

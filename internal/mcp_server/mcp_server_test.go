@@ -147,3 +147,49 @@ func TestMCPServer_NoSecretsOrPIIInLogs(t *testing.T) {
 	// NB: Фильтрация секретов/PII — ответственность бизнес-логики, а не инфраструктуры логгирования.
 	// Здесь проверяем только, что лог отправлен корректно.
 }
+
+func TestMCPServer_LoggingCapability_Enabled(t *testing.T) {
+	logger := &testLogger{}
+	config := types.MCPServerConfig{
+		Name:    "test-server",
+		Version: "0.1.0",
+		Tool: types.MCPServerToolConfig{
+			Name:                "test-tool",
+			Description:         "desc",
+			ArgumentName:        "arg",
+			ArgumentDescription: "desc",
+		},
+		LogRawOutput: ":mcp:",
+	}
+	mcpSrv := NewMCPServer(config, logger)
+	err := mcpSrv.createAndInitMCPServer(func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return &mcp.CallToolResult{}, nil
+	})
+	assert.NoError(t, err)
+	// Проверяем, что capability logging есть
+	caps := mcpSrv.GetServerCapabilities()
+	assert.NotNil(t, caps.Logging, "logging capability must be present when LogRawOutput is :mcp:")
+}
+
+func TestMCPServer_LoggingCapability_Disabled(t *testing.T) {
+	logger := &testLogger{}
+	config := types.MCPServerConfig{
+		Name:    "test-server",
+		Version: "0.1.0",
+		Tool: types.MCPServerToolConfig{
+			Name:                "test-tool",
+			Description:         "desc",
+			ArgumentName:        "arg",
+			ArgumentDescription: "desc",
+		},
+		LogRawOutput: ":stdout:",
+	}
+	mcpSrv := NewMCPServer(config, logger)
+	err := mcpSrv.createAndInitMCPServer(func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return &mcp.CallToolResult{}, nil
+	})
+	assert.NoError(t, err)
+	// Проверяем, что capability logging отсутствует
+	caps := mcpSrv.GetServerCapabilities()
+	assert.Nil(t, caps.Logging, "logging capability must NOT be present when LogRawOutput is not :mcp:")
+}

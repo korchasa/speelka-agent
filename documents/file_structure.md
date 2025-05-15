@@ -30,29 +30,10 @@
 - `llm_service/`: LLM service abstraction
 - `logger/`: Logging
 - `mcp_connector/`: MCP server connection logic
+    - mcp_connector.go — реализация MCPConnector, публичные методы, делегирование
+    - connection.go — логика подключения и инициализации MCP клиентов
+    - logging.go — маршрутизация логов (MCP-логи или fallback на stderr)
+    - mcp_connector_test.go — тесты для проверки маршрутизации логов (MCP и stderr)
+    - utils_test.go — вспомогательные функции для тестирования
 - `mcp_server/`: MCP server implementation
-- `types/`: Shared types/specs
-- `utils/`: Misc utilities
-
-## site/
-- `index.html`: Web UI
-- `css/`, `js/`, `img/`: Static assets
-- `examples/`: Example agent configs
-- `sitemap.xml`, `robots.txt`: SEO
-
-## vendor/
-- Vendored Go modules and dependencies
-
-## documents/
-- `architecture.md`: System design
-- `file_structure.md`: This file
-- `implementation.md`: Implementation details
-- `knowledge.md`: Code/protocol refs
-- `remote_resources.md`: External links
-- `whiteboard.md`: Temp planning (ephemeral)
-- `mcp-go.xml`, `model-context-protocol.xml`: Protocol/library docs
-
-// All obsolete files and references have been removed.
-
-Везде в конфиге используется runtime.log.default_level вместо runtime.log.level.
-MCPLogger интегрируется с MCPServer через интерфейс MCPServerNotifier.
+- `

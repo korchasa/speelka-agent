@@ -90,7 +90,9 @@ runtime
 				assert.Equal(t, "./test.log", config.Runtime.Log.RawOutput)
 				assert.Equal(t, "", config.Runtime.Log.RawFormat)
 				// After Apply, check parsed fields
-				config.Apply(config)
+				var err error
+				config, err = config.Apply(config)
+				assert.NoError(t, err)
 				assert.NotNil(t, config.Runtime.Log.Output)
 				assert.Equal(t, logrus.DebugLevel, config.Runtime.Log.LogLevel)
 			},
@@ -136,7 +138,7 @@ runtime
 runtime:
   log:
     default_level: info
-    output: stdout
+    output: ":stdout:"
 agent:
   name: timeout-agent
   tool:
@@ -160,7 +162,9 @@ agent:
 			}(),
 			expectError: false,
 			validate: func(t *testing.T, config *types.Configuration) {
-				config.Apply(config)
+				var err error
+				config, err = config.Apply(config)
+				assert.NoError(t, err)
 				server, ok := config.Agent.Connections.McpServers["slow"]
 				assert.True(t, ok)
 				assert.Equal(t, 42.0, server.Timeout)
@@ -173,7 +177,7 @@ agent:
 				yaml := `runtime:
   log:
     default_level: info
-    output: stdout
+    output: ":stdout:"
     format: json
 agent:
   name: log-format-agent
@@ -194,7 +198,9 @@ agent:
 			expectError: false,
 			validate: func(t *testing.T, config *types.Configuration) {
 				assert.Equal(t, "json", config.Runtime.Log.RawFormat)
-				config.Apply(config)
+				var err error
+				config, err = config.Apply(config)
+				assert.NoError(t, err)
 				assert.Equal(t, "json", config.Runtime.Log.RawFormat)
 			},
 		},

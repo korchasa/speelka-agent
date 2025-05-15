@@ -201,6 +201,7 @@ func (a *Agent) beginSession(userRequest string, tools []mcp.Tool) (*chat.Chat, 
 	session := chat.NewChat(
 		a.config.Model,
 		a.config.SystemPromptTemplate,
+		a.config.Tool.ArgumentName,
 		a.logger,
 		calculator,
 		a.config.MaxTokens,

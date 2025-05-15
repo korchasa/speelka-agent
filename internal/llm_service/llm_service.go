@@ -126,7 +126,6 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 	var llmsCalls []llms.ToolCall
 	sendFn := func() error {
 		var err error
-		s.logger.Debugf(">> Send request to LLM with %d messages: %s", len(messages), utils.SDump(map[string]any{"messages": messages, "tools": llmTools}))
 		// Prepare options for LLM
 		options := []llms.CallOption{
 			llms.WithTools(llmTools),
@@ -141,8 +140,36 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 			options = append(options, llms.WithMaxTokens(s.config.MaxTokens))
 		}
 
+		// Формируем строку с текстами сообщений для логирования
+		var msgTexts []string
+		for _, m := range messages {
+			var parts []string
+			for _, p := range m.Parts {
+				switch pt := p.(type) {
+				case interface{ String() string }:
+					parts = append(parts, pt.String())
+				default:
+					// fallback: сериализация
+					parts = append(parts, "[non-string part]")
+				}
+			}
+			msgTexts = append(msgTexts, fmt.Sprintf("[%s] %s", m.Role, utils.Join(parts, " | ")))
+		}
+		joinedMsgs := ""
+		if len(msgTexts) > 0 {
+			joinedMsgs = " | Messages: " + utils.Join(msgTexts, "; ")
+		}
+		s.logger.Infof(
+			">> [LLM] Calling GenerateContent (model=%s, provider=%s)%s...",
+			s.config.Model,
+			s.config.Provider,
+			joinedMsgs,
+		)
+		startGen := time.Now()
 		response, err = s.client.GenerateContent(ctx, messages, options...)
+		genDuration := time.Since(startGen)
 		if err != nil {
+			s.logger.Errorf("<< [LLM] GenerateContent error after %v: %v", genDuration, err)
 			// Wrap the error to categorize it as transient for retry attempts
 			return error_handling.WrapError(
 				err,
@@ -150,6 +177,7 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 				error_handling.ErrorCategoryTransient,
 			)
 		}
+		s.logger.Infof("<< [LLM] GenerateContent success after %v", genDuration)
 		s.logger.Debugf("<< LLM response received with %d choices: %s", len(response.Choices), utils.SDump(response))
 		if len(response.Choices) == 0 {
 			return error_handling.NewError(

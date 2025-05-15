@@ -19,7 +19,7 @@ func (l *DefaultLoader) LoadConfiguration() (*types.Configuration, error) {
 	config := types.NewConfiguration()
 
 	// Set default values for RuntimeConfig
-	config.Runtime.Log.RawOutput = "mcp"
+	config.Runtime.Log.RawOutput = types.LogOutputMCP
 	config.Runtime.Log.RawFormat = "text"
 	config.Runtime.Log.RawDefaultLevel = "info"
 
@@ -50,6 +50,7 @@ func (l *DefaultLoader) LoadConfiguration() (*types.Configuration, error) {
 	config.Agent.LLM.Model = "gpt-4"
 	config.Agent.LLM.PromptTemplate = "You are a helpful assistant. Respond to the following request: {{input}}. Available tools: {{tools}}"
 	config.Agent.LLM.Temperature = 0.7
+	config.Agent.LLM.APIKey = ""
 
 	// Set default values for LLM retry configuration
 	config.Agent.LLM.Retry.MaxRetries = 3

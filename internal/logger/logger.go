@@ -35,16 +35,15 @@ type Logger struct {
 func NewLogger() *Logger {
 	// Create and configure the underlying logger
 	underlying := logrus.New()
-	underlying.SetLevel(logrus.DebugLevel)
-	underlying.SetOutput(os.Stderr)
 	underlying.SetReportCaller(false)
 
 	// Create the Logger instance
 	logger := &Logger{
 		underlying: underlying,
 		mcpServer:  nil,
-		minLevel:   logrus.DebugLevel, // Default level
 	}
+	logger.SetLevel(logrus.DebugLevel)
+	logger.SetOutput(os.Stderr)
 
 	return logger
 }

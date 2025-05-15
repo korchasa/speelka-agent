@@ -133,12 +133,16 @@ func RetryWithBackoff(ctx context.Context, fn func() error, config RetryConfig) 
 		return err
 	}
 
+	// Логируем первую ошибку
+	fmt.Printf("[RETRY] Initial error: %v\n", err)
+
 	// Retry with delay
 	for attempt := 0; attempt < config.MaxRetries; attempt++ {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(backoff):
+			fmt.Printf("[RETRY] Attempt %d/%d, waiting %v, retrying after error: %v\n", attempt+1, config.MaxRetries, backoff, err)
 			if err = fn(); err == nil {
 				return nil
 			}

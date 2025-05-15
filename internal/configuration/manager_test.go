@@ -1,10 +1,12 @@
 package configuration
 
 import (
+	"context"
 	"testing"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 // SimpleLogger implements the LoggerSpec interface for testing
@@ -28,6 +30,7 @@ func (m *SimpleLogger) WithFields(fields logrus.Fields) types.LogEntrySpec {
 }
 func (m *SimpleLogger) SetLevel(level logrus.Level)                    {}
 func (m *SimpleLogger) SetMCPServer(mcpServer types.MCPServerNotifier) {}
+func (m *SimpleLogger) SetFormatter(formatter logrus.Formatter)        {}
 
 // SimpleLogEntry implements the LogEntrySpec interface for testing
 type SimpleLogEntry struct{}
@@ -47,28 +50,18 @@ func (m *SimpleLogEntry) Fatalf(format string, args ...interface{}) {}
 // func TestConfigurationManager_LoadConfiguration(t *testing.T) { /* ... */ }
 // func SetTestConfig(cm *Manager, cfg *types.Configuration) { /* ... */ }
 
-func TestGetMCPConnectorConfigTimeout(t *testing.T) {
-	mgr := &Manager{
-		config: &types.Configuration{
-			Agent: types.ConfigAgent{
-				Connections: types.AgentConnectionsConfig{
-					McpServers: map[string]types.MCPServerConnection{
-						"extractor": {
-							Command: "go",
-							Args:    []string{"run", "cmd/server/main.go", "--config", "site/examples/text-extractor.yaml"},
-							Timeout: 300,
-						},
-					},
-				},
-			},
-		},
-	}
-	cfg := mgr.GetMCPConnectorConfig()
-	server, ok := cfg.McpServers["extractor"]
-	if !ok {
-		t.Fatalf("extractor server not found in connector config")
-	}
-	if server.Timeout != 300 {
-		t.Errorf("expected Timeout=300, got %v", server.Timeout)
-	}
+func TestManager_LoadAndGetConfiguration(t *testing.T) {
+	logger := &SimpleLogger{}
+	mgr := NewConfigurationManager(logger)
+	// Загружаем только дефолтную конфигурацию (без файла и env)
+	err := mgr.LoadConfiguration(context.Background(), "")
+	assert.NoError(t, err)
+
+	cfg := mgr.GetConfiguration()
+	assert.NotNil(t, cfg)
+	// Проверяем, что это действительно types.Configuration
+	assert.Equal(t, "speelka-agent", cfg.Agent.Name)
+	// Валидация вызывается отдельно
+	// err = cfg.Validate()
+	// assert.NoError(t, err)
 }

@@ -3,8 +3,10 @@ package logger
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
+	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -98,4 +100,22 @@ func TestMCPLogger_InfoOnly(t *testing.T) {
 	assert.Len(t, mock.calls, 1)
 	assert.Equal(t, "info", mock.calls[0]["level"])
 	assert.Equal(t, "info message", mock.calls[0]["message"])
+}
+
+func TestMCPLogger_DoesNotCreateFile(t *testing.T) {
+	filename := "mcp"
+	// Удаляем файл, если он есть
+	_ = os.Remove(filename)
+
+	// Симулируем установку output = "mcp" через Apply
+	cfg := &types.Configuration{}
+	cfg.Runtime.Log.RawOutput = types.LogOutputMCP
+	_, err := cfg.Apply(cfg)
+	assert.NoError(t, err)
+
+	// Проверяем, что файл не появился
+	if _, err := os.Stat(filename); err == nil {
+		os.Remove(filename)
+		t.Fatalf("file %s should not be created when output=mcp", filename)
+	}
 }

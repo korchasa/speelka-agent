@@ -9,6 +9,8 @@
 - **LLM Service**: Integrates LLM providers, returns structured responses, retry/backoff logic.
 - **MCP Server**: HTTP/stdio, routes requests, real-time SSE.
 - **MCP Connector**: Manages external MCP servers, tool discovery, per-server timeouts.
+    - Логика подключения и инициализации — internal/mcp_connector/connection.go
+    - Маршрутизация логов (MCP/fallback) — internal/mcp_connector/logging.go
 - **Logger**: Centralized logging (logrus/MCP), level mapping, client notifications.
 
 ## Configuration Example (YAML)
@@ -16,7 +18,7 @@
 runtime:
   log:
     default_level: info
-    output: mcp
+    output: ':mcp:'
   transports:
     stdio:
       enabled: true
@@ -110,4 +112,59 @@ SPL_CHAT_REQUEST_BUDGET=0.0
 - Dynamic log level via protocol
 - No secrets/PII in logs
 
+## Direct-call MCP logging
+
+In direct-call (CLI) mode, all MCP logs (notifications/message) are routed to stderr using a stub implementation of MCPServerNotifier (`mcpLogStub`). This stub is set in `app_direct.NewDirectApp` and prints logs in the format `[MCP level] message` for the user. This ensures:
+
+- No conditional logic in main.go for logging mode.
+- No empty `mcp` file is created.
+- All MCP logs are visible to CLI users.
+
+The logger is always created according to the configuration, and the stub is injected only for direct-call mode inside the application layer.
+
 // See architecture.md for high-level design.
+
+# Реализация fallback-логирования MCPConnector
+
+## Функциональность
+- MCPConnector определяет поддержку MCP-логирования через capabilities после initialize.
+- Если logging поддерживается — подписка на notifications/message.
+- Если нет — fallback: чтение stderr дочернего процесса (только для stdio-серверов).
+
+## Примеры тестов
+- Проверка маршрутизации MCP-логов:
+  - capabilities.Logging != nil
+  - Симуляция MCP-лога (info/debug/error) — логгер получает сообщение с префиксом [MCP ...]
+- Проверка fallback на stderr:
+  - capabilities.Logging == nil
+  - Симуляция строки в stderr — логгер получает сообщение с префиксом stderr
+- Вспомогательные функции для тестирования вынесены в internal/mcp_connector/utils_test.go
+
+## Окружение для тестирования
+- Все тесты запускаются через ./run test
+- Для проверки линтера и сборки: ./run check
+- Моки: mockLogger, fakeMCPClient (см. internal/mcp_connector/mcp_connector_test.go)
+
+## Важные детали
+- Для HTTP-серверов fallback невозможен (нет доступа к stderr).
+- Для stdio-серверов fallback реализован через отдельную горутину и bufio.Scanner.
+- Все изменения покрыты unit-тестами.
+
+## Overlay и обратная совместимость конфигурации
+
+### Property-based overlay tests
+- Цель: гарантировать корректную работу overlay для любых комбинаций значений.
+- Используется пакет `testing/quick` для генерации случайных пар конфигураций.
+- Проверяется:
+  - overlay не затирает дефолтные значения zero-value полями;
+  - корректно мержит map;
+  - не теряет значения;
+  - edge-cases: пустые строки, нули, nil map, частично заполненные структуры.
+- Тест: `TestConfiguration_Overlay_PropertyBased` (`internal/types/configuration_test.go`).
+
+### Golden-тесты обратной совместимости
+- Цель: контроль совместимости сериализации структуры `types.Configuration`.
+- Golden-файл: `internal/types/testdata/configuration_golden.json`.
+- Тест сериализует дефолтную конфигурацию и сравнивает с эталоном.
+- При изменении структуры тест сигнализирует о несовместимости.
+- Тест: `TestConfiguration_Serialization_Golden` (`internal/types/configuration_test.go`).

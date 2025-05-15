@@ -4,10 +4,8 @@
 package mcp_connector
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -24,11 +22,12 @@ import (
 // Responsibility: Managing connections to external MCP servers
 // Features: Provides access to tools from all connected servers
 type MCPConnector struct {
-	config   types.MCPConnectorConfig
-	clients  map[string]client.MCPClient
-	tools    map[string][]mcp.Tool
-	dataLock sync.RWMutex
-	logger   types.LoggerSpec
+	config       types.MCPConnectorConfig
+	clients      map[string]client.MCPClient
+	tools        map[string][]mcp.Tool
+	capabilities map[string]mcp.ServerCapabilities // capabilities per server
+	dataLock     sync.RWMutex
+	logger       types.LoggerSpec
 }
 
 // NewMCPConnector creates a new instance of MCPConnector
@@ -36,10 +35,11 @@ type MCPConnector struct {
 // Features: Returns a simple instance without initialization
 func NewMCPConnector(config types.MCPConnectorConfig, logger types.LoggerSpec) *MCPConnector {
 	return &MCPConnector{
-		clients: make(map[string]client.MCPClient),
-		tools:   make(map[string][]mcp.Tool),
-		config:  config,
-		logger:  logger,
+		clients:      make(map[string]client.MCPClient),
+		tools:        make(map[string][]mcp.Tool),
+		capabilities: make(map[string]mcp.ServerCapabilities),
+		config:       config,
+		logger:       logger,
 	}
 }
 
@@ -47,147 +47,64 @@ func NewMCPConnector(config types.MCPConnectorConfig, logger types.LoggerSpec) *
 // Responsibility: Establishing connections with all servers specified in the configuration
 // Features: Gets and registers tools from each server
 func (mc *MCPConnector) InitAndConnectToMCPs(ctx context.Context) error {
-	mc.dataLock.Lock()
-	defer mc.dataLock.Unlock()
-	// Connecting to all configured MCP servers
 	for serverID, srvCfg := range mc.config.McpServers {
-		mc.logger.Infof("Connecting to MCP server `%s`", serverID)
-		mc.logger.Debugf("Details: %s", utils.SDump(srvCfg))
-		mcpClient, err := mc.ConnectServer(ctx, serverID, srvCfg)
-		if err != nil {
-			return error_handling.WrapError(
-				err,
-				fmt.Sprintf("failed to connect to MCP server %s", serverID),
-				error_handling.ErrorCategoryExternal,
-			)
+		mc.logger.Debugf("[MCP-CONNECT] About to connectAndRegisterServer: %s at %s", serverID, time.Now().Format(time.RFC3339Nano))
+		if err := mc.connectAndRegisterServer(ctx, serverID, srvCfg); err != nil {
+			mc.logger.Errorf("[MCP-CONNECT] [ERROR] connectAndRegisterServer failed for %s: %v", serverID, err)
+			return err
 		}
-		mc.logger.Infof("Connected to MCP server `%s`", serverID)
-
-		toolsResp, err := mcpClient.ListTools(ctx, mcp.ListToolsRequest{})
-		if err != nil {
-			return error_handling.WrapError(
-				err,
-				fmt.Sprintf("failed to list tools from MCP server %s", serverID),
-				error_handling.ErrorCategoryExternal,
-			)
-		}
-		filteredTools := make([]mcp.Tool, 0)
-		for _, tool := range toolsResp.Tools {
-			if srvCfg.IsToolAllowed(tool.Name) {
-				mc.logger.Infof("`%s:%s` tool added", serverID, tool.Name)
-				mc.logger.Debugf("Details: %s", utils.SDump(tool))
-				filteredTools = append(filteredTools, tool)
-			} else {
-				mc.logger.Infof("`%s:%s` tool not allowed", serverID, tool.Name)
-			}
-		}
-		mc.clients[serverID] = mcpClient
-		mc.tools[serverID] = filteredTools
-		mc.logger.Infof("Connected to MCP server `%s` with %d tools", serverID, len(filteredTools))
+		mc.logger.Debugf("[MCP-CONNECT] Finished connectAndRegisterServer: %s at %s", serverID, time.Now().Format(time.RFC3339Nano))
 	}
 	mc.logger.Infof("Connected to %d MCP servers", len(mc.clients))
 	return nil
 }
 
-// ConnectServer connects to an MCP server using HTTP or stdio transport.
-// Responsibility: Establishing a connection with a specific MCP server
-// Features: Selects the appropriate transport based on configuration and uses a retry strategy
-func (mc *MCPConnector) ConnectServer(ctx context.Context, serverID string, serverConfig types.MCPServerConnection) (client.MCPClient, error) {
-	// Define a function that attempts to connect
-	var mcpClient client.MCPClient
-	connectFn := func() error {
-		var err error
-
-		// Determine transport type based on available fields
-		if serverConfig.Command != "" {
-			// Use stdio client for command-based servers
-			mcpClient, err = client.NewStdioMCPClient(
-				serverConfig.Command,
-				serverConfig.Environment,
-				serverConfig.Args...,
-			)
-			if err != nil {
-				return error_handling.WrapError(
-					err,
-					"failed to create stdio MCP client",
-					error_handling.ErrorCategoryExternal,
-				)
-			}
-
-			// Capture stderr output and log it with warning level
-			if stdioClient, ok := mcpClient.(*client.Client); ok {
-				if stderrReader, ok := client.GetStderr(stdioClient); ok {
-					go func() {
-						reader := bufio.NewReader(stderrReader)
-						for {
-							line, err := reader.ReadString('\n')
-							if err != nil {
-								return
-							}
-							// Trim trailing newlines and whitespace for clean log output
-							trimmed := strings.TrimRight(line, "\r\n \\t")
-							mc.logger.Infof("`%s` stderr: %s", serverID, trimmed)
-						}
-					}()
-				}
-			}
-		} else if serverConfig.URL != "" {
-			// Use HTTP client with SSE
-			// Set up headers
-			headers := make(map[string]string)
-			if serverConfig.APIKey != "" {
-				headers["Authorization"] = "Bearer " + serverConfig.APIKey
-			}
-
-			// Create HTTP client
-			mcpClient, err = client.NewSSEMCPClient(
-				serverConfig.URL,
-				client.WithHeaders(headers),
-			)
-			if err != nil {
-				return error_handling.WrapError(
-					err,
-					"failed to create HTTP MCP client",
-					error_handling.ErrorCategoryExternal,
-				)
-			}
-		} else {
-			return error_handling.NewError(
-				"neither command nor URL is specified for MCP server connection",
-				error_handling.ErrorCategoryValidation,
-			)
-		}
-
-		// Initialize the client with timeout
-		initCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-
-		initRequest := mcp.InitializeRequest{}
-		initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
-		initRequest.Params.ClientInfo = mcp.Implementation{
-			Name:    "speelka-agent",
-			Version: "1.0.0",
-		}
-
-		_, err = mcpClient.Initialize(initCtx, initRequest)
-		if err != nil {
-			return error_handling.WrapError(
-				err,
-				"failed to initialize MCP client",
-				error_handling.ErrorCategoryInternal,
-			)
-		}
-
-		return nil
+// connectAndRegisterServer handles connection and tool registration for a single server.
+func (mc *MCPConnector) connectAndRegisterServer(ctx context.Context, serverID string, srvCfg types.MCPServerConnection) error {
+	mc.logger.Debugf("[MCP-CONNECT] connectAndRegisterServer: serverID=%s, time=%s", serverID, time.Now().Format(time.RFC3339Nano))
+	mc.logger.Debugf("[MCP-CONNECT] Server config: %s", utils.SDump(srvCfg))
+	mcpClient, err := mc.ConnectServer(ctx, serverID, srvCfg)
+	if err != nil {
+		mc.logger.Errorf("[MCP-CONNECT] [ERROR] ConnectServer failed for %s: %v", serverID, err)
+		return error_handling.WrapError(
+			err,
+			fmt.Sprintf("failed to connect to MCP server %s", serverID),
+			error_handling.ErrorCategoryExternal,
+		)
 	}
+	mc.logger.Debugf("[MCP-CONNECT] Connected to MCP server `%s` at %s", serverID, time.Now().Format(time.RFC3339Nano))
 
-	// Use retry with backoff for transient errors
-	return mcpClient, error_handling.RetryWithBackoff(ctx, connectFn, error_handling.RetryConfig{
-		MaxRetries:        3,
-		InitialBackoff:    100 * time.Millisecond,
-		BackoffMultiplier: 2.0,
-		MaxBackoff:        5 * time.Second,
-	})
+	mc.logger.Debugf("[MCP-CONNECT] Listing tools for server `%s`", serverID)
+	toolsResp, err := mcpClient.ListTools(ctx, mcp.ListToolsRequest{})
+	if err != nil {
+		mc.logger.Errorf("[MCP-CONNECT] [ERROR] ListTools failed for %s: %v", serverID, err)
+		return error_handling.WrapError(
+			err,
+			fmt.Sprintf("failed to list tools from MCP server %s", serverID),
+			error_handling.ErrorCategoryExternal,
+		)
+	}
+	mc.logger.Debugf("[MCP-CONNECT] ListTools returned %d tools for server `%s`", len(toolsResp.Tools), serverID)
+	filteredTools := mc.filterAllowedTools(serverID, toolsResp.Tools, srvCfg)
+	mc.clients[serverID] = mcpClient
+	mc.tools[serverID] = filteredTools
+	mc.logger.Infof("Connected to MCP server `%s` with %d tools", serverID, len(filteredTools))
+	return nil
+}
+
+// filterAllowedTools filters tools based on server config.
+func (mc *MCPConnector) filterAllowedTools(serverID string, tools []mcp.Tool, srvCfg types.MCPServerConnection) []mcp.Tool {
+	filtered := make([]mcp.Tool, 0)
+	for _, tool := range tools {
+		if srvCfg.IsToolAllowed(tool.Name) {
+			mc.logger.Infof("`%s:%s` tool added", serverID, tool.Name)
+			mc.logger.Debugf("Details: %s", utils.SDump(tool))
+			filtered = append(filtered, tool)
+		} else {
+			mc.logger.Infof("`%s:%s` tool not allowed", serverID, tool.Name)
+		}
+	}
+	return filtered
 }
 
 func (mc *MCPConnector) GetAllTools(ctx context.Context) ([]mcp.Tool, error) {
@@ -203,128 +120,151 @@ func (mc *MCPConnector) GetAllTools(ctx context.Context) ([]mcp.Tool, error) {
 
 // ExecuteTool executes a tool on an MCP server.
 func (mc *MCPConnector) ExecuteTool(ctx context.Context, call types.CallToolRequest) (*mcp.CallToolResult, error) {
+	mc.logger.Debugf("[MCP-CONNECT] ExecuteTool called for tool: %s at %s", call.ToolName(), time.Now().Format(time.RFC3339Nano))
 	mc.dataLock.RLock()
 	defer mc.dataLock.RUnlock()
 
-	foundServerID := ""
-	for serverID, serverTools := range mc.tools {
-		for _, tool := range serverTools {
-			if tool.Name == call.Params.Name {
-				foundServerID = serverID
-				break
-			}
-		}
+	serverID, mcpClient, err := mc.findServerAndClientForTool(call.Params.Name)
+	if err != nil {
+		mc.logger.Errorf("[MCP-CONNECT] [ERROR] findServerAndClientForTool failed: %v", err)
+		return nil, err
 	}
 
-	if foundServerID == "" {
-		return nil, error_handling.NewError(
-			fmt.Sprintf("tool `%s` not found", call.Params.Name),
-			error_handling.ErrorCategoryValidation,
-		)
-	}
-
-	mcpClient, exists := mc.clients[foundServerID]
-	if !exists {
-		return nil, error_handling.NewError(
-			fmt.Sprintf("not connected to server: %s", foundServerID),
-			error_handling.ErrorCategoryValidation,
-		)
-	}
-
-	// Determine per-server timeout (fallback to 30s if not set)
-	timeout := 30.0
-	if srvCfg, ok := mc.config.McpServers[foundServerID]; ok && srvCfg.Timeout > 0 {
-		timeout = srvCfg.Timeout
-	}
+	timeout := mc.getServerTimeout(serverID)
 	callTimeout := time.Duration(timeout * float64(time.Second))
+	mc.logger.Debugf("[MCP-CONNECT] About to callToolWithTimeout: tool=%s, serverID=%s, timeout=%.2fs, at=%s", call.ToolName(), serverID, timeout, time.Now().Format(time.RFC3339Nano))
+	mc.logToolExecutionStart(call, serverID, timeout)
 
-	// Log tool execution with timeout info
-	mc.logger.Infof(
-		">>> Execute tool `%s` (server_id=%s, timeout_sec=%.0f, arguments=%v)",
-		call.ToolName(), foundServerID, timeout, call.Params.Arguments,
-	)
-	mc.logger.Debugf(">>> Details: %s", call.Params.Arguments)
-
-	n := time.Now()
-
-	// Manual timeout handling: create a cancelable context and a timer
-	ctxWithCancel, cancel := context.WithCancel(ctx)
-	defer cancel()
-	resultCh := make(chan *mcp.CallToolResult, 1)
-	errCh := make(chan error, 1)
-
-	go func() {
-		result, err := mcpClient.CallTool(ctxWithCancel, call.CallToolRequest)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		resultCh <- result
-	}()
-
-	timer := time.NewTimer(callTimeout)
-	defer timer.Stop()
-
-	var result *mcp.CallToolResult
-	var err error
-	var timedOut bool
-
-	select {
-	case result = <-resultCh:
-		// Success
-	case err = <-errCh:
-		// Error from tool
-	case <-timer.C:
-		timedOut = true
-		cancel() // Cancel the context
-	}
-	duration := time.Since(n)
-	mc.logger.Infof("<<< Tool execution complete in %s", duration)
+	result, execErr, timedOut := mc.callToolWithTimeout(ctx, mcpClient, call, callTimeout)
+	mc.logger.Debugf("[MCP-CONNECT] callToolWithTimeout finished: tool=%s, serverID=%s, timedOut=%v, execErr=%v, at=%s", call.ToolName(), serverID, timedOut, execErr, time.Now().Format(time.RFC3339Nano))
+	mc.logger.Infof("<<< Tool execution complete in %s", callTimeout)
 
 	if timedOut {
-		mc.logger.WithFields(map[string]interface{}{
-			"tool":        call.ToolName(),
-			"arguments":   call.Params.Arguments,
-			"server_id":   foundServerID,
-			"timeout_sec": timeout,
-		}).Warnf("Tool execution timed out after %.0f seconds", timeout)
+		mc.logToolTimeout(call, serverID, timeout)
 		return nil, error_handling.NewError(
 			fmt.Sprintf("tool `%s` execution timed out after %.0f seconds", call.Params.Name, timeout),
 			error_handling.ErrorCategoryInternal,
 		)
 	}
 
-	if err != nil {
-		// Enhanced logging for context cancellation
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			mc.logger.WithFields(map[string]interface{}{
-				"tool":        call.ToolName(),
-				"arguments":   call.Params.Arguments,
-				"server_id":   foundServerID,
-				"timeout_sec": timeout,
-				"context_err": err.Error(),
-			}).Warnf("Tool execution canceled due to context error: %T", err)
-		} else {
-			mc.logger.WithFields(map[string]interface{}{
-				"tool":        call.ToolName(),
-				"arguments":   call.Params.Arguments,
-				"server_id":   foundServerID,
-				"timeout_sec": timeout,
-				"error":       err.Error(),
-			}).Errorf("Failed to execute tool")
-		}
+	if execErr != nil {
+		mc.logToolError(call, serverID, timeout, execErr)
 		return nil, error_handling.WrapError(
-			err,
+			execErr,
 			fmt.Sprintf("failed to call tool `%s`", call.Params.Name),
 			error_handling.ErrorCategoryInternal,
 		)
 	}
-	// Process and return the result
 	return result, nil
+}
+
+// findServerAndClientForTool ищет сервер и клиента по имени инструмента.
+func (mc *MCPConnector) findServerAndClientForTool(toolName string) (string, client.MCPClient, error) {
+	for serverID, serverTools := range mc.tools {
+		for _, tool := range serverTools {
+			if tool.Name == toolName {
+				mcpClient, exists := mc.clients[serverID]
+				if !exists {
+					return "", nil, error_handling.NewError(
+						fmt.Sprintf("not connected to server: %s", serverID),
+						error_handling.ErrorCategoryValidation,
+					)
+				}
+				return serverID, mcpClient, nil
+			}
+		}
+	}
+	return "", nil, error_handling.NewError(
+		fmt.Sprintf("tool `%s` not found", toolName),
+		error_handling.ErrorCategoryValidation,
+	)
+}
+
+// getServerTimeout возвращает таймаут для сервера.
+func (mc *MCPConnector) getServerTimeout(serverID string) float64 {
+	timeout := 30.0
+	if srvCfg, ok := mc.config.McpServers[serverID]; ok && srvCfg.Timeout > 0 {
+		timeout = srvCfg.Timeout
+	}
+	return timeout
+}
+
+// logToolExecutionStart логирует начало выполнения инструмента.
+func (mc *MCPConnector) logToolExecutionStart(call types.CallToolRequest, serverID string, timeout float64) {
+	mc.logger.Infof(
+		">>> Execute tool `%s` (server_id=%s, timeout_sec=%.0f, arguments=%v)",
+		call.ToolName(), serverID, timeout, call.Params.Arguments,
+	)
+	mc.logger.Debugf(">>> Details: %s", call.Params.Arguments)
+}
+
+// callToolWithTimeout вызывает инструмент с таймаутом.
+func (mc *MCPConnector) callToolWithTimeout(ctx context.Context, mcpClient client.MCPClient, call types.CallToolRequest, callTimeout time.Duration) (*mcp.CallToolResult, error, bool) {
+	mc.logger.Debugf("[MCP-CONNECT] callToolWithTimeout: tool=%s, timeout=%s, at=%s", call.ToolName(), callTimeout, time.Now().Format(time.RFC3339Nano))
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+	defer cancel()
+	resultCh := make(chan *mcp.CallToolResult, 1)
+	errCh := make(chan error, 1)
+
+	go func() {
+		mc.logger.Debugf("[MCP-CONNECT] goroutine started for tool=%s at %s", call.ToolName(), time.Now().Format(time.RFC3339Nano))
+		result, err := mcpClient.CallTool(ctxWithCancel, call.CallToolRequest)
+		if err != nil {
+			mc.logger.Warnf("[MCP-CONNECT] goroutine: error for tool=%s: %v at %s", call.ToolName(), err, time.Now().Format(time.RFC3339Nano))
+			errCh <- err
+			return
+		}
+		mc.logger.Debugf("[MCP-CONNECT] goroutine: result for tool=%s at %s", call.ToolName(), time.Now().Format(time.RFC3339Nano))
+		resultCh <- result
+	}()
+
+	timer := time.NewTimer(callTimeout)
+	defer timer.Stop()
+
+	select {
+	case result := <-resultCh:
+		mc.logger.Debugf("[MCP-CONNECT] callToolWithTimeout: result received for tool=%s at %s", call.ToolName(), time.Now().Format(time.RFC3339Nano))
+		return result, nil, false
+	case err := <-errCh:
+		mc.logger.Warnf("[MCP-CONNECT] callToolWithTimeout: error received for tool=%s: %v at %s", call.ToolName(), err, time.Now().Format(time.RFC3339Nano))
+		return nil, err, false
+	case <-timer.C:
+		mc.logger.Warnf("[MCP-CONNECT] callToolWithTimeout: timeout for tool=%s at %s", call.ToolName(), time.Now().Format(time.RFC3339Nano))
+		cancel()
+		return nil, nil, true
+	}
+}
+
+// logToolTimeout логирует таймаут инструмента.
+func (mc *MCPConnector) logToolTimeout(call types.CallToolRequest, serverID string, timeout float64) {
+	mc.logger.WithFields(map[string]interface{}{
+		"tool":        call.ToolName(),
+		"arguments":   call.Params.Arguments,
+		"server_id":   serverID,
+		"timeout_sec": timeout,
+	}).Warnf("Tool execution timed out after %.0f seconds", timeout)
+}
+
+// logToolError логирует ошибку выполнения инструмента.
+func (mc *MCPConnector) logToolError(call types.CallToolRequest, serverID string, timeout float64, err error) {
+	fields := map[string]interface{}{
+		"tool":        call.ToolName(),
+		"arguments":   call.Params.Arguments,
+		"server_id":   serverID,
+		"timeout_sec": timeout,
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		fields["context_err"] = err.Error()
+		mc.logger.WithFields(fields).Warnf("Tool execution canceled due to context error: %T", err)
+	} else {
+		fields["error"] = err.Error()
+		mc.logger.WithFields(fields).Errorf("Failed to execute tool")
+	}
 }
 
 // Close closes all client connections.
 func (mc *MCPConnector) Close() error {
+	mc.logger.Debugf("[MCP-CONNECT] Close: acquiring dataLock at %s", time.Now().Format(time.RFC3339Nano))
 	mc.dataLock.Lock()
 	defer mc.dataLock.Unlock()
 
@@ -338,21 +278,4 @@ func (mc *MCPConnector) Close() error {
 	}
 
 	return nil
-}
-
-// testableTimeoutSelect is a helper for testing manual timeout logic in ExecuteTool.
-// It races a result and error channel against a timer, returning which event occurred.
-func testableTimeoutSelect(resultCh <-chan *mcp.CallToolResult, errCh <-chan error, timeout time.Duration, cancel context.CancelFunc) (result *mcp.CallToolResult, err error, timedOut bool) {
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-
-	select {
-	case result = <-resultCh:
-		return result, nil, false
-	case err = <-errCh:
-		return nil, err, false
-	case <-timer.C:
-		cancel()
-		return nil, nil, true
-	}
 }

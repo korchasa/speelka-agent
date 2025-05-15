@@ -34,6 +34,7 @@ const (
 // Features: Stores message history, adds tool calls and responses to it
 type Chat struct {
 	promptTemplate string
+	argumentName   string
 	messagesStack  []llms.MessageContent
 	logger         types.LoggerSpec
 
@@ -51,7 +52,7 @@ type Chat struct {
 }
 
 // NewChat creates a new Chat with the given prompt template, calculator, max tokens, and request budget
-func NewChat(model string, promptTemplate string, logger types.LoggerSpec, calculator types.CalculatorSpec, maxTokens int, requestBudget float64) *Chat {
+func NewChat(model string, promptTemplate string, argumentName string, logger types.LoggerSpec, calculator types.CalculatorSpec, maxTokens int, requestBudget float64) *Chat {
 	if calculator == nil {
 		calculator = llm_models.NewCalculator()
 	}
@@ -61,6 +62,7 @@ func NewChat(model string, promptTemplate string, logger types.LoggerSpec, calcu
 	}
 	return &Chat{
 		promptTemplate: promptTemplate,
+		argumentName:   argumentName,
 		messagesStack:  make([]llms.MessageContent, 0),
 		logger:         logger,
 		info: types.ChatInfo{
@@ -85,30 +87,26 @@ func (c *Chat) Begin(input string, tools []mcp.Tool) error {
 	}
 	prompt := prompts.PromptTemplate{
 		Template:       c.promptTemplate,
-		InputVariables: []string{"tools"},
+		InputVariables: []string{c.argumentName, "input", "tools"},
 		TemplateFormat: prompts.TemplateFormatJinja2,
 	}
-
 	values := map[string]any{
-		"tools": toolsDescription,
+		c.argumentName: input,
+		"input":        input,
+		"tools":        toolsDescription,
 	}
-
 	result, err := prompt.Format(values)
 	if err != nil {
 		return fmt.Errorf("failed to format prompt: %v", err)
 	}
-
 	systemMessage := llms.TextParts(llms.ChatMessageTypeSystem, result)
 	c.messagesStack = append(c.messagesStack, systemMessage)
-
 	tokenEstimator := llm_models.TokenEstimator{}
 	// Count tokens for the system message
 	messageTokens := tokenEstimator.CountTokens(systemMessage)
 	c.info.TotalTokens += messageTokens
 	c.info.MessageStackLen = len(c.messagesStack)
-
 	c.logger.Debugf("Added system message with %d tokens, total now %d", messageTokens, c.info.TotalTokens)
-
 	return nil
 }
 

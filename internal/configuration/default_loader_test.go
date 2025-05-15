@@ -9,11 +9,16 @@ import (
 )
 
 func TestDefaultLoader_LoadConfiguration(t *testing.T) {
+	var (
+		err    error
+		config *types.Configuration
+	)
+
 	// Create a new DefaultLoader
 	loader := NewDefaultLoader()
 
 	// Load default configuration
-	config, err := loader.LoadConfiguration()
+	config, err = loader.LoadConfiguration()
 
 	// Assert that there is no error
 	assert.NoError(t, err)
@@ -23,7 +28,7 @@ func TestDefaultLoader_LoadConfiguration(t *testing.T) {
 
 	// Verify default runtime values
 	assert.Equal(t, "info", config.Runtime.Log.RawDefaultLevel)
-	assert.Equal(t, "mcp", config.Runtime.Log.RawOutput)
+	assert.Equal(t, types.LogOutputMCP, config.Runtime.Log.RawOutput)
 	assert.Equal(t, "text", config.Runtime.Log.RawFormat)
 
 	// Verify default transport values
@@ -68,16 +73,18 @@ func TestDefaultLoader_LoadConfiguration(t *testing.T) {
 	assert.Empty(t, config.Agent.Connections.McpServers)
 
 	// After Apply, check parsed fields
-	config.Apply(config)
+	config, err = config.Apply(config)
+	assert.NoError(t, err)
 	assert.Equal(t, "info", config.Runtime.Log.RawDefaultLevel)
-	assert.Equal(t, "mcp", config.Runtime.Log.RawOutput)
+	assert.Equal(t, types.LogOutputMCP, config.Runtime.Log.RawOutput)
 	assert.Equal(t, "text", config.Runtime.Log.RawFormat)
-	assert.NotNil(t, config.Runtime.Log.Output)
+	assert.Nil(t, config.Runtime.Log.Output)
 	assert.Equal(t, logrus.InfoLevel, config.Runtime.Log.LogLevel)
 
 	// Override RawFormat and check
 	config2 := types.NewConfiguration()
 	config2.Runtime.Log.RawFormat = "json"
-	config.Apply(config2)
+	config, err = config.Apply(config2)
+	assert.NoError(t, err)
 	assert.Equal(t, "json", config.Runtime.Log.RawFormat)
 }
