@@ -52,11 +52,13 @@ func main() {
 	// Initialize the MCP server
 	command := args[0]
 	commandArgs := args[1:]
-	mcpClient, _, err := initServer(ctx, command, commandArgs, time.Duration(flags.initTimeout)*time.Second)
+	mcpClient, initResult, err := initServer(ctx, command, commandArgs, time.Duration(flags.initTimeout)*time.Second)
 	if err != nil {
 		logErrorf("Error initializing server: %v", err)
 		os.Exit(1)
 	}
+	// Вывод результата инициализации
+	logSuccessf("Initialization result:\n%s", jsonify(initResult))
 	defer func(mcpClient *client.Client) {
 		err := mcpClient.Close()
 		if err != nil {
