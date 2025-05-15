@@ -8,7 +8,6 @@ import (
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,28 +26,13 @@ func (m *mockMCPServer) SendNotificationToClient(ctx context.Context, method str
 
 func (m *mockMCPServer) GetServer() *server.MCPServer { return nil }
 
-// Минимальный mock LoggerSpec для теста
-// Только методы, которые реально используются в тестах
-// (остальные panic)
-type testLogger struct {
-	mcpServer types.MCPServerNotifier
-}
-
-func (l *testLogger) SetLevel(level logrus.Level)                                {}
-func (l *testLogger) Debug(args ...interface{})                                  {}
-func (l *testLogger) Debugf(format string, args ...interface{})                  {}
-func (l *testLogger) Info(args ...interface{})                                   {}
-func (l *testLogger) Infof(format string, args ...interface{})                   {}
-func (l *testLogger) Warn(args ...interface{})                                   {}
-func (l *testLogger) Warnf(format string, args ...interface{})                   {}
-func (l *testLogger) Error(args ...interface{})                                  {}
-func (l *testLogger) Errorf(format string, args ...interface{})                  {}
-func (l *testLogger) Fatal(args ...interface{})                                  {}
-func (l *testLogger) Fatalf(format string, args ...interface{})                  {}
-func (l *testLogger) WithField(key string, value interface{}) types.LogEntrySpec { panic("not used") }
-func (l *testLogger) WithFields(fields logrus.Fields) types.LogEntrySpec         { panic("not used") }
-func (l *testLogger) SetMCPServer(mcpServer types.MCPServerNotifier)             { l.mcpServer = mcpServer }
-func (l *testLogger) SetFormatter(formatter logrus.Formatter)                    {}
+// Minimal mock LoggerSpec for testing
+// Only methods actually used in tests
+// (others panic)
+// NB: Secret/PII filtering is the responsibility of business logic, not logging infrastructure.
+// Here we only check that the log is sent correctly.
+// Check that logging capability is present
+// Check that logging capability is absent
 
 func TestMCPServer_SendsNotificationOnLog(t *testing.T) {
 	mockServer := &mockMCPServer{}
@@ -144,8 +128,8 @@ func TestMCPServer_NoSecretsOrPIIInLogs(t *testing.T) {
 		"data":   msg.Params.Data,
 	})
 	assert.NoError(t, err)
-	// NB: Фильтрация секретов/PII — ответственность бизнес-логики, а не инфраструктуры логгирования.
-	// Здесь проверяем только, что лог отправлен корректно.
+	// NB: Secret/PII filtering is the responsibility of business logic, not logging infrastructure.
+	// Here we only check that the log is sent correctly.
 }
 
 func TestMCPServer_LoggingCapability_Enabled(t *testing.T) {
@@ -166,7 +150,7 @@ func TestMCPServer_LoggingCapability_Enabled(t *testing.T) {
 		return &mcp.CallToolResult{}, nil
 	})
 	assert.NoError(t, err)
-	// Проверяем, что capability logging есть
+	// Check that logging capability is present
 	caps := mcpSrv.GetServerCapabilities()
 	assert.NotNil(t, caps.Logging, "logging capability must be present when LogRawOutput is :mcp:")
 }
@@ -189,7 +173,7 @@ func TestMCPServer_LoggingCapability_Disabled(t *testing.T) {
 		return &mcp.CallToolResult{}, nil
 	})
 	assert.NoError(t, err)
-	// Проверяем, что capability logging отсутствует
+	// Check that logging capability is absent
 	caps := mcpSrv.GetServerCapabilities()
 	assert.Nil(t, caps.Logging, "logging capability must NOT be present when LogRawOutput is not :mcp:")
 }

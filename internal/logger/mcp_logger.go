@@ -56,7 +56,7 @@ func (l *MCPLogger) WithFields(fields logrus.Fields) types.LogEntrySpec {
 }
 func (l *MCPLogger) SetMCPServer(mcpServer types.MCPServerNotifier) { l.mcpServer = mcpServer }
 
-// send отправляет лог только если MCPServer установлен и уровень >= minLevel
+// send sends the log only if MCPServer is set and level >= minLevel
 func (l *MCPLogger) send(level logrus.Level, msg string, fields logrus.Fields) {
 	if l.mcpServer == nil {
 		return

@@ -105,17 +105,17 @@ func TestMCPLogger_InfoOnly(t *testing.T) {
 
 func TestMCPLogger_DoesNotCreateFile(t *testing.T) {
 	filename := "mcp"
-	// Удаляем файл, если он есть
+	// Remove the file if it exists
 	_ = os.Remove(filename)
 
-	// Симулируем установку output = "mcp" через Apply
+	// Simulate setting output = "mcp" via Apply
 	cfg := &types.Configuration{}
 	cfg.Runtime.Log.Output = types.LogOutputMCP
 	mgr := configuration.NewConfigurationManager(nil)
 	_, err := mgr.Apply(cfg, cfg)
 	assert.NoError(t, err)
 
-	// Проверяем, что файл не появился
+	// Check that the file does not appear
 	if _, err := os.Stat(filename); err == nil {
 		os.Remove(filename)
 		t.Fatalf("file %s should not be created when output=mcp", filename)

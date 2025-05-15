@@ -56,15 +56,15 @@ func (m *SimpleLogEntry) Fatalf(format string, args ...interface{}) {}
 func TestManager_LoadAndGetConfiguration(t *testing.T) {
 	logger := &SimpleLogger{}
 	mgr := NewConfigurationManager(logger)
-	// Загружаем только дефолтную конфигурацию (без файла и env)
+	// Load only the default configuration (without file and env)
 	err := mgr.LoadConfiguration(context.Background(), "")
 	assert.NoError(t, err)
 
 	cfg := mgr.GetConfiguration()
 	assert.NotNil(t, cfg)
-	// Проверяем, что это действительно types.Configuration
+	// Ensure this is actually types.Configuration
 	assert.Equal(t, "speelka-agent", cfg.Agent.Name)
-	// Валидация вызывается отдельно
+	// Validation is called separately
 	// err = cfg.Validate()
 	// assert.NoError(t, err)
 }
@@ -86,7 +86,7 @@ func TestManager_ValidateConfiguration(t *testing.T) {
 	assert.NoError(t, mgr.Validate(validConfig))
 
 	invalidConfig := &types.Configuration{}
-	// оставляем Agent.Name и Tool/LLM пустыми
+	// Leave Agent.Name and Tool/LLM empty
 	err := mgr.Validate(invalidConfig)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Agent name is required")
@@ -222,7 +222,7 @@ func randomString(r *rand.Rand) string {
 func TestManager_GetAgentConfig_InlineStruct(t *testing.T) {
 	logger := &SimpleLogger{}
 	mgr := NewConfigurationManager(logger)
-	// Загружаем только дефолтную конфигурацию (без файла и env)
+	// Load only the default configuration (without file and env)
 	err := mgr.LoadConfiguration(context.Background(), "")
 	assert.NoError(t, err)
 

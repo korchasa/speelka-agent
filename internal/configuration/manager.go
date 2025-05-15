@@ -49,7 +49,7 @@ func (cm *Manager) LoadConfiguration(ctx context.Context, configFilePath string)
 	return nil
 }
 
-// loadDefaultConfig загружает дефолтную конфигурацию
+// loadDefaultConfig loads the default configuration
 func (cm *Manager) loadDefaultConfig() error {
 	defaultConfig, err := cm.defaultLoader.LoadConfiguration()
 	if err != nil {
@@ -59,7 +59,7 @@ func (cm *Manager) loadDefaultConfig() error {
 	return nil
 }
 
-// loadFileConfig загружает конфиг из файла, если путь задан
+// loadFileConfig loads configuration from file if path is set
 func (cm *Manager) loadFileConfig(configFilePath string) error {
 	if configFilePath == "" {
 		return nil
@@ -82,7 +82,7 @@ func (cm *Manager) loadFileConfig(configFilePath string) error {
 	return nil
 }
 
-// applyEnvConfig применяет переменные окружения
+// applyEnvConfig applies environment variables
 func (cm *Manager) applyEnvConfig() error {
 	envConfig, err := cm.envLoader.LoadConfiguration()
 	if err != nil {
@@ -355,7 +355,7 @@ func (m *Manager) Apply(base, newConfig *types.Configuration) (*types.Configurat
 	return base, nil
 }
 
-// RedactedCopy возвращает копию конфигурации с замаскированными приватными данными для безопасного логирования.
+// RedactedCopy returns a copy of the configuration with private data masked for safe logging.
 func RedactedCopy(config *types.Configuration) *types.Configuration {
 	copy := *config // shallow copy
 	copy.Agent.LLM.APIKey = "***REDACTED***"
@@ -371,9 +371,10 @@ func RedactedCopy(config *types.Configuration) *types.Configuration {
 	return &copy
 }
 
-// GetAgentConfig возвращает бизнес-структуру AgentConfig на основе rawConfig
+// GetAgentConfig returns the business AgentConfig structure based on rawConfig
+// While rawConfig is not filled by loaders, use cm.config for backward compatibility
 func (cm *Manager) GetAgentConfig() types.AgentConfig {
-	// Пока rawConfig не заполняется загрузчиками, используем cm.config для обратной совместимости
+	// While rawConfig is not filled by loaders, use cm.config for backward compatibility
 	if cm.config == nil {
 		return types.AgentConfig{}
 	}

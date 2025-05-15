@@ -31,11 +31,13 @@ func (m *mockMCPClient) CallTool(ctx context.Context, req mcp.CallToolRequest) (
 	return &mcp.CallToolResult{}, nil
 }
 
-// Интерфейс для передачи mock-клиента в setLogLevel
-// (совместим с *client.Client и mockMCPClient)
 type callTooler interface {
 	CallTool(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error)
 }
+
+// Test debug filtering
+// Test object output
+// Test error output
 
 func TestHandleLoggingNotification(t *testing.T) {
 	var buf bytes.Buffer

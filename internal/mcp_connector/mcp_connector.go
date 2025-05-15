@@ -158,7 +158,7 @@ func (mc *MCPConnector) ExecuteTool(ctx context.Context, call types.CallToolRequ
 	return result, nil
 }
 
-// findServerAndClientForTool ищет сервер и клиента по имени инструмента.
+// findServerAndClientForTool searches for the server and client by tool name.
 func (mc *MCPConnector) findServerAndClientForTool(toolName string) (string, client.MCPClient, error) {
 	for serverID, serverTools := range mc.tools {
 		for _, tool := range serverTools {
@@ -180,7 +180,7 @@ func (mc *MCPConnector) findServerAndClientForTool(toolName string) (string, cli
 	)
 }
 
-// getServerTimeout возвращает таймаут для сервера.
+// getServerTimeout returns the timeout for the server.
 func (mc *MCPConnector) getServerTimeout(serverID string) float64 {
 	timeout := 30.0
 	if srvCfg, ok := mc.config.McpServers[serverID]; ok && srvCfg.Timeout > 0 {
@@ -189,7 +189,7 @@ func (mc *MCPConnector) getServerTimeout(serverID string) float64 {
 	return timeout
 }
 
-// logToolExecutionStart логирует начало выполнения инструмента.
+// logToolExecutionStart logs the start of tool execution.
 func (mc *MCPConnector) logToolExecutionStart(call types.CallToolRequest, serverID string, timeout float64) {
 	mc.logger.Infof(
 		">>> Execute tool `%s` (server_id=%s, timeout_sec=%.0f, arguments=%v)",
@@ -198,7 +198,7 @@ func (mc *MCPConnector) logToolExecutionStart(call types.CallToolRequest, server
 	mc.logger.Debugf(">>> Details: %s", call.Params.Arguments)
 }
 
-// callToolWithTimeout вызывает инструмент с таймаутом.
+// callToolWithTimeout calls the tool with a timeout.
 func (mc *MCPConnector) callToolWithTimeout(ctx context.Context, mcpClient client.MCPClient, call types.CallToolRequest, callTimeout time.Duration) (*mcp.CallToolResult, error, bool) {
 	mc.logger.Debugf("[MCP-CONNECT] callToolWithTimeout: tool=%s, timeout=%s, at=%s", call.ToolName(), callTimeout, time.Now().Format(time.RFC3339Nano))
 	ctxWithCancel, cancel := context.WithCancel(ctx)
@@ -235,7 +235,7 @@ func (mc *MCPConnector) callToolWithTimeout(ctx context.Context, mcpClient clien
 	}
 }
 
-// logToolTimeout логирует таймаут инструмента.
+// logToolTimeout logs the tool timeout.
 func (mc *MCPConnector) logToolTimeout(call types.CallToolRequest, serverID string, timeout float64) {
 	mc.logger.WithFields(map[string]interface{}{
 		"tool":        call.ToolName(),
@@ -245,7 +245,7 @@ func (mc *MCPConnector) logToolTimeout(call types.CallToolRequest, serverID stri
 	}).Warnf("Tool execution timed out after %.0f seconds", timeout)
 }
 
-// logToolError логирует ошибку выполнения инструмента.
+// logToolError logs the tool execution error.
 func (mc *MCPConnector) logToolError(call types.CallToolRequest, serverID string, timeout float64, err error) {
 	fields := map[string]interface{}{
 		"tool":        call.ToolName(),

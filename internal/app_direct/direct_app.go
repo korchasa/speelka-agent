@@ -22,9 +22,9 @@ type directAgent interface {
 	CallDirect(ctx context.Context, input string) (string, types.MetaInfo, error)
 }
 
-// mcpLogStub реализует types.MCPServerNotifier и выводит MCP-логи в stderr
-// Используется только в direct-call режиме для отображения логов пользователю
-// Формат: [MCP level] message: ...
+// mcpLogStub implements types.MCPServerNotifier and outputs MCP logs to stderr
+// Used only in direct-call mode to display logs to the user
+// Format: [MCP level] message: ...
 type mcpLogStub struct{}
 
 func (m *mcpLogStub) SendNotificationToClient(_ context.Context, method string, data map[string]interface{}) error {

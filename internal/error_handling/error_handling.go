@@ -133,7 +133,7 @@ func RetryWithBackoff(ctx context.Context, fn func() error, config RetryConfig) 
 		return err
 	}
 
-	// Логируем первую ошибку
+	// Log the first error
 	fmt.Printf("[RETRY] Initial error: %v\n", err)
 
 	// Retry with delay

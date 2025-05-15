@@ -30,10 +30,15 @@
 - `llm_service/`: LLM service abstraction
 - `logger/`: Logging
 - `mcp_connector/`: MCP server connection logic
-    - mcp_connector.go — реализация MCPConnector, публичные методы, делегирование
-    - connection.go — логика подключения и инициализации MCP клиентов
-    - logging.go — маршрутизация логов (MCP-логи или fallback на stderr)
-    - mcp_connector_test.go — тесты для проверки маршрутизации логов (MCP и stderr)
-    - utils_test.go — вспомогательные функции для тестирования
+    - mcp_connector.go — MCPConnector implementation, public methods, delegation
+    - connection.go — MCP client connection and initialization logic
+    - logging.go — log routing (MCP logs or fallback to stderr)
+    - mcp_connector_test.go — tests for log routing (MCP and stderr)
+    - utils_test.go — helper functions for testing
 - `mcp_server/`: MCP server implementation
-- `
+- `types/`:
+    - logger_spec.go — LogConfig, LoggerSpec, MCPServerNotifier interfaces
+    - configuration_test.go — golden serialization and overlay property-based tests
+
+## Test Data
+- `internal/types/testdata/configuration_golden.json`: Golden file for config serialization tests

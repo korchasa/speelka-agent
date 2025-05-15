@@ -56,19 +56,19 @@ func main() {
 		startupLogger.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Получаем итоговый уровень логирования и вывод из конфигурации
+	// Get final log level and output from configuration
 	conf := configManager.GetConfiguration()
 	logConfig, err := types.BuildLogConfig(conf.Runtime.Log)
 	if err != nil {
 		startupLogger.Fatalf("Invalid log config: %v", err)
 	}
 	level := logConfig.Level
-	// Глобальный логгер
+	// Global logger
 	log := app_mcp.NewLogger(logConfig)
 	log.SetLevel(level)
 	log.SetFormatter(logger.NewCustomLogFormatter())
 
-	// panic handler теперь использует глобальный логгер
+	// panic handler now uses the global logger
 	defer func() {
 		if r := recover(); r != nil {
 			stackTrace := debug.Stack()

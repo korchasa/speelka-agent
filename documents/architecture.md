@@ -1,7 +1,7 @@
 # System Architecture
 
 ## Overview
-Universal LLM agent based on the Model Context Protocol (MCP). Modular, extensible, and clean architecture. All components are interface-driven, testable, and follow single-responsibility principle.
+Universal LLM agent based on the Model Context Protocol (MCP). Modular, extensible, and clean architecture. All components are interface-driven, testable, and follow the single-responsibility principle.
 
 ## Principles
 - Single-responsibility components
@@ -24,14 +24,14 @@ flowchart TB
 ```
 
 ## Main Components
-- **Agent** (`internal/agent`): Orchestrates LLM loop, tool execution, and chat state. Exposes a clean interface for app layer. No config/server/CLI logic.
+- **Agent** (`internal/agent`): Orchestrates LLM loop, tool execution, and chat state. Exposes a clean interface for the app layer. No config/server/CLI logic.
 - **App Layer** (`internal/app_*`): Application wiring, lifecycle, CLI/server entrypoints. Manages config, logger, MCP server, agent instance.
 - **Config Manager**: Loads and validates config (env, YAML, JSON), provides typed access.
 - **LLM Service**: Handles LLM requests, retry logic, returns structured responses.
 - **MCP Server**: Exposes agent via HTTP/stdio, manages tools, processes requests.
 - **MCP Connector**: Connects to external MCP servers, routes tool calls, manages timeouts.
 - **Chat**: Manages history, formatting, token/cost tracking, enforces request budget.
-- **Logger**: Centralized logging (logrus/MCP protocol), client notifications.
+- **Logger**: Centralized logging (logrus/MCP protocol), client notifications, flexible output and format.
 
 ## Data Flow
 1. User → MCP Server
@@ -70,13 +70,24 @@ flowchart TB
 - Flexible: YAML, JSON, env
 - Type-safe, validated, secure
 - Load order: default → file → env
+- **LogConfig**: Centralized log configuration with support for output (stdout, stderr, file, MCP), format (custom, json, text, unknown), and dynamic log level.
+- **Log Output Constants**: `LogOutputStdout`, `LogOutputStderr`, `LogOutputMCP` for unified output selection.
 
-## Testing
-- Unit: 75%+ coverage
-- Integration: component, config, API
-- E2E: agent, transport, tools, token/cost
+## Logging
+- Centralized logger (logrus/MCP)
+- Dynamic log level and format via config
+- Output: stdout, stderr, file, or MCP protocol
+- No log duplication
+- No secrets/PII in logs
+- **LoggerSpec**: extended logger interface with SetFormatter, SetMCPServer (via MCPServerNotifier)
+- **MCPServerNotifier**: interface for sending MCP notifications from the logger
 
-## Diagrams
+## Configuration Overlay & Serialization
+- Property-based overlay tests: verify correct config overlay (edge-cases, map merge, zero-value preservation)
+- Golden serialization tests: control config structure compatibility by comparing with a golden file
+- See tests in `internal/types/configuration_test.go`
+
+## Diagrams and Structure
 ### Request Flow
 ```mermaid
 graph TD
@@ -139,53 +150,28 @@ graph TD
 - All errors mapped to JSON and exit codes (0: success, 1: user/config, 2: internal/tool)
 - Use cases: scripting, automation, CI
 
-## Logging
-- Centralized logger (logrus/MCP)
-- No log duplication
-- Dynamic log level via protocol
-- No secrets/PII in logs
+## Log Routing Logic
+- After initializing a connection to an MCP server (ConnectServer), the connector saves the server's capabilities.
+- If capabilities.Logging is present:
+    - For stdio servers: subscribe to notifications/message via OnNotification, route logs to the main logger.
+    - For HTTP servers: (similarly, via SSE, if implemented).
+- If capabilities.Logging is absent:
+    - For stdio servers: fallback — a separate goroutine reads stderr of the child process and forwards lines to the main logger.
+    - For HTTP fallback is not implemented (stderr cannot be accessed).
+- All log routes are managed via LogConfig and support dynamic format and level changes.
 
-## Configuration Overlay Testing
+## Implementation Location
+- internal/mcp_connector/connection.go — MCP client connection and initialization logic
+- internal/mcp_connector/logging.go — log routing (MCP logs or fallback to stderr)
+- internal/types/logger_spec.go — LogConfig, LoggerSpec, MCPServerNotifier interfaces
 
-### Property-based overlay tests
-- Используется пакет `testing/quick` для генерации случайных пар конфигураций.
-- Проверяется, что overlay не затирает дефолтные значения zero-value полями, корректно мержит map, не теряет значения.
-- Включены edge-cases: пустые строки, нули, nil map, частично заполненные структуры.
-- Тест: `TestConfiguration_Overlay_PropertyBased` в `internal/types/configuration_test.go`.
+## Testing
+- Capabilities are saved after initialize
+- Log routing (MCP and fallback) is tested
+- Overlay and config serialization are tested
+- All changes are covered by unit tests
 
-### Golden-тесты обратной совместимости
-- Для контроля совместимости сериализации структуры `types.Configuration` используется golden-файл `testdata/configuration_golden.json`.
-- Тест сериализует дефолтную конфигурацию и сравнивает с эталоном.
-- При изменении структуры тест сигнализирует о несовместимости.
-- Тест: `TestConfiguration_Serialization_Golden` в `internal/types/configuration_test.go`.
-
-# Архитектура логирования MCPConnector
-
-## Логика маршрутизации логов
-
-- После инициализации соединения с MCP-сервером (метод ConnectServer) коннектор сохраняет capabilities сервера.
-- Если capabilities.Logging присутствует:
-    - Для stdio-серверов: подписка на notifications/message через OnNotification, маршрутизация логов в основной логгер.
-    - Для HTTP-серверов: (аналогично, через SSE, если реализовано).
-- Если capabilities.Logging отсутствует:
-    - Для stdio-серверов: запускается отдельная горутина, читающая stderr дочернего процесса и пробрасывающая строки в основной логгер.
-    - Для HTTP fallback не реализован (невозможно получить stderr).
-
-## Место реализации
-- Вся логика выбора маршрута логирования теперь вынесена:
-    - internal/mcp_connector/connection.go — логика подключения и инициализации MCP клиентов
-    - internal/mcp_connector/logging.go — маршрутизация логов (MCP-логи или fallback на stderr)
-- Для чтения stderr используется client.GetStderr и bufio.Scanner.
-- Для подписки на MCP-логи используется OnNotification.
-
-## Тестирование
-- Покрытие тестами:
-    - Проверяется сохранение capabilities после initialize.
-    - Проверяется, что при наличии logging логи маршрутизируются через MCP.
-    - Проверяется, что при отсутствии logging логи маршрутизируются через stderr.
-- Тесты: internal/mcp_connector/mcp_connector_test.go
-
-## Паттерны и принципы
-- Применён паттерн feature toggle (capabilities как флаг).
-- Используется dependency injection для логгера.
-- Все изменения покрыты unit-тестами.
+## Patterns and Principles
+- Feature toggle (capabilities as a flag)
+- Dependency injection for logger
+- Unit tests for all new functions

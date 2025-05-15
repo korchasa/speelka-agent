@@ -9,11 +9,10 @@ import (
 	"testing"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
-	"github.com/sirupsen/logrus"
 )
 
-// mockLogger реализует LoggerSpec и сохраняет stderr в буфер
-// Используется для проверки вывода MCP-логов
+// mockLogger implements LoggerSpec and saves stderr to a buffer
+// Used to check MCP log output
 
 type bufStderr struct {
 	old *os.File
@@ -39,49 +38,49 @@ func (b *bufStderr) stop() string {
 	return b.buf.String()
 }
 
-// mockAgentWithMCPLog эмулирует вызов дочернего MCP, который пишет notifications/message
+// mockAgentWithMCPLog emulates a child MCP that writes notifications/message
 
 type mockAgentWithMCPLog struct {
 	log types.LoggerSpec
 }
 
 func (m *mockAgentWithMCPLog) CallDirect(ctx context.Context, input string) (string, types.MetaInfo, error) {
-	m.log.Infof("Дочерний MCP: тестовый лог info")
+	m.log.Infof("Child MCP: test log info")
 	return "ok", types.MetaInfo{Tokens: 1}, nil
 }
 
 func TestDirectApp_ChildMCPLogToStderr(t *testing.T) {
-	// Буфер для перехвата stderr
+	// Buffer for capturing stderr
 	buf := &bufStderr{}
 	buf.start()
 	defer buf.stop()
 
-	// MCPLogger с mcpLogStub (как в direct-call)
+	// MCPLogger with mcpLogStub (as in direct-call)
 	logger := newTestMCPLogger()
 	app := &DirectApp{
 		logger: logger,
 		agent:  &mockAgentWithMCPLog{log: logger},
 	}
 
-	// Вызов
+	// Call
 	_ = app.HandleCall(context.Background(), "test")
 
-	// Проверяем, что в stderr есть MCP info лог
+	// Check that stderr contains MCP info log
 	out := buf.stop()
-	if !strings.Contains(out, "[MCP info] Дочерний MCP: тестовый лог info") {
-		t.Errorf("Ожидался MCP info лог в stderr, но его нет. Вывод: %q", out)
+	if !strings.Contains(out, "[MCP info] Child MCP: test log info") {
+		t.Errorf("Expected MCP info log in stderr, but not found. Output: %q", out)
 	}
 }
 
-// newTestMCPLogger создаёт MCPLogger с mcpLogStub для теста
+// newTestMCPLogger creates MCPLogger with mcpLogStub for testing
 func newTestMCPLogger() types.LoggerSpec {
 	logger := &testMCPLogger{}
 	logger.SetMCPServer(&mcpLogStub{})
 	return logger
 }
 
-// testMCPLogger реализует только Infof для теста
-// Пробрасывает лог в mcpLogStub через SendNotificationToClient
+// testMCPLogger implements only Infof for testing
+// Passes log to mcpLogStub via SendNotificationToClient
 
 type testMCPLogger struct {
 	mcpServer types.MCPServerNotifier
@@ -98,23 +97,10 @@ func (l *testMCPLogger) Infof(format string, args ...interface{}) {
 	}
 }
 
-// Заглушки для интерфейса
-func (l *testMCPLogger) SetLevel(level logrus.Level)                      {}
-func (l *testMCPLogger) Debug(...interface{})                             {}
-func (l *testMCPLogger) Debugf(string, ...interface{})                    {}
-func (l *testMCPLogger) Info(...interface{})                              {}
-func (l *testMCPLogger) Warn(...interface{})                              {}
-func (l *testMCPLogger) Warnf(string, ...interface{})                     {}
-func (l *testMCPLogger) Error(...interface{})                             {}
-func (l *testMCPLogger) Errorf(string, ...interface{})                    {}
-func (l *testMCPLogger) Fatal(...interface{})                             {}
-func (l *testMCPLogger) Fatalf(string, ...interface{})                    {}
-func (l *testMCPLogger) WithField(string, interface{}) types.LogEntrySpec { return &testLogEntry{} }
-func (l *testMCPLogger) WithFields(logrus.Fields) types.LogEntrySpec      { return &testLogEntry{} }
-func (l *testMCPLogger) SetFormatter(_ logrus.Formatter)                  {}
+// Stubs for the interface
 
-// testLogEntry — пустая реализация types.LogEntrySpec для теста
-// Все методы — no-op
+// testLogEntry — empty implementation of types.LogEntrySpec for testing
+// All methods are no-op
 
 type testLogEntry struct{}
 

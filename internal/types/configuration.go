@@ -7,7 +7,7 @@ import (
 )
 
 // Configuration represents the complete configuration structure that matches the example files
-// Теперь все вложенные структуры inline (анонимные)
+// All nested structures are now inline (anonymous)
 type Configuration struct {
 	Runtime struct {
 		Log struct {
@@ -70,12 +70,12 @@ type Configuration struct {
 	} `json:"agent" yaml:"agent"`
 }
 
-// NewConfiguration создает новый пустой конфиг
+// NewConfiguration creates a new empty config
 func NewConfiguration() *Configuration {
 	return &Configuration{}
 }
 
-// GetAgentConfig преобразует *Configuration в AgentConfig
+// GetAgentConfig converts *Configuration to AgentConfig
 func (c *Configuration) GetAgentConfig() AgentConfig {
 	return AgentConfig{
 		Tool: MCPServerToolConfig{
@@ -91,7 +91,7 @@ func (c *Configuration) GetAgentConfig() AgentConfig {
 	}
 }
 
-// GetLLMConfig преобразует *Configuration в LLMConfig
+// GetLLMConfig converts *Configuration to LLMConfig
 func (c *Configuration) GetLLMConfig() LLMConfig {
 	return LLMConfig{
 		Provider:             c.Agent.LLM.Provider,
@@ -111,7 +111,7 @@ func (c *Configuration) GetLLMConfig() LLMConfig {
 	}
 }
 
-// GetMCPServerConfig преобразует *Configuration в MCPServerConfig
+// GetMCPServerConfig converts *Configuration to MCPServerConfig
 func (c *Configuration) GetMCPServerConfig() MCPServerConfig {
 	return MCPServerConfig{
 		Name:    c.Agent.Name,
@@ -131,12 +131,12 @@ func (c *Configuration) GetMCPServerConfig() MCPServerConfig {
 			ArgumentName:        c.Agent.Tool.ArgumentName,
 			ArgumentDescription: c.Agent.Tool.ArgumentDescription,
 		},
-		Debug:        false, // Можно добавить отдельное поле в конфиг при необходимости
+		Debug:        false, // Optionally add a separate field in config if needed
 		LogRawOutput: c.Runtime.Log.Output,
 	}
 }
 
-// GetMCPConnectorConfig преобразует *Configuration в MCPConnectorConfig
+// GetMCPConnectorConfig converts *Configuration to MCPConnectorConfig
 func (c *Configuration) GetMCPConnectorConfig() MCPConnectorConfig {
 	return MCPConnectorConfig{
 		McpServers: c.Agent.Connections.McpServers,
@@ -149,7 +149,7 @@ func (c *Configuration) GetMCPConnectorConfig() MCPConnectorConfig {
 	}
 }
 
-// BuildLogConfig создает бизнес-структуру LogConfig из сырого Log-конфига
+// BuildLogConfig creates a business LogConfig structure from the raw Log config
 func BuildLogConfig(raw struct {
 	DefaultLevel string `json:"default_level" yaml:"default_level"`
 	Output       string `json:"output" yaml:"output"`
@@ -161,20 +161,20 @@ func BuildLogConfig(raw struct {
 		Format:       raw.Format,
 	}
 
-	// Парсинг уровня логирования
+	// Parse log level
 	level, err := parseLogLevel(raw.DefaultLevel)
 	if err != nil {
 		return LogConfig{}, err
 	}
 	cfg.Level = level
 
-	// MCP-вывод
+	// MCP output
 	cfg.UseMCPLogs = (raw.Output == LogOutputMCP)
 
 	return cfg, nil
 }
 
-// parseLogLevel преобразует строку уровня логирования в logrus.Level
+// parseLogLevel converts log level string to logrus.Level
 func parseLogLevel(level string) (logrus.Level, error) {
 	switch level {
 	case "panic":

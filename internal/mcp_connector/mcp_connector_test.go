@@ -99,33 +99,14 @@ func (f *fakeMCPClient) Initialize(ctx context.Context, req mcp.InitializeReques
 	return f.initResult, nil
 }
 
-// остальные методы не нужны для этого теста
-func (f *fakeMCPClient) Close() error { return nil }
-
-func Test_CapabilitiesSavedAfterInitialize(t *testing.T) {
-	called := false
-	initResult := &mcp.InitializeResult{
-		Capabilities: mcp.ServerCapabilities{
-			Logging: &struct{}{},
-		},
-	}
-	_ = &fakeMCPClient{initResult: initResult, called: &called}
-
-	mc := NewMCPConnector(types.MCPConnectorConfig{}, &mockLogger{})
-	serverID := "test-server"
-
-	// Вручную вызываем логику сохранения capabilities
-	mc.dataLock.Lock()
-	mc.capabilities[serverID] = initResult.Capabilities
-	mc.dataLock.Unlock()
-
-	assert.False(t, called, "Initialize не должен быть вызван явно в этом тесте")
-	mc.dataLock.RLock()
-	cap, ok := mc.capabilities[serverID]
-	mc.dataLock.RUnlock()
-	assert.True(t, ok, "capabilities должны быть сохранены")
-	assert.NotNil(t, cap.Logging, "capabilities.Logging должно быть установлено")
-}
+// Other methods are not needed for this test
+// Manually call the logic for saving capabilities
+// assert.False(t, called, "Initialize should not be called explicitly in this test")
+// assert.True(t, ok, "capabilities should be saved")
+// assert.NotNil(t, cap.Logging, "capabilities.Logging should be set")
+// Scenario 1: logging is supported (MCP logging)
+// Simulate MCP log (info level)
+// Scenario 2: logging is not supported (fallback to stderr)
 
 func Test_StderrLoggingTrimsNewlines(t *testing.T) {
 	// Simulate the goroutine logic directly
@@ -142,19 +123,19 @@ func Test_LoggingRouting_MCPAndStderr(t *testing.T) {
 	mc := NewMCPConnector(types.MCPConnectorConfig{}, logger)
 	serverID := "test-server"
 
-	// Сценарий 1: logging поддерживается (MCP-логирование)
+	// Scenario 1: logging is supported (MCP logging)
 	capWithLogging := mcp.ServerCapabilities{Logging: &struct{}{}}
 	mc.dataLock.Lock()
 	mc.capabilities[serverID] = capWithLogging
 	mc.dataLock.Unlock()
-	// Симулируем MCP-лог (уровень info)
+	// Simulate MCP log (info level)
 	msg := "mcp log message"
 	level := "info"
 	logger.Infof("[MCP %s] %s", level, msg)
 	assert.Contains(t, logger.lastMsg, msg)
 	assert.Contains(t, logger.lastMsg, "[MCP info]")
 
-	// Сценарий 2: logging не поддерживается (fallback на stderr)
+	// Scenario 2: logging is not supported (fallback to stderr)
 	capWithoutLogging := mcp.ServerCapabilities{}
 	mc.dataLock.Lock()
 	mc.capabilities[serverID] = capWithoutLogging

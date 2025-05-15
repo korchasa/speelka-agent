@@ -11,8 +11,8 @@ import (
 // Responsibility: Providing unified access to system configuration
 // Features: Supports configuration loading from files and strings,
 // provides access to various types of configuration parameters
-// Теперь: только загрузка и возврат итоговой структуры конфигурации
-// Вся бизнес-логика и валидация — в types.Configuration
+// Now: only loading and returning the final configuration structure
+// All business logic and validation are in types.Configuration
 type ConfigurationManagerSpec interface {
 	// LoadConfiguration loads configuration from various sources based on context.
 	// It first tries to load from a configuration file if specified,

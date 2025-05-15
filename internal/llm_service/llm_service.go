@@ -140,7 +140,8 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 			options = append(options, llms.WithMaxTokens(s.config.MaxTokens))
 		}
 
-		// Формируем строку с текстами сообщений для логирования
+		// Compose a string with message texts for logging
+		// fallback: serialization
 		var msgTexts []string
 		for _, m := range messages {
 			var parts []string
@@ -149,7 +150,7 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 				case interface{ String() string }:
 					parts = append(parts, pt.String())
 				default:
-					// fallback: сериализация
+					// fallback: serialization
 					parts = append(parts, "[non-string part]")
 				}
 			}

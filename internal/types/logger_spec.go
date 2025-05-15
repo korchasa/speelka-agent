@@ -18,18 +18,22 @@ const (
 // LogConfig represents the configuration for logging.
 // Responsibility: Storing logging system settings
 // Features: Defines the level, format, and output location for logs
-// LogConfig используется только для бизнес-логики, не для парсинга.
+// LogConfig is used only for business logic, not for parsing.
+// DefaultLevel is the string value from config ("info", "debug", etc.)
+// Output is the output identifier string (":stdout:", ":stderr:", ":mcp:", file path)
+// Format is the formatter identifier string ("custom", "json", "text", etc.)
+// Level is the computed logrus.Level
+// UseMCPLogs indicates whether to use MCP logging
 type LogConfig struct {
-	// DefaultLevel is the string value from config ("info", "debug" и т.д.)
+	// DefaultLevel is the string value from config ("info", "debug", etc.)
 	DefaultLevel string
-	// Output is строка-идентификатор вывода (":stdout:", ":stderr:", ":mcp:", путь к файлу)
+	// Output is the output identifier string (":stdout:", ":stderr:", ":mcp:", file path)
 	Output string
-	// Format — строка-идентификатор форматтера ("custom", "json", "text" и т.д.)
+	// Format is the formatter identifier string ("custom", "json", "text", etc.)
 	Format string
-
-	// Level — вычисленный уровень логирования (logrus.Level)
+	// Level is the computed logrus.Level
 	Level logrus.Level
-	// UseMCPLogs — использовать ли MCP-логирование
+	// UseMCPLogs indicates whether to use MCP logging
 	UseMCPLogs bool
 }
 

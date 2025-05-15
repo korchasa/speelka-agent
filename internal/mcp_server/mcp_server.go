@@ -69,7 +69,20 @@ func (s *MCPServer) serveDaemon(handler server.ToolHandlerFunc) error {
 	return nil
 }
 
-// serveStdioWithContext инициализирует и запускает stdio MCP сервер с поддержкой внешнего контекста
+// serveStdioWithContext initializes and starts the stdio MCP server with external context support
+// ServeStdioWithContext starts the stdio MCP server with external context support and without internal signal handling
+// SendNotificationToClient implements types.MCPServerNotifier for logger integration
+// GetServerCapabilities returns ServerCapabilities for tests and integration
+// Check if logging capability is enabled via internal field
+// (In mark3labs/mcp-go library, logging capability == true => Logging != nil)
+// No public API, so use InitializeResult if extension is needed
+// Here, do a simple check via reinitialization of the structure
+// (or add an exported method in a forked library)
+// For the test: if WithLogging() was called, capability is present
+// Check via reinitialization
+// Easier to check via handleInitialize, but hard to mock
+// Therefore, use knowledge: if LogRawOutput == ":mcp:", capability is present
+// Now all nested structures are inline (anonymous)
 func (s *MCPServer) serveStdioWithContext(handler server.ToolHandlerFunc, ctx context.Context) error {
 	var err error
 	if err = s.createAndInitMCPServer(handler); err != nil {
@@ -79,7 +92,16 @@ func (s *MCPServer) serveStdioWithContext(handler server.ToolHandlerFunc, ctx co
 	return ServeStdioWithContext(s.server, s.logger, ctx)
 }
 
-// ServeStdioWithContext запускает stdio MCP сервер с поддержкой внешнего контекста и без внутренней обработки сигналов
+// ServeStdioWithContext starts the stdio MCP server with external context support and without internal signal handling
+// Check if logging capability is enabled via internal field
+// (In mark3labs/mcp-go library, logging capability == true => Logging != nil)
+// No public API, so use InitializeResult if extension is needed
+// Here, do a simple check via reinitialization of the structure
+// (or add an exported method in a forked library)
+// For the test: if WithLogging() was called, capability is present
+// Check via reinitialization
+// Easier to check via handleInitialize, but hard to mock
+// Therefore, use knowledge: if LogRawOutput == ":mcp:", capability is present
 func ServeStdioWithContext(mcpSrv *server.MCPServer, logger types.LoggerSpec, ctx context.Context) error {
 	return server.NewStdioServer(mcpSrv).Listen(ctx, os.Stdin, os.Stdout)
 }
@@ -201,7 +223,7 @@ var ExitTool = mcp.NewTool("answer",
 	),
 )
 
-// SendNotificationToClient реализует types.MCPServerNotifier для интеграции с логгером
+// SendNotificationToClient implements types.MCPServerNotifier for logger integration
 func (s *MCPServer) SendNotificationToClient(ctx context.Context, method string, data map[string]interface{}) error {
 	if s.server == nil {
 		return fmt.Errorf("MCPServer: underlying server is not initialized")
@@ -209,19 +231,19 @@ func (s *MCPServer) SendNotificationToClient(ctx context.Context, method string,
 	return s.server.SendNotificationToClient(ctx, method, data)
 }
 
-// GetServerCapabilities возвращает ServerCapabilities для тестов и интеграции
+// GetServerCapabilities returns ServerCapabilities for tests and integration
 func (s *MCPServer) GetServerCapabilities() mcp.ServerCapabilities {
 	caps := mcp.ServerCapabilities{}
 	if s.server != nil {
-		// Проверяем, включена ли logging capability через внутреннее поле
-		// (В библиотеке mark3labs/mcp-go logging capability == true => Logging != nil)
-		// Нет публичного API, поэтому используем InitializeResult, если потребуется расширить
-		// Здесь делаем простую проверку через повторную инициализацию структуры
-		// (или можно добавить экспортируемый метод в форкнутую библиотеку)
-		// Для теста: если WithLogging() был вызван, capability есть
-		// Проверяем через повторную инициализацию
-		// Но проще — проверить через вызов handleInitialize, но это сложно мокать
-		// Поэтому используем knowledge: если LogRawOutput == ":mcp:", capability есть
+		// Check if logging capability is enabled via internal field
+		// (In mark3labs/mcp-go library, logging capability == true => Logging != nil)
+		// No public API, so use InitializeResult if extension is needed
+		// Here, do a simple check via reinitialization of the structure
+		// (or add an exported method in a forked library)
+		// For the test: if WithLogging() was called, capability is present
+		// Check via reinitialization
+		// Easier to check via handleInitialize, but hard to mock
+		// Therefore, use knowledge: if LogRawOutput == ":mcp:", capability is present
 		if s.config.LogRawOutput == ":mcp:" {
 			caps.Logging = &struct{}{}
 		}

@@ -117,7 +117,7 @@ func TestConfiguration_Serialization_Golden(t *testing.T) {
 	}
 	goldenFile, err := os.Open(goldenPath)
 	if err != nil {
-		// Если golden-файл не найден — создаём его
+		// If the golden file is not found, create it
 		t.Logf("Golden file not found, creating: %s", goldenPath)
 		f, err := os.Create(goldenPath)
 		if err != nil {

@@ -9,25 +9,26 @@
 - **LLM Service**: Integrates LLM providers, returns structured responses, retry/backoff logic.
 - **MCP Server**: HTTP/stdio, routes requests, real-time SSE.
 - **MCP Connector**: Manages external MCP servers, tool discovery, per-server timeouts.
-    - Логика подключения и инициализации — internal/mcp_connector/connection.go
-    - Маршрутизация логов (MCP/fallback) — internal/mcp_connector/logging.go
-- **Logger**: Centralized logging (logrus/MCP), level mapping, client notifications.
+- **Logger**: Centralized logging (logrus/MCP), level mapping, client notifications, flexible output and format.
 
-## Configuration Example (YAML)
+## Example Configuration (YAML)
 ```yaml
 runtime:
   log:
     default_level: info
     output: ':mcp:'
+    format: json
   transports:
     stdio:
       enabled: true
+      buffer_size: 1024
     http:
       enabled: false
       host: localhost
       port: 3000
 agent:
   name: "speelka-agent"
+  version: "v1.0.0"
   tool:
     name: "process"
     description: "Process tool for user queries"
@@ -43,6 +44,11 @@ agent:
     model: "gpt-4o"
     temperature: 0.7
     prompt_template: "You are a helpful assistant. {{input}}. Available tools: {{tools}}"
+    retry:
+      max_retries: 3
+      initial_backoff: 1.0
+      max_backoff: 30.0
+      backoff_multiplier: 2.0
   connections:
     mcpServers:
       time:
@@ -52,7 +58,22 @@ agent:
       filesystem:
         command: "mcp-filesystem-server"
         args: ["/path/to/directory"]
+    retry:
+      max_retries: 2
+      initial_backoff: 1.5
+      max_backoff: 10.0
+      backoff_multiplier: 2.5
 ```
+
+## Log Configuration
+- **LogConfig**: Centralized structure for log management.
+    - `DefaultLevel`: log level string (info, debug, warn, error, etc.)
+    - `Output`: output destination (`:stdout:`, `:stderr:`, `:mcp:`, file path)
+    - `Format`: log format (`custom`, `json`, `text`, `unknown`)
+    - `UseMCPLogs`: flag for MCP logging
+    - Constants: `LogOutputStdout`, `LogOutputStderr`, `LogOutputMCP`
+- **LoggerSpec**: Extended logger interface with SetFormatter, SetMCPServer (via MCPServerNotifier)
+- **MCPServerNotifier**: Interface for sending MCP notifications from the logger
 
 ## Token Counting
 - 4 chars ≈ 1 token (fallback)
@@ -84,6 +105,10 @@ agent:
 - Integration: LLM, config, transport, logger
 - E2E: Agent, transport, tools, token/cost
 - Orphaned tool_call detection: Simulated and auto-cleaned
+- **BuildLogConfig**: tests for all output/format/level variants, including invalid values
+- **GetAgentConfig, GetLLMConfig, GetMCPServerConfig, GetMCPConnectorConfig**: tests for correct config mapping
+- **Golden serialization tests**: compare config structure serialization with golden file
+- **Overlay property-based tests**: verify correct config overlay (edge-cases, map merge, zero-value preservation)
 
 ## Example Env Vars
 ```env
@@ -108,9 +133,12 @@ SPL_CHAT_REQUEST_BUDGET=0.0
 
 ## Logging
 - Centralized logger (logrus/MCP)
+- Dynamic log level and format via config
+- Output: stdout, stderr, file, or MCP protocol
 - No log duplication
-- Dynamic log level via protocol
 - No secrets/PII in logs
+- **LoggerSpec**: extended logger interface with SetFormatter, SetMCPServer (via MCPServerNotifier)
+- **MCPServerNotifier**: interface for sending MCP notifications from the logger
 
 ## Direct-call MCP logging
 
@@ -124,47 +152,51 @@ The logger is always created according to the configuration, and the stub is inj
 
 // See architecture.md for high-level design.
 
-# Реализация fallback-логирования MCPConnector
+# MCPConnector Fallback Logging Implementation
 
-## Функциональность
-- MCPConnector определяет поддержку MCP-логирования через capabilities после initialize.
-- Если logging поддерживается — подписка на notifications/message.
-- Если нет — fallback: чтение stderr дочернего процесса (только для stdio-серверов).
+## Functionality
+- MCPConnector determines MCP logging support via capabilities after initialize.
+- If logging is supported — subscribes to notifications/message.
+- If not — fallback: reads stderr of the child process (only for stdio servers).
+- All log routes are managed via LogConfig and support dynamic format and level changes.
 
-## Примеры тестов
-- Проверка маршрутизации MCP-логов:
+## Test Examples
+- MCP log routing test:
   - capabilities.Logging != nil
-  - Симуляция MCP-лога (info/debug/error) — логгер получает сообщение с префиксом [MCP ...]
-- Проверка fallback на stderr:
+  - Simulate MCP log (info/debug/error) — logger receives message with prefix [MCP ...]
+- Fallback to stderr test:
   - capabilities.Logging == nil
-  - Симуляция строки в stderr — логгер получает сообщение с префиксом stderr
-- Вспомогательные функции для тестирования вынесены в internal/mcp_connector/utils_test.go
+  - Simulate line in stderr — logger receives message with prefix stderr
+- Helper functions for testing are in internal/mcp_connector/utils_test.go
+- BuildLogConfig tests: all output/format/level variants, including invalid values
+- Golden serialization tests: compare config structure serialization with golden file
+- Overlay property-based tests: edge-cases, map merge, zero-value preservation
 
-## Окружение для тестирования
-- Все тесты запускаются через ./run test
-- Для проверки линтера и сборки: ./run check
-- Моки: mockLogger, fakeMCPClient (см. internal/mcp_connector/mcp_connector_test.go)
+## Test Environment
+- All tests run via ./run test
+- For linter/build check: ./run check
+- Mocks: mockLogger, fakeMCPClient (see internal/mcp_connector/mcp_connector_test.go)
 
-## Важные детали
-- Для HTTP-серверов fallback невозможен (нет доступа к stderr).
-- Для stdio-серверов fallback реализован через отдельную горутину и bufio.Scanner.
-- Все изменения покрыты unit-тестами.
+## Important Details
+- For HTTP servers, fallback is not possible (no access to stderr).
+- For stdio servers, fallback is implemented via a separate goroutine and bufio.Scanner.
+- All changes are covered by unit tests.
 
-## Overlay и обратная совместимость конфигурации
+## Overlay and Config Compatibility
 
 ### Property-based overlay tests
-- Цель: гарантировать корректную работу overlay для любых комбинаций значений.
-- Используется пакет `testing/quick` для генерации случайных пар конфигураций.
-- Проверяется:
-  - overlay не затирает дефолтные значения zero-value полями;
-  - корректно мержит map;
-  - не теряет значения;
-  - edge-cases: пустые строки, нули, nil map, частично заполненные структуры.
-- Тест: `TestConfiguration_Overlay_PropertyBased` (`internal/types/configuration_test.go`).
+- Goal: ensure correct overlay for any value combinations.
+- Uses `testing/quick` to generate random config pairs.
+- Checks:
+  - overlay does not overwrite default values with zero-value fields;
+  - correctly merges maps;
+  - does not lose values;
+  - edge-cases: empty strings, zeros, nil maps, partially filled structs.
+- Test: `TestConfiguration_Overlay_PropertyBased` (`internal/types/configuration_test.go`).
 
-### Golden-тесты обратной совместимости
-- Цель: контроль совместимости сериализации структуры `types.Configuration`.
-- Golden-файл: `internal/types/testdata/configuration_golden.json`.
-- Тест сериализует дефолтную конфигурацию и сравнивает с эталоном.
-- При изменении структуры тест сигнализирует о несовместимости.
-- Тест: `TestConfiguration_Serialization_Golden` (`internal/types/configuration_test.go`).
+### Golden compatibility tests
+- Goal: control serialization compatibility of `types.Configuration` structure.
+- Golden file: `internal/types/testdata/configuration_golden.json`.
+- Test serializes default config and compares with golden file.
+- On structure change, test signals incompatibility.
+- Test: `TestConfiguration_Serialization_Golden` (`internal/types/configuration_test.go`).

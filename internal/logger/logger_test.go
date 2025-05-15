@@ -23,7 +23,7 @@ func TestMCPLoggingWithoutServer(t *testing.T) {
 	mcpLogger.Info("test info message")
 	mcpLogger.Warn("test warning message")
 	mcpLogger.Error("test error message")
-	// Нет проверки вывода, так как MCPLogger не пишет в буфер
+	// No output check, as MCPLogger does not write to buffer
 }
 
 func TestMCPLoggingWithFieldsWithoutServer(t *testing.T) {
@@ -33,13 +33,13 @@ func TestMCPLoggingWithFieldsWithoutServer(t *testing.T) {
 		"key1": "value1",
 		"key2": "value2",
 	}).Info("test with fields")
-	// Нет проверки вывода, так как MCPLogger не пишет в буфер
+	// No output check, as MCPLogger does not write to buffer
 }
 
 func TestMCPLoggerLevelSetting(t *testing.T) {
 	mcpLogger := NewMCPLogger()
 	mcpLogger.SetLevel(logrus.InfoLevel)
-	// Проверяем только minLevel
+	// Only check minLevel
 	assert.Equal(t, logrus.InfoLevel, mcpLogger.minLevel)
 	mcpLogger.SetLevel(logrus.DebugLevel)
 	assert.Equal(t, logrus.DebugLevel, mcpLogger.minLevel)
@@ -56,7 +56,7 @@ func TestMCPLoggerEntryMethods(t *testing.T) {
 	entry.Infof("info %s", "format")
 	entry.Warnf("warn %s", "format")
 	entry.Errorf("error %s", "format")
-	// Нет проверки вывода, так как MCPLogger не пишет в буфер
+	// No output check, as MCPLogger does not write to buffer
 }
 
 func TestMCPLogLevelConversion(t *testing.T) {
@@ -145,7 +145,7 @@ func TestLogger_UsesJSONFormatterWhenConfigured(t *testing.T) {
 
 func TestMCPServer_DeclaresLoggingCapability(t *testing.T) {
 	mcpServer := server.NewMCPServer("test-server", "0.1.0", server.WithLogging())
-	// Получаем поле capabilities через рефлексию
+	// Get the capabilities field via reflection
 	val := reflect.ValueOf(mcpServer).Elem().FieldByName("capabilities")
 	if !val.IsValid() {
 		t.Fatal("capabilities field not found in MCPServer")
@@ -208,7 +208,7 @@ func TestLogger_MCPLogHasDeliveredToClientMark(t *testing.T) {
 
 	logger.WithField("foo", "bar").Info("test delivered mark")
 
-	// Проверяем MCP-лог
+	// Check MCP-log
 	assert.Equal(t, "notifications/message", mockServer.lastMethod)
 	if v, ok := mockServer.lastData["delivered_to_client"]; ok {
 		assert.Equal(t, true, v)
