@@ -221,129 +221,105 @@ func (m *Manager) Apply(base, newConfig *types.Configuration) (*types.Configurat
 	if newConfig == nil {
 		return base, nil
 	}
-	m.applyLogConfig(&base.Runtime.Log, &newConfig.Runtime.Log)
-	m.applyTransportsConfig(&base.Runtime.Transports, &newConfig.Runtime.Transports)
-	m.applyAgentConfig(&base.Agent, &newConfig.Agent)
-	m.applyToolConfig(&base.Agent.Tool, &newConfig.Agent.Tool)
-	m.applyLLMConfig(&base.Agent.LLM, &newConfig.Agent.LLM)
-	m.applyLLMRetryConfig(&base.Agent.LLM.Retry, &newConfig.Agent.LLM.Retry)
-	m.applyChatConfig(&base.Agent.Chat, &newConfig.Agent.Chat)
-	m.applyConnectionsConfig(&base.Agent.Connections, &newConfig.Agent.Connections)
-	return base, nil
-}
-
-// applyLogConfig копирует все поля лог-конфига из overlay в base, если они заданы
-func (m *Manager) applyLogConfig(base, overlay *types.RuntimeLogConfig) {
-	if overlay.DefaultLevel != "" {
-		base.DefaultLevel = overlay.DefaultLevel
+	// Log
+	if newConfig.Runtime.Log.DefaultLevel != "" {
+		base.Runtime.Log.DefaultLevel = newConfig.Runtime.Log.DefaultLevel
 	}
-	if overlay.Output != "" {
-		base.Output = overlay.Output
+	if newConfig.Runtime.Log.Output != "" {
+		base.Runtime.Log.Output = newConfig.Runtime.Log.Output
 	}
-	if overlay.Format != "" {
-		base.Format = overlay.Format
+	if newConfig.Runtime.Log.Format != "" {
+		base.Runtime.Log.Format = newConfig.Runtime.Log.Format
 	}
-}
-
-func (m *Manager) applyTransportsConfig(base, overlay *types.RuntimeTransportConfig) {
-	base.HTTP.Enabled = overlay.HTTP.Enabled
-	if overlay.HTTP.Host != "" {
-		base.HTTP.Host = overlay.HTTP.Host
+	// Transports
+	if newConfig.Runtime.Transports.Stdio.Enabled != base.Runtime.Transports.Stdio.Enabled {
+		base.Runtime.Transports.Stdio.Enabled = newConfig.Runtime.Transports.Stdio.Enabled
 	}
-	if overlay.HTTP.Port != 0 {
-		base.HTTP.Port = overlay.HTTP.Port
+	if newConfig.Runtime.Transports.Stdio.BufferSize != 0 {
+		base.Runtime.Transports.Stdio.BufferSize = newConfig.Runtime.Transports.Stdio.BufferSize
 	}
-	if overlay.Stdio.Enabled != base.Stdio.Enabled {
-		base.Stdio.Enabled = overlay.Stdio.Enabled
+	if newConfig.Runtime.Transports.HTTP.Enabled != base.Runtime.Transports.HTTP.Enabled {
+		base.Runtime.Transports.HTTP.Enabled = newConfig.Runtime.Transports.HTTP.Enabled
 	}
-	if overlay.Stdio.BufferSize != 0 {
-		base.Stdio.BufferSize = overlay.Stdio.BufferSize
+	if newConfig.Runtime.Transports.HTTP.Host != "" {
+		base.Runtime.Transports.HTTP.Host = newConfig.Runtime.Transports.HTTP.Host
 	}
-}
-
-func (m *Manager) applyAgentConfig(base, overlay *types.ConfigAgent) {
-	if overlay.Name != "" {
-		base.Name = overlay.Name
+	if newConfig.Runtime.Transports.HTTP.Port != 0 {
+		base.Runtime.Transports.HTTP.Port = newConfig.Runtime.Transports.HTTP.Port
 	}
-	if overlay.Version != "" {
-		base.Version = overlay.Version
+	// Agent
+	if newConfig.Agent.Name != "" {
+		base.Agent.Name = newConfig.Agent.Name
 	}
-}
-
-func (m *Manager) applyToolConfig(base, overlay *types.AgentToolConfig) {
-	if overlay.Name != "" {
-		base.Name = overlay.Name
+	if newConfig.Agent.Version != "" {
+		base.Agent.Version = newConfig.Agent.Version
 	}
-	if overlay.Description != "" {
-		base.Description = overlay.Description
+	// Tool
+	if newConfig.Agent.Tool.Name != "" {
+		base.Agent.Tool.Name = newConfig.Agent.Tool.Name
 	}
-	if overlay.ArgumentName != "" {
-		base.ArgumentName = overlay.ArgumentName
+	if newConfig.Agent.Tool.Description != "" {
+		base.Agent.Tool.Description = newConfig.Agent.Tool.Description
 	}
-	if overlay.ArgumentDescription != "" {
-		base.ArgumentDescription = overlay.ArgumentDescription
+	if newConfig.Agent.Tool.ArgumentName != "" {
+		base.Agent.Tool.ArgumentName = newConfig.Agent.Tool.ArgumentName
 	}
-}
-
-func (m *Manager) applyLLMConfig(base, overlay *types.AgentLLMConfig) {
-	if overlay.Provider != "" {
-		base.Provider = overlay.Provider
+	if newConfig.Agent.Tool.ArgumentDescription != "" {
+		base.Agent.Tool.ArgumentDescription = newConfig.Agent.Tool.ArgumentDescription
 	}
-	if overlay.Model != "" {
-		base.Model = overlay.Model
+	// Chat
+	if newConfig.Agent.Chat.MaxTokens != 0 {
+		base.Agent.Chat.MaxTokens = newConfig.Agent.Chat.MaxTokens
 	}
-	if overlay.APIKey != "" {
-		base.APIKey = overlay.APIKey
+	if newConfig.Agent.Chat.MaxLLMIterations != 0 {
+		base.Agent.Chat.MaxLLMIterations = newConfig.Agent.Chat.MaxLLMIterations
 	}
-	if overlay.IsMaxTokensSet {
-		base.MaxTokens = overlay.MaxTokens
-		base.IsMaxTokensSet = true
+	if newConfig.Agent.Chat.RequestBudget != 0 {
+		base.Agent.Chat.RequestBudget = newConfig.Agent.Chat.RequestBudget
 	}
-	if overlay.IsTemperatureSet {
-		base.Temperature = overlay.Temperature
-		base.IsTemperatureSet = true
+	// LLM
+	if newConfig.Agent.LLM.Provider != "" {
+		base.Agent.LLM.Provider = newConfig.Agent.LLM.Provider
 	}
-	if overlay.PromptTemplate != "" {
-		base.PromptTemplate = overlay.PromptTemplate
+	if newConfig.Agent.LLM.Model != "" {
+		base.Agent.LLM.Model = newConfig.Agent.LLM.Model
 	}
-}
-
-func (m *Manager) applyLLMRetryConfig(base, overlay *types.LLMRetryConfig) {
-	if overlay.MaxRetries != 0 {
-		base.MaxRetries = overlay.MaxRetries
+	if newConfig.Agent.LLM.APIKey != "" {
+		base.Agent.LLM.APIKey = newConfig.Agent.LLM.APIKey
 	}
-	if overlay.InitialBackoff != 0 {
-		base.InitialBackoff = overlay.InitialBackoff
+	if newConfig.Agent.LLM.MaxTokens != 0 {
+		base.Agent.LLM.MaxTokens = newConfig.Agent.LLM.MaxTokens
+		base.Agent.LLM.IsMaxTokensSet = true
 	}
-	if overlay.MaxBackoff != 0 {
-		base.MaxBackoff = overlay.MaxBackoff
+	if newConfig.Agent.LLM.Temperature != 0 {
+		base.Agent.LLM.Temperature = newConfig.Agent.LLM.Temperature
+		base.Agent.LLM.IsTemperatureSet = true
 	}
-	if overlay.BackoffMultiplier != 0 {
-		base.BackoffMultiplier = overlay.BackoffMultiplier
+	if newConfig.Agent.LLM.PromptTemplate != "" {
+		base.Agent.LLM.PromptTemplate = newConfig.Agent.LLM.PromptTemplate
 	}
-}
-
-func (m *Manager) applyChatConfig(base, overlay *types.AgentChatConfig) {
-	if overlay.MaxTokens != 0 {
-		base.MaxTokens = overlay.MaxTokens
+	// LLM Retry
+	if newConfig.Agent.LLM.Retry.MaxRetries != 0 {
+		base.Agent.LLM.Retry.MaxRetries = newConfig.Agent.LLM.Retry.MaxRetries
 	}
-	if overlay.MaxLLMIterations != 0 {
-		base.MaxLLMIterations = overlay.MaxLLMIterations
+	if newConfig.Agent.LLM.Retry.InitialBackoff != 0 {
+		base.Agent.LLM.Retry.InitialBackoff = newConfig.Agent.LLM.Retry.InitialBackoff
 	}
-	if overlay.RequestBudget != 0 {
-		base.RequestBudget = overlay.RequestBudget
+	if newConfig.Agent.LLM.Retry.MaxBackoff != 0 {
+		base.Agent.LLM.Retry.MaxBackoff = newConfig.Agent.LLM.Retry.MaxBackoff
 	}
-}
-
-func (m *Manager) applyConnectionsConfig(base, overlay *types.AgentConnectionsConfig) {
-	if len(overlay.McpServers) > 0 {
-		if base.McpServers == nil {
-			base.McpServers = make(map[string]types.MCPServerConnection)
+	if newConfig.Agent.LLM.Retry.BackoffMultiplier != 0 {
+		base.Agent.LLM.Retry.BackoffMultiplier = newConfig.Agent.LLM.Retry.BackoffMultiplier
+	}
+	// Connections
+	if len(newConfig.Agent.Connections.McpServers) > 0 {
+		if base.Agent.Connections.McpServers == nil {
+			base.Agent.Connections.McpServers = make(map[string]types.MCPServerConnection)
 		}
-		for name, newServer := range overlay.McpServers {
-			oldServer, exists := base.McpServers[name]
+		for name, newServer := range newConfig.Agent.Connections.McpServers {
+			oldServer, exists := base.Agent.Connections.McpServers[name]
 			if !exists {
-				base.McpServers[name] = newServer
+				base.Agent.Connections.McpServers[name] = newServer
 				continue
 			}
 			if newServer.URL != "" {
@@ -358,33 +334,25 @@ func (m *Manager) applyConnectionsConfig(base, overlay *types.AgentConnectionsCo
 			if len(newServer.Args) > 0 {
 				oldServer.Args = newServer.Args
 			}
-			if len(newServer.Environment) > 0 {
-				oldServer.Environment = newServer.Environment
-			}
-			if newServer.IncludeTools != nil {
-				oldServer.IncludeTools = newServer.IncludeTools
-			}
-			if newServer.ExcludeTools != nil {
-				oldServer.ExcludeTools = newServer.ExcludeTools
-			}
 			if newServer.Timeout != 0 {
 				oldServer.Timeout = newServer.Timeout
 			}
-			base.McpServers[name] = oldServer
+			base.Agent.Connections.McpServers[name] = oldServer
 		}
 	}
-	if overlay.Retry.MaxRetries != 0 {
-		base.Retry.MaxRetries = overlay.Retry.MaxRetries
+	if newConfig.Agent.Connections.Retry.MaxRetries != 0 {
+		base.Agent.Connections.Retry.MaxRetries = newConfig.Agent.Connections.Retry.MaxRetries
 	}
-	if overlay.Retry.InitialBackoff != 0 {
-		base.Retry.InitialBackoff = overlay.Retry.InitialBackoff
+	if newConfig.Agent.Connections.Retry.InitialBackoff != 0 {
+		base.Agent.Connections.Retry.InitialBackoff = newConfig.Agent.Connections.Retry.InitialBackoff
 	}
-	if overlay.Retry.MaxBackoff != 0 {
-		base.Retry.MaxBackoff = overlay.Retry.MaxBackoff
+	if newConfig.Agent.Connections.Retry.MaxBackoff != 0 {
+		base.Agent.Connections.Retry.MaxBackoff = newConfig.Agent.Connections.Retry.MaxBackoff
 	}
-	if overlay.Retry.BackoffMultiplier != 0 {
-		base.Retry.BackoffMultiplier = overlay.Retry.BackoffMultiplier
+	if newConfig.Agent.Connections.Retry.BackoffMultiplier != 0 {
+		base.Agent.Connections.Retry.BackoffMultiplier = newConfig.Agent.Connections.Retry.BackoffMultiplier
 	}
+	return base, nil
 }
 
 // RedactedCopy возвращает копию конфигурации с замаскированными приватными данными для безопасного логирования.
@@ -401,4 +369,24 @@ func RedactedCopy(config *types.Configuration) *types.Configuration {
 		copy.Agent.Connections.McpServers = redactedServers
 	}
 	return &copy
+}
+
+// GetAgentConfig возвращает бизнес-структуру AgentConfig на основе rawConfig
+func (cm *Manager) GetAgentConfig() types.AgentConfig {
+	// Пока rawConfig не заполняется загрузчиками, используем cm.config для обратной совместимости
+	if cm.config == nil {
+		return types.AgentConfig{}
+	}
+	return types.AgentConfig{
+		Tool: types.MCPServerToolConfig{
+			Name:                cm.config.Agent.Tool.Name,
+			Description:         cm.config.Agent.Tool.Description,
+			ArgumentName:        cm.config.Agent.Tool.ArgumentName,
+			ArgumentDescription: cm.config.Agent.Tool.ArgumentDescription,
+		},
+		Model:                cm.config.Agent.LLM.Model,
+		SystemPromptTemplate: cm.config.Agent.LLM.PromptTemplate,
+		MaxTokens:            cm.config.Agent.Chat.MaxTokens,
+		MaxLLMIterations:     cm.config.Agent.Chat.MaxLLMIterations,
+	}
 }

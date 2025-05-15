@@ -1,54 +1,26 @@
-# ADR: Устранение дублирования конфигурационных структур
+# План рефакторинга Configuration с использованием TDD
 
-## Goal
-Избавить проект от дублирующихся структур конфигурации и централизовать их определение.
+1. Red: Написать тесты в `internal/types/configuration_test.go`:
+   - Проверить Unmarshal YAML/JSON с новой inline-структурой `Configuration`.
+   - Убедиться, что поля `Runtime` и `Agent` правильно разбираются.
+2. Green: Реализовать inline-структуры:
+   - Заменить `RuntimeConfig`, `ConfigAgent` и вложенные типы на анонимные inline-структуры в `Configuration`.
+   - Сохранить существующие теги `json`/`yaml`.
+3. Refactor:
+   - Переименовать методы `ToAgentConfig` → `GetAgentConfig`, `ToLLMConfig` → `GetLLMConfig`, `ToMCPServerConfig` → `GetMCPServerConfig`, `ToMCPConnectorConfig` → `GetMCPConnectorConfig`.
+   - Удалить неиспользуемые типы `RuntimeConfig`, `ConfigAgent` и вложенные конфиги.
+   - Обновить тесты: сравнение по значениям, без анонимных структур.
+   - Обновить документацию в `documents/implementation.md` и `documents/file_structure.md`.
+   - Обновить архитектурное описание в `documents/architecture.md` (если требуется).
+4. Final Check:
+   - Запустить `./run test` и `./run check`.
+   - Исправить ошибки и зафиксировать изменения в Git.
 
-## Overview
-- В проекте определены похожие структуры для конфигурации в `internal/types/configuration.go` (`Configuration`, `ConfigAgent`, `AgentLLMConfig`, `LLMRetryConfig` и др.) и бизнес-структуры в `internal/types` (`AgentConfig`, `LLMConfig`, `MCPServerConfig`, `MCPConnectorConfig`, `RetryConfig` и др.).
-- Для преобразования между ними используются методы `ToAgentConfig`, `ToLLMConfig`, `ToMCPServerConfig`, `ToMCPConnectorConfig`, что усложняет сопровождение и увеличивает риск рассинхронизации полей.
+# Выполнено
+- Вся структура Configuration переведена на inline-структуры.
+- Удалены устаревшие типы (RuntimeConfig, ConfigAgent и вложенные).
+- Тесты и документация обновлены.
+- Все тесты и проверки успешно пройдены (`./run test`, `./run check`).
 
-## Definition of Done
-- Создан пакет `internal/config` с единым набором структур конфигурации (raw и бизнес).
-- Удалены дублирующие типы из `internal/types/configuration.go` и бизнес-типов.
-- Добавлены теги `json`/`yaml` к бизнес-структурам.
-- Менеджер конфигурации обновлён для загрузки напрямую в новые типы.
-- Методы `To*Config` и связанные тесты удалены.
-- Все компоненты и тесты используют единые типы конфигурации.
-- Все тесты проходят (`./run test`) и проверка (`./run check`) выполнена.
-
-## Solution
-1. Создать пакет `internal/config` и перенести туда:
-   - Структуры raw-конфига: `Configuration`, `RuntimeConfig`, `RuntimeLogConfig`, `RuntimeTransportConfig`, `RuntimeStdioConfig`, `RuntimeHTTPConfig`, `ConfigAgent`, `AgentChatConfig`, `AgentToolConfig`, `AgentLLMConfig`, `AgentConnectionsConfig`, `LLMRetryConfig`, `ConnectionRetryConfig`.
-   - Бизнес-структуры: `AgentConfig`, `LLMConfig`, `MCPServerConfig`, `MCPConnectorConfig`, `HTTPConfig`, `StdioConfig`, `RetryConfig`.
-2. Аннотировать все структуры тегами `json`/`yaml` для прямого разбора.
-3. Удалить методы `To*Config` и их тесты.
-4. Переписать менеджер конфигурации (`internal/configuration/manager.go`) на загрузку и merge напрямую в новые структуры из `internal/config`.
-5. Обновить все места использования типов и тесты в `internal/*`.
-6. Запустить `./run test` и `./run check`.
-
-## Consequences
-- Единое определение конфигурации упрощает поддержку и расширение.
-- Уменьшается дублирование кода и риск рассинхронизации полей.
-- Потребуется масштабный рефакторинг и обновление большого числа зависимостей.
-
-## Alternative Solutions
-
-1. Использовать type alias в текущем пакете `internal/types`:
-   - Например, `type AgentConfig = ConfigAgent` и т.п., чтобы не дублировать структуру, а лишь переименовывать.
-   - Не требует новых пакетов, но сохраняет одно определение.
-
-2. Объединить raw и business-структуры в одном типе:
-   - Дать структурам теги `json`/`yaml` и использовать их напрямую во всех слоях.
-   - Убрать методы `To*Config`, оставить один набор типов с валидацией при загрузке.
-
-3. Воспользоваться встраиванием (struct embedding):
-   - Вставить raw-конфиг как вложенную структуру в бизнес-тип, расширив его методами.
-   - Позволяет хранить все поля в одном месте, но логика слоёв отделена.
-
-4. Автоматическая генерация кода (go generate + шаблоны):
-   - Объявить одну «истинную» структуру и генерировать алиасы/обёртки для разных контекстов.
-   - Минимизирует ручное дублирование, но добавляет дополнительную сборку.
-
-5. Сконцентрировать все типы конфигурации в существующем пакете `internal/configuration`:
-   - Перенести бизнес-структуры в `internal/configuration`, используя его без создания нового пакета.
-   - Пакет `internal/types` оставить для интерфейсов и примитивов.
+# Следующий шаг
+- Рефакторинг internal/configuration/manager.go и всех зависимых модулей для поддержки inline-структур (если потребуется дополнительная оптимизация или упрощение).

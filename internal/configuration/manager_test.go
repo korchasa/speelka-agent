@@ -73,31 +73,20 @@ func TestManager_LoadAndGetConfiguration(t *testing.T) {
 
 func TestManager_ValidateConfiguration(t *testing.T) {
 	mgr := NewConfigurationManager(&SimpleLogger{})
-	validConfig := &types.Configuration{
-		Agent: types.ConfigAgent{
-			Name: "TestAgent",
-			Tool: types.AgentToolConfig{
-				Name:                "TestTool",
-				Description:         "Test tool description",
-				ArgumentName:        "query",
-				ArgumentDescription: "Query to process",
-			},
-			LLM: types.AgentLLMConfig{
-				Provider:       "openai",
-				Model:          "gpt-4",
-				APIKey:         "test-api-key",
-				PromptTemplate: "You are a helpful assistant. User query: {{query}} Available tools: {{tools}}",
-			},
-		},
-	}
+	validConfig := &types.Configuration{}
+	validConfig.Agent.Name = "TestAgent"
+	validConfig.Agent.Tool.Name = "TestTool"
+	validConfig.Agent.Tool.Description = "Test tool description"
+	validConfig.Agent.Tool.ArgumentName = "query"
+	validConfig.Agent.Tool.ArgumentDescription = "Query to process"
+	validConfig.Agent.LLM.Provider = "openai"
+	validConfig.Agent.LLM.Model = "gpt-4"
+	validConfig.Agent.LLM.APIKey = "test-api-key"
+	validConfig.Agent.LLM.PromptTemplate = "You are a helpful assistant. User query: {{query}} Available tools: {{tools}}"
 	assert.NoError(t, mgr.Validate(validConfig))
 
-	invalidConfig := &types.Configuration{
-		Agent: types.ConfigAgent{
-			Tool: types.AgentToolConfig{},
-			LLM:  types.AgentLLMConfig{},
-		},
-	}
+	invalidConfig := &types.Configuration{}
+	// оставляем Agent.Name и Tool/LLM пустыми
 	err := mgr.Validate(invalidConfig)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Agent name is required")
@@ -105,36 +94,24 @@ func TestManager_ValidateConfiguration(t *testing.T) {
 
 func TestManager_OverlayApply(t *testing.T) {
 	mgr := NewConfigurationManager(&SimpleLogger{})
-	base := &types.Configuration{
-		Agent: types.ConfigAgent{
-			Name: "base-agent",
-			Tool: types.AgentToolConfig{
-				Name:                "base-tool",
-				Description:         "Base tool description",
-				ArgumentName:        "query",
-				ArgumentDescription: "Base query description",
-			},
-			LLM: types.AgentLLMConfig{
-				Provider:       "openai",
-				Model:          "gpt-3.5-turbo",
-				APIKey:         "base-api-key",
-				PromptTemplate: "Base template with {{query}} and {{tools}}",
-			},
-		},
-	}
-	overlay := &types.Configuration{
-		Agent: types.ConfigAgent{
-			Tool: types.AgentToolConfig{
-				Name:        "new-tool",
-				Description: "New tool description",
-			},
-			LLM: types.AgentLLMConfig{
-				Model:          "gpt-4",
-				APIKey:         "new-api-key",
-				PromptTemplate: "New template with {{query}} and {{tools}}",
-			},
-		},
-	}
+	base := &types.Configuration{}
+	base.Agent.Name = "base-agent"
+	base.Agent.Tool.Name = "base-tool"
+	base.Agent.Tool.Description = "Base tool description"
+	base.Agent.Tool.ArgumentName = "query"
+	base.Agent.Tool.ArgumentDescription = "Base query description"
+	base.Agent.LLM.Provider = "openai"
+	base.Agent.LLM.Model = "gpt-3.5-turbo"
+	base.Agent.LLM.APIKey = "base-api-key"
+	base.Agent.LLM.PromptTemplate = "Base template with {{query}} and {{tools}}"
+
+	overlay := &types.Configuration{}
+	overlay.Agent.Tool.Name = "new-tool"
+	overlay.Agent.Tool.Description = "New tool description"
+	overlay.Agent.LLM.Model = "gpt-4"
+	overlay.Agent.LLM.APIKey = "new-api-key"
+	overlay.Agent.LLM.PromptTemplate = "New template with {{query}} and {{tools}}"
+
 	result, err := mgr.Apply(base, overlay)
 	assert.NoError(t, err)
 	assert.Equal(t, "new-tool", result.Agent.Tool.Name)
@@ -145,18 +122,11 @@ func TestManager_OverlayApply(t *testing.T) {
 }
 
 func TestRedactedCopy(t *testing.T) {
-	orig := &types.Configuration{
-		Agent: types.ConfigAgent{
-			LLM: types.AgentLLMConfig{
-				APIKey: "super-secret-llm-key",
-			},
-			Connections: types.AgentConnectionsConfig{
-				McpServers: map[string]types.MCPServerConnection{
-					"server1": {APIKey: "server1-key", URL: "http://server1"},
-					"server2": {APIKey: "server2-key", URL: "http://server2"},
-				},
-			},
-		},
+	orig := &types.Configuration{}
+	orig.Agent.LLM.APIKey = "super-secret-llm-key"
+	orig.Agent.Connections.McpServers = map[string]types.MCPServerConnection{
+		"server1": {APIKey: "server1-key", URL: "http://server1"},
+		"server2": {APIKey: "server2-key", URL: "http://server2"},
 	}
 	redacted := RedactedCopy(orig)
 	assert.Equal(t, "***REDACTED***", redacted.Agent.LLM.APIKey)
@@ -248,3 +218,17 @@ func randomString(r *rand.Rand) string {
 }
 
 // --- END: overlay, validation, redaction, apply, property-based overlay tests ---
+
+func TestManager_GetAgentConfig_InlineStruct(t *testing.T) {
+	logger := &SimpleLogger{}
+	mgr := NewConfigurationManager(logger)
+	// Загружаем только дефолтную конфигурацию (без файла и env)
+	err := mgr.LoadConfiguration(context.Background(), "")
+	assert.NoError(t, err)
+
+	agentCfg := mgr.GetAgentConfig()
+	assert.Equal(t, "process", agentCfg.Tool.Name)
+	assert.Equal(t, "gpt-4", agentCfg.Model)
+	assert.Equal(t, 8192, agentCfg.MaxTokens)
+	assert.Equal(t, 100, agentCfg.MaxLLMIterations)
+}

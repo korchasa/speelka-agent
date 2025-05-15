@@ -9,6 +9,7 @@ import (
 	"io"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 func TestNewConfiguration(t *testing.T) {
@@ -17,72 +18,48 @@ func TestNewConfiguration(t *testing.T) {
 }
 
 func TestConfiguration_Converters(t *testing.T) {
-	baseConfig := &Configuration{
-		Runtime: RuntimeConfig{
-			Log: RuntimeLogConfig{
-				DefaultLevel: "info",
-				Output:       LogOutputStdout,
-			},
-			Transports: RuntimeTransportConfig{
-				Stdio: RuntimeStdioConfig{
-					Enabled:    true,
-					BufferSize: 4096,
-				},
-				HTTP: RuntimeHTTPConfig{
-					Enabled: true,
-					Host:    "127.0.0.1",
-					Port:    8080,
-				},
-			},
-		},
-		Agent: ConfigAgent{
-			Name:    "agent-test",
-			Version: "v1.2.3",
-			Tool: AgentToolConfig{
-				Name:                "tool1",
-				Description:         "desc1",
-				ArgumentName:        "arg1",
-				ArgumentDescription: "argdesc1",
-			},
-			Chat: AgentChatConfig{
-				MaxTokens:        1234,
-				MaxLLMIterations: 7,
-			},
-			LLM: AgentLLMConfig{
-				Provider:         "openai",
-				Model:            "gpt-4",
-				APIKey:           "api-key-123",
-				MaxTokens:        2048,
-				IsMaxTokensSet:   true,
-				Temperature:      0.5,
-				IsTemperatureSet: true,
-				PromptTemplate:   "prompt {{arg1}}",
-				Retry: LLMRetryConfig{
-					MaxRetries:        2,
-					InitialBackoff:    1.5,
-					MaxBackoff:        10.0,
-					BackoffMultiplier: 2.5,
-				},
-			},
-			Connections: AgentConnectionsConfig{
-				McpServers: map[string]MCPServerConnection{
-					"srv1": {
-						URL:    "http://srv1",
-						APIKey: "srv1-key",
-					},
-				},
-				Retry: ConnectionRetryConfig{
-					MaxRetries:        3,
-					InitialBackoff:    2.0,
-					MaxBackoff:        20.0,
-					BackoffMultiplier: 3.0,
-				},
-			},
+	baseConfig := NewConfiguration()
+	baseConfig.Runtime.Log.DefaultLevel = "info"
+	baseConfig.Runtime.Log.Output = LogOutputStdout
+	baseConfig.Runtime.Transports.Stdio.Enabled = true
+	baseConfig.Runtime.Transports.Stdio.BufferSize = 4096
+	baseConfig.Runtime.Transports.HTTP.Enabled = true
+	baseConfig.Runtime.Transports.HTTP.Host = "127.0.0.1"
+	baseConfig.Runtime.Transports.HTTP.Port = 8080
+
+	baseConfig.Agent.Name = "agent-test"
+	baseConfig.Agent.Version = "v1.2.3"
+	baseConfig.Agent.Tool.Name = "tool1"
+	baseConfig.Agent.Tool.Description = "desc1"
+	baseConfig.Agent.Tool.ArgumentName = "arg1"
+	baseConfig.Agent.Tool.ArgumentDescription = "argdesc1"
+	baseConfig.Agent.Chat.MaxTokens = 1234
+	baseConfig.Agent.Chat.MaxLLMIterations = 7
+	baseConfig.Agent.LLM.Provider = "openai"
+	baseConfig.Agent.LLM.Model = "gpt-4"
+	baseConfig.Agent.LLM.APIKey = "api-key-123"
+	baseConfig.Agent.LLM.MaxTokens = 2048
+	baseConfig.Agent.LLM.IsMaxTokensSet = true
+	baseConfig.Agent.LLM.Temperature = 0.5
+	baseConfig.Agent.LLM.IsTemperatureSet = true
+	baseConfig.Agent.LLM.PromptTemplate = "prompt {{arg1}}"
+	baseConfig.Agent.LLM.Retry.MaxRetries = 2
+	baseConfig.Agent.LLM.Retry.InitialBackoff = 1.5
+	baseConfig.Agent.LLM.Retry.MaxBackoff = 10.0
+	baseConfig.Agent.LLM.Retry.BackoffMultiplier = 2.5
+	baseConfig.Agent.Connections.McpServers = map[string]MCPServerConnection{
+		"srv1": {
+			URL:    "http://srv1",
+			APIKey: "srv1-key",
 		},
 	}
+	baseConfig.Agent.Connections.Retry.MaxRetries = 3
+	baseConfig.Agent.Connections.Retry.InitialBackoff = 2.0
+	baseConfig.Agent.Connections.Retry.MaxBackoff = 20.0
+	baseConfig.Agent.Connections.Retry.BackoffMultiplier = 3.0
 
-	t.Run("ToAgentConfig", func(t *testing.T) {
-		agentCfg := baseConfig.ToAgentConfig()
+	t.Run("GetAgentConfig", func(t *testing.T) {
+		agentCfg := baseConfig.GetAgentConfig()
 		assert.Equal(t, "tool1", agentCfg.Tool.Name)
 		assert.Equal(t, "gpt-4", agentCfg.Model)
 		assert.Equal(t, "prompt {{arg1}}", agentCfg.SystemPromptTemplate)
@@ -90,8 +67,8 @@ func TestConfiguration_Converters(t *testing.T) {
 		assert.Equal(t, 7, agentCfg.MaxLLMIterations)
 	})
 
-	t.Run("ToLLMConfig", func(t *testing.T) {
-		llmCfg := baseConfig.ToLLMConfig()
+	t.Run("GetLLMConfig", func(t *testing.T) {
+		llmCfg := baseConfig.GetLLMConfig()
 		assert.Equal(t, "openai", llmCfg.Provider)
 		assert.Equal(t, "gpt-4", llmCfg.Model)
 		assert.Equal(t, "api-key-123", llmCfg.APIKey)
@@ -106,8 +83,8 @@ func TestConfiguration_Converters(t *testing.T) {
 		assert.Equal(t, 2.5, llmCfg.RetryConfig.BackoffMultiplier)
 	})
 
-	t.Run("ToMCPServerConfig", func(t *testing.T) {
-		mcpSrvCfg := baseConfig.ToMCPServerConfig()
+	t.Run("GetMCPServerConfig", func(t *testing.T) {
+		mcpSrvCfg := baseConfig.GetMCPServerConfig()
 		assert.Equal(t, "agent-test", mcpSrvCfg.Name)
 		assert.Equal(t, "v1.2.3", mcpSrvCfg.Version)
 		assert.Equal(t, true, mcpSrvCfg.HTTP.Enabled)
@@ -119,8 +96,8 @@ func TestConfiguration_Converters(t *testing.T) {
 		assert.Equal(t, LogOutputStdout, mcpSrvCfg.LogRawOutput)
 	})
 
-	t.Run("ToMCPConnectorConfig", func(t *testing.T) {
-		mcpConnCfg := baseConfig.ToMCPConnectorConfig()
+	t.Run("GetMCPConnectorConfig", func(t *testing.T) {
+		mcpConnCfg := baseConfig.GetMCPConnectorConfig()
 		assert.Contains(t, mcpConnCfg.McpServers, "srv1")
 		assert.Equal(t, "http://srv1", mcpConnCfg.McpServers["srv1"].URL)
 		assert.Equal(t, "srv1-key", mcpConnCfg.McpServers["srv1"].APIKey)
@@ -165,7 +142,11 @@ func TestConfiguration_Serialization_Golden(t *testing.T) {
 
 func TestBuildLogConfig(t *testing.T) {
 	t.Run("valid stdout info custom", func(t *testing.T) {
-		raw := RuntimeLogConfig{
+		raw := struct {
+			DefaultLevel string `json:"default_level" yaml:"default_level"`
+			Output       string `json:"output" yaml:"output"`
+			Format       string `json:"format" yaml:"format"`
+		}{
 			DefaultLevel: "info",
 			Output:       LogOutputStdout,
 			Format:       "custom",
@@ -181,7 +162,11 @@ func TestBuildLogConfig(t *testing.T) {
 	})
 
 	t.Run("valid stderr debug json", func(t *testing.T) {
-		raw := RuntimeLogConfig{
+		raw := struct {
+			DefaultLevel string `json:"default_level" yaml:"default_level"`
+			Output       string `json:"output" yaml:"output"`
+			Format       string `json:"format" yaml:"format"`
+		}{
 			DefaultLevel: "debug",
 			Output:       LogOutputStderr,
 			Format:       "json",
@@ -194,7 +179,11 @@ func TestBuildLogConfig(t *testing.T) {
 	})
 
 	t.Run("valid mcp warn text", func(t *testing.T) {
-		raw := RuntimeLogConfig{
+		raw := struct {
+			DefaultLevel string `json:"default_level" yaml:"default_level"`
+			Output       string `json:"output" yaml:"output"`
+			Format       string `json:"format" yaml:"format"`
+		}{
 			DefaultLevel: "warn",
 			Output:       LogOutputMCP,
 			Format:       "text",
@@ -207,7 +196,11 @@ func TestBuildLogConfig(t *testing.T) {
 	})
 
 	t.Run("file output", func(t *testing.T) {
-		raw := RuntimeLogConfig{
+		raw := struct {
+			DefaultLevel string `json:"default_level" yaml:"default_level"`
+			Output       string `json:"output" yaml:"output"`
+			Format       string `json:"format" yaml:"format"`
+		}{
 			DefaultLevel: "error",
 			Output:       "/tmp/test.log",
 			Format:       "custom",
@@ -219,7 +212,11 @@ func TestBuildLogConfig(t *testing.T) {
 	})
 
 	t.Run("invalid level", func(t *testing.T) {
-		raw := RuntimeLogConfig{
+		raw := struct {
+			DefaultLevel string `json:"default_level" yaml:"default_level"`
+			Output       string `json:"output" yaml:"output"`
+			Format       string `json:"format" yaml:"format"`
+		}{
 			DefaultLevel: "notalevel",
 			Output:       LogOutputStdout,
 			Format:       "custom",
@@ -229,7 +226,11 @@ func TestBuildLogConfig(t *testing.T) {
 	})
 
 	t.Run("invalid output", func(t *testing.T) {
-		raw := RuntimeLogConfig{
+		raw := struct {
+			DefaultLevel string `json:"default_level" yaml:"default_level"`
+			Output       string `json:"output" yaml:"output"`
+			Format       string `json:"format" yaml:"format"`
+		}{
 			DefaultLevel: "info",
 			Output:       "",
 			Format:       "custom",
@@ -240,7 +241,11 @@ func TestBuildLogConfig(t *testing.T) {
 	})
 
 	t.Run("invalid format", func(t *testing.T) {
-		raw := RuntimeLogConfig{
+		raw := struct {
+			DefaultLevel string `json:"default_level" yaml:"default_level"`
+			Output       string `json:"output" yaml:"output"`
+			Format       string `json:"format" yaml:"format"`
+		}{
 			DefaultLevel: "info",
 			Output:       LogOutputStdout,
 			Format:       "unknown",
@@ -249,4 +254,68 @@ func TestBuildLogConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "unknown", cfg.Format)
 	})
+}
+
+func TestConfiguration_Unmarshal_Inline(t *testing.T) {
+	yamlData := `
+runtime:
+  log:
+    default_level: info
+    output: ':mcp:'
+    format: text
+  transports:
+    stdio:
+      enabled: true
+      buffer_size: 1024
+    http:
+      enabled: false
+      host: localhost
+      port: 3000
+agent:
+  name: "speelka-agent"
+  version: "v1.0.0"
+  tool:
+    name: "process"
+    description: "Process tool for user queries"
+    argument_name: "input"
+    argument_description: "User query"
+  chat:
+    max_tokens: 0
+    max_llm_iterations: 25
+    request_budget: 0.0
+  llm:
+    provider: "openai"
+    api_key: "dummy-api-key"
+    model: "gpt-4o"
+    temperature: 0.7
+    prompt_template: "You are a helpful assistant. {{input}}. Available tools: {{tools}}"
+    retry:
+      max_retries: 3
+      initial_backoff: 1.0
+      max_backoff: 30.0
+      backoff_multiplier: 2.0
+  connections:
+    mcpServers:
+      time:
+        command: "docker"
+        args: ["run", "-i", "--rm", "mcp/time"]
+        timeout: 10
+      filesystem:
+        command: "mcp-filesystem-server"
+        args: ["/path/to/directory"]
+    retry:
+      max_retries: 2
+      initial_backoff: 1.5
+      max_backoff: 10.0
+      backoff_multiplier: 2.5
+`
+	var cfg Configuration
+	err := yaml.Unmarshal([]byte(yamlData), &cfg)
+	assert.NoError(t, err)
+	assert.Equal(t, "speelka-agent", cfg.Agent.Name)
+	assert.Equal(t, 25, cfg.Agent.Chat.MaxLLMIterations)
+	assert.Equal(t, "openai", cfg.Agent.LLM.Provider)
+	assert.Equal(t, 1024, cfg.Runtime.Transports.Stdio.BufferSize)
+	assert.Equal(t, false, cfg.Runtime.Transports.HTTP.Enabled)
+	assert.Equal(t, "docker", cfg.Agent.Connections.McpServers["time"].Command)
 }

@@ -36,11 +36,11 @@ func NewLogger(cfg types.LogConfig) types.LoggerSpec {
 // NewAgentWithDeps wires up all agent dependencies and returns an agent instance.
 func NewAgentWithDeps(cfg types.AgentConfig, logger types.LoggerSpec, configManager types.ConfigurationManagerSpec) (types.AgentSpec, error) {
 	conf := configManager.GetConfiguration()
-	llmService, err := llm_service.NewLLMService(conf.ToLLMConfig(), logger)
+	llmService, err := llm_service.NewLLMService(conf.GetLLMConfig(), logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create LLM service: %w", err)
 	}
-	mcpConnector := mcp_connector.NewMCPConnector(conf.ToMCPConnectorConfig(), logger)
+	mcpConnector := mcp_connector.NewMCPConnector(conf.GetMCPConnectorConfig(), logger)
 	err = mcpConnector.InitAndConnectToMCPs(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to init MCP connector: %w", err)
@@ -71,19 +71,19 @@ func NewAgentWithDeps(cfg types.AgentConfig, logger types.LoggerSpec, configMana
 func NewAgentWithServer(configManager types.ConfigurationManagerSpec, logger types.LoggerSpec) (types.AgentSpec, *mcp_server.MCPServer, error) {
 	conf := configManager.GetConfiguration()
 	// Create LLM service
-	llmService, err := llm_service.NewLLMService(conf.ToLLMConfig(), logger)
+	llmService, err := llm_service.NewLLMService(conf.GetLLMConfig(), logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create LLM service: %w", err)
 	}
 	logger.Info("LLM service instance created")
 
 	// Create MCP server
-	mcpServer := mcp_server.NewMCPServer(conf.ToMCPServerConfig(), logger)
+	mcpServer := mcp_server.NewMCPServer(conf.GetMCPServerConfig(), logger)
 	logger.SetMCPServer(mcpServer)
 	logger.Info("MCP server instance created")
 
 	// Create MCP connector
-	mcpConnector := mcp_connector.NewMCPConnector(conf.ToMCPConnectorConfig(), logger)
+	mcpConnector := mcp_connector.NewMCPConnector(conf.GetMCPConnectorConfig(), logger)
 	logger.Info("MCP connector instance created")
 
 	// Initialize and connect to MCPs
@@ -94,7 +94,7 @@ func NewAgentWithServer(configManager types.ConfigurationManagerSpec, logger typ
 	logger.Info("MCP connector connected successfully")
 
 	// Get Agent configuration
-	agentConfig := conf.ToAgentConfig()
+	agentConfig := conf.GetAgentConfig()
 
 	// Create Calculator
 	calculator := llm_models.NewCalculator()
