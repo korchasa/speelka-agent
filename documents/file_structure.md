@@ -8,7 +8,7 @@
 - `.gitignore`, `.cursorignore`, `.cursorrules`: Ignore/config rules
 - `.github/`: CI/CD workflows
 - `bin/`: Built binaries
-- `cmd/`: Entrypoints (server, mcp-call)
+- `cmd/`: Entrypoints (server, mcp-call, test-mcp-logging)
 - `internal/`: Core logic (see below)
 - `site/`: Web UI, config examples, static assets
 - `vendor/`: Vendored Go dependencies
@@ -16,13 +16,16 @@
 - `LICENSE`: License
 
 ## cmd/
-- `server/`: Main server entrypoint
-- `mcp-call/`: MCP call utilities
+- `server/`: Main MCP server/daemon entrypoint (uses app_mcp)
+- `mcp-call/`: Standalone MCP call/test utility (for E2E and protocol tests)
+- `test-mcp-logging/`: Standalone test server/client for MCP logging
 
 ## internal/
-- `agent/`: Core agent logic
-- `app_mcp/`: MCP server app wiring
-- `app_direct/`: Direct CLI call app wiring
+- `agent/`: Core agent logic (protocol-agnostic, no MCP/CLI logic)
+- `app_mcp/`: MCP server/daemon app wiring (uses NewAgentServerMode, DispatchMCPCall)
+- `app_direct/`: Direct CLI call app wiring (implements NewAgentCLI, fully independent from app_mcp)
+    - `app.go`: CLI application, contains NewAgentCLI and dummyToolConnector
+    - `types.go`: Types for CLI mode
 - `chat/`: Chat/session logic
 - `configuration/`: Config loading/validation
 - `error_handling/`: Error handling utilities
@@ -30,7 +33,7 @@
 - `llm_service/`: LLM service abstraction
 - `logger/`: Logging
 - `mcp_connector/`: MCP server connection logic
-    - mcp_connector.go — MCPConnector implementation, public methods, delegation
+    - mcp_connector.go — ToolConnector implementation, public methods, delegation
     - connection.go — MCP client connection and initialization logic
     - logging.go — log routing (MCP logs or fallback to stderr)
     - mcp_connector_test.go — tests for log routing (MCP and stderr)

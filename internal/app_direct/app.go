@@ -2,12 +2,16 @@ package app_direct
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
 
-	"github.com/korchasa/speelka-agent-go/internal/app_mcp"
+	"github.com/korchasa/speelka-agent-go/internal/agent"
+	"github.com/korchasa/speelka-agent-go/internal/chat"
+	"github.com/korchasa/speelka-agent-go/internal/llm_models"
+	"github.com/korchasa/speelka-agent-go/internal/llm_service"
 	"github.com/korchasa/speelka-agent-go/internal/types"
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // DirectApp handles direct CLI calls, including config loading, agent initialization,
@@ -22,24 +26,8 @@ type directAgent interface {
 	CallDirect(ctx context.Context, input string) (string, types.MetaInfo, error)
 }
 
-// mcpLogStub implements types.MCPServerNotifier and outputs MCP logs to stderr
-// Used only in direct-call mode to display logs to the user
-// Format: [MCP level] message: ...
-type mcpLogStub struct{}
-
-func (m *mcpLogStub) SendNotificationToClient(_ context.Context, method string, data map[string]interface{}) error {
-	if method != "notifications/message" {
-		return nil
-	}
-	level, _ := data["level"].(string)
-	msg, _ := data["message"].(string)
-	fmt.Fprintf(os.Stderr, "[MCP %s] %s\n", level, msg)
-	return nil
-}
-
 // NewDirectApp creates a new DirectApp with the given logger and configuration manager.
 func NewDirectApp(logger types.LoggerSpec, configManager types.ConfigurationManagerSpec) *DirectApp {
-	logger.SetMCPServer(&mcpLogStub{})
 	return &DirectApp{
 		logger:        logger,
 		configManager: configManager,
@@ -49,7 +37,7 @@ func NewDirectApp(logger types.LoggerSpec, configManager types.ConfigurationMana
 // Initialize loads configuration and initializes the Agent application.
 func (d *DirectApp) Initialize(ctx context.Context) error {
 	d.logger.Debugf("DirectApp.Initialize: start")
-	agent, _, err := app_mcp.NewAgentWithServer(d.configManager, d.logger)
+	agent, err := NewAgentCLI(d.configManager, d.logger)
 	if err != nil {
 		return fmt.Errorf("failed to initialize agent: %w", err)
 	}
@@ -88,43 +76,36 @@ func (d *DirectApp) HandleCall(ctx context.Context, input string) types.DirectCa
 }
 
 // Execute runs the direct call workflow: initialize, call, output JSON, and exit.
-func (d *DirectApp) Execute(ctx context.Context, input string) {
+func (d *DirectApp) Execute(ctx context.Context, input string) (types.DirectCallResult, int, error) {
 	if err := d.Initialize(ctx); err != nil {
-		d.outputErrorAndExit("config", err)
+		return d.outputErrorAndExit("config", err)
 	}
 	result := d.HandleCall(ctx, input)
-	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
-		d.outputErrorAndExit("internal", fmt.Errorf("failed to encode result: %w", err))
-	}
 	if result.Success {
-		os.Exit(0)
+		return result, 0, nil
 	}
 	switch result.Error.Type {
 	case "user", "config":
-		os.Exit(1)
+		return result, 1, errors.New(result.Error.Message)
 	default:
-		os.Exit(2)
+		return result, 2, errors.New(result.Error.Message)
 	}
 }
 
-// outputErrorAndExit writes a JSON error to stdout and exits with the appropriate code.
-func (d *DirectApp) outputErrorAndExit(errType string, err error) {
+// outputErrorAndExit prepares a JSON error result and code, does not exit.
+func (d *DirectApp) outputErrorAndExit(errType string, err error) (types.DirectCallResult, int, error) {
 	result := types.DirectCallResult{
 		Success: false,
 		Result:  map[string]any{"answer": ""},
 		Meta:    types.MetaInfo{},
 		Error:   types.DirectCallError{Type: errType, Message: err.Error()},
 	}
-	output, _ := json.Marshal(result)
-	fmt.Fprintln(os.Stdout, string(output))
+	code := 2
 	if errType == "user" || errType == "config" {
-		os.Exit(1)
+		code = 1
 	}
-	os.Exit(2)
+	return result, code, err
 }
-
-// Ensure DirectApp implements the Application interface
-var _ app_mcp.Application = (*DirectApp)(nil)
 
 // Start is a no-op for DirectApp (CLI mode)
 func (d *DirectApp) Start(daemonMode bool, ctx context.Context) error {
@@ -135,3 +116,52 @@ func (d *DirectApp) Start(daemonMode bool, ctx context.Context) error {
 func (d *DirectApp) Stop(shutdownCtx context.Context) error {
 	return nil
 }
+
+// NewAgentCLI creates an agent for CLI mode without MCPServer and external MCP connectors.
+// Dummy ToolConnector for CLI: provides no external tools, only exitTool
+func NewAgentCLI(configManager types.ConfigurationManagerSpec, logger types.LoggerSpec) (types.AgentSpec, error) {
+	conf := configManager.GetConfiguration()
+	llmService, err := llm_service.NewLLMService(conf.GetLLMConfig(), logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create LLM service: %w", err)
+	}
+	logger.Info("LLM service instance created (CLI mode)")
+
+	// Dummy ToolConnector для CLI: не предоставляет внешних инструментов, только exitTool
+	dummyConnector := &dummyToolConnector{}
+
+	agentConfig := conf.GetAgentConfig()
+	calculator := llm_models.NewCalculator()
+	chatInstance := chat.NewChat(
+		agentConfig.Model,
+		agentConfig.SystemPromptTemplate,
+		agentConfig.Tool.ArgumentName,
+		logger,
+		calculator,
+		agentConfig.MaxTokens,
+		0.0,
+	)
+	agent := agent.NewAgent(
+		agentConfig,
+		llmService,
+		dummyConnector,
+		logger,
+		chatInstance,
+	)
+	logger.Info("Agent instance created (CLI mode)")
+	return agent, nil
+}
+
+type dummyToolConnector struct{}
+
+func (d *dummyToolConnector) InitAndConnectToMCPs(ctx context.Context) error { return nil }
+func (d *dummyToolConnector) ConnectServer(ctx context.Context, serverID string, serverConfig types.MCPServerConnection) (client.MCPClient, error) {
+	return nil, nil
+}
+func (d *dummyToolConnector) GetAllTools(ctx context.Context) ([]mcp.Tool, error) {
+	return []mcp.Tool{}, nil
+}
+func (d *dummyToolConnector) ExecuteTool(ctx context.Context, call types.CallToolRequest) (*mcp.CallToolResult, error) {
+	return nil, fmt.Errorf("no external tools in CLI mode")
+}
+func (d *dummyToolConnector) Close() error { return nil }

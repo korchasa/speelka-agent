@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -48,8 +49,12 @@ func main() {
 		cancel()
 	}()
 
-	startupLogger := logger.NewIOWriterLogger(os.Stderr)
-	startupLogger.SetLevel(logrus.WarnLevel)
+	startupLogger := logger.NewLogger(types.LogConfig{
+		DefaultLevel: "warn",
+		Format:       "text",
+		Level:        logrus.WarnLevel,
+		DisableMCP:   true,
+	})
 	startupLogger.SetFormatter(logger.NewCustomLogFormatter())
 	configManager, err := loadConfiguration(ctx, startupLogger)
 	if err != nil {
@@ -64,7 +69,7 @@ func main() {
 	}
 	level := logConfig.Level
 	// Global logger
-	log := app_mcp.NewLogger(logConfig)
+	log := logger.NewLogger(logConfig)
 	log.SetLevel(level)
 	log.SetFormatter(logger.NewCustomLogFormatter())
 
@@ -83,9 +88,10 @@ func main() {
 	var application app_mcp.Application
 	if *callInput != "" {
 		// Direct call mode
-		application = app_direct.NewDirectApp(log, configManager)
-		// For CLI mode, execute and exit
-		application.(*app_direct.DirectApp).Execute(ctx, *callInput)
+		application := app_direct.NewDirectApp(log, configManager)
+		result, code, _ := application.Execute(ctx, *callInput)
+		_ = json.NewEncoder(os.Stdout).Encode(result)
+		os.Exit(code)
 		return
 	} else {
 		// MCP server mode

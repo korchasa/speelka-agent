@@ -16,33 +16,39 @@ import (
 // Delegates to transport-specific methods.
 func (mc *MCPConnector) ConnectServer(ctx context.Context, serverID string, serverConfig types.MCPServerConnection) (client.MCPClient, error) {
 	startTime := time.Now()
-	mc.logger.Debugf("[MCP-CONNECT] ConnectServer: serverID='%s', config=%+v, at=%s", serverID, serverConfig, startTime.Format(time.RFC3339Nano))
 
 	var mcpClient client.MCPClient
 	var err error
 
 	switch {
 	case serverConfig.Command != "":
-		mc.logger.Debugf("[MCP-CONNECT] ConnectServer: using stdio transport for server '%s'", serverID)
 		mcpClient, err = mc.connectStdioServer(ctx, serverID, serverConfig)
+		if err != nil {
+			return nil, error_handling.WrapError(
+				err,
+				"failed to connect to MCP server by Stdio",
+				error_handling.ErrorCategoryExternal,
+			)
+		}
 	case serverConfig.URL != "":
-		mc.logger.Debugf("[MCP-CONNECT] ConnectServer: using HTTP transport for server '%s'", serverID)
 		mcpClient, err = mc.connectHTTPServer(ctx, serverID, serverConfig)
+		if err != nil {
+			return nil, error_handling.WrapError(
+				err,
+				"failed to connect to MCP server by HTTP",
+				error_handling.ErrorCategoryExternal,
+			)
+		}
 	default:
-		mc.logger.Errorf("[MCP-CONNECT] [ERROR] ConnectServer: neither command nor URL specified for server '%s'", serverID)
-		err = error_handling.NewError(
+		return nil, error_handling.NewError(
 			"neither command nor URL is specified for MCP server connection",
 			error_handling.ErrorCategoryValidation,
 		)
 	}
 
 	endTime := time.Now()
-	if err == nil {
-		mc.logger.Debugf("[MCP-CONNECT] ConnectServer: finished for server '%s' at %s (duration: %s)", serverID, endTime.Format(time.RFC3339Nano), endTime.Sub(startTime))
-	} else {
-		mc.logger.Errorf("[MCP-CONNECT] [ERROR] ConnectServer: failed for server '%s' at %s (duration: %s): %v", serverID, endTime.Format(time.RFC3339Nano), endTime.Sub(startTime), err)
-	}
-	return mcpClient, err
+	mc.logger.Infof("[MCP-CONNECT] ConnectServer: finished for server '%s' at %s (duration: %s)", serverID, endTime.Format(time.RFC3339Nano), endTime.Sub(startTime))
+	return mcpClient, nil
 }
 
 // connectStdioServer creates and initializes a stdio MCP client, saves capabilities, and sets up logging.

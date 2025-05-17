@@ -26,5 +26,3 @@ type DirectCallResult struct {
 	Meta    MetaInfo        `json:"meta"`
 	Error   DirectCallError `json:"error"`
 }
-
-// ... existing code ...

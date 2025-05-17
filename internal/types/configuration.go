@@ -12,8 +12,8 @@ type Configuration struct {
 	Runtime struct {
 		Log struct {
 			DefaultLevel string `json:"default_level" yaml:"default_level"`
-			Output       string `json:"output" yaml:"output"`
 			Format       string `json:"format" yaml:"format"`
+			DisableMCP   bool   `json:"disable_mcp" yaml:"disable_mcp"`
 		} `json:"log" yaml:"log"`
 		Transports struct {
 			Stdio struct {
@@ -131,8 +131,7 @@ func (c *Configuration) GetMCPServerConfig() MCPServerConfig {
 			ArgumentName:        c.Agent.Tool.ArgumentName,
 			ArgumentDescription: c.Agent.Tool.ArgumentDescription,
 		},
-		Debug:        false, // Optionally add a separate field in config if needed
-		LogRawOutput: c.Runtime.Log.Output,
+		MCPLogEnabled: !c.Runtime.Log.DisableMCP,
 	}
 }
 
@@ -152,13 +151,13 @@ func (c *Configuration) GetMCPConnectorConfig() MCPConnectorConfig {
 // BuildLogConfig creates a business LogConfig structure from the raw Log config
 func BuildLogConfig(raw struct {
 	DefaultLevel string `json:"default_level" yaml:"default_level"`
-	Output       string `json:"output" yaml:"output"`
 	Format       string `json:"format" yaml:"format"`
+	DisableMCP   bool   `json:"disable_mcp" yaml:"disable_mcp"`
 }) (LogConfig, error) {
 	cfg := LogConfig{
 		DefaultLevel: raw.DefaultLevel,
-		Output:       raw.Output,
 		Format:       raw.Format,
+		DisableMCP:   raw.DisableMCP,
 	}
 
 	// Parse log level
@@ -167,9 +166,6 @@ func BuildLogConfig(raw struct {
 		return LogConfig{}, err
 	}
 	cfg.Level = level
-
-	// MCP output
-	cfg.UseMCPLogs = (raw.Output == LogOutputMCP)
 
 	return cfg, nil
 }

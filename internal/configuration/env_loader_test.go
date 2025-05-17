@@ -77,7 +77,6 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 
 		// Assert that optional values were set to defaults
 		assert.Equal(t, "", config.Runtime.Log.DefaultLevel)
-		assert.Equal(t, "", config.Runtime.Log.Output)
 		assert.Equal(t, "", config.Runtime.Log.Format)
 	})
 
@@ -96,7 +95,6 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 
 		// Override default values
 		os.Setenv("SPL_LOG_DEFAULT_LEVEL", "debug")
-		os.Setenv("SPL_LOG_OUTPUT", ":stdout:")
 		os.Setenv("SPL_LOG_FORMAT", "json")
 		os.Setenv("SPL_LLM_MAX_TOKENS", "1000")
 		os.Setenv("SPL_LLM_TEMPERATURE", "0.5")
@@ -114,12 +112,10 @@ func TestEnvLoader_LoadConfiguration(t *testing.T) {
 
 		// Assert overridden values
 		assert.Equal(t, "debug", config.Runtime.Log.DefaultLevel)
-		assert.Equal(t, ":stdout:", config.Runtime.Log.Output)
 		assert.Equal(t, "json", config.Runtime.Log.Format)
 		// After Apply, check parsed fields
 		mgr := NewConfigurationManager(nil)
 		config, _ = mgr.Apply(config, config)
-		assert.Equal(t, ":stdout:", config.Runtime.Log.Output)
 		assert.Equal(t, 1000, config.Agent.LLM.MaxTokens)
 		assert.Equal(t, 0.5, config.Agent.LLM.Temperature)
 		assert.Equal(t, 5, config.Agent.LLM.Retry.MaxRetries)

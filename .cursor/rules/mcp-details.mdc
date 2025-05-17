@@ -1,0 +1,8 @@
+---
+description: Studying the details of the Model Context Protocol (MCP) and its implementation in Go
+globs:
+alwaysApply: false
+---
+Read docs:
+ - model-context-protocol: Specification in `[project_root]/documents/mcp-proto.xml`
+ - github.com/mark3labs/mcp-go (MCP protocol): Documentation in `[project_root]/documents/mcp-go.xml`

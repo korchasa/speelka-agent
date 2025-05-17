@@ -26,6 +26,8 @@ flowchart TB
 ## Main Components
 - **Agent** (`internal/agent`): Orchestrates LLM loop, tool execution, and chat state. Exposes a clean interface for the app layer. No config/server/CLI logic.
 - **App Layer** (`internal/app_*`): Application wiring, lifecycle, CLI/server entrypoints. Manages config, logger, MCP server, agent instance.
+    - `app_mcp`: MCP server/daemon mode (uses NewAgentServerMode, DispatchMCPCall)
+    - `app_direct`: CLI mode (implements NewAgentCLI, fully independent from app_mcp)
 - **Config Manager**: Loads and validates config (env, YAML, JSON), provides typed access.
 - **LLM Service**: Handles LLM requests, retry logic, returns structured responses.
 - **MCP Server**: Exposes agent via HTTP/stdio, manages tools, processes requests.
@@ -149,6 +151,7 @@ graph TD
 - `--call` flag: single-shot agent run, outputs structured JSON to stdout
 - All errors mapped to JSON and exit codes (0: success, 1: user/config, 2: internal/tool)
 - Use cases: scripting, automation, CI
+- **app_direct** implements NewAgentCLI and dummyToolConnector, does not depend on app_mcp
 
 ## Log Routing Logic
 - After initializing a connection to an MCP server (ConnectServer), the connector saves the server's capabilities.
@@ -164,6 +167,7 @@ graph TD
 - internal/mcp_connector/connection.go — MCP client connection and initialization logic
 - internal/mcp_connector/logging.go — log routing (MCP logs or fallback to stderr)
 - internal/types/logger_spec.go — LogConfig, LoggerSpec, MCPServerNotifier interfaces
+- internal/app_direct/app.go — CLI mode, NewAgentCLI, dummyToolConnector
 
 ## Testing
 - Capabilities are saved after initialize
@@ -175,3 +179,25 @@ graph TD
 - Feature toggle (capabilities as a flag)
 - Dependency injection for logger
 - Unit tests for all new functions
+
+# MCPServer Architecture
+
+## Thread Safety
+MCPServer uses sync.Mutex to protect state for all public methods related to the server lifecycle and notification sending. This ensures correct operation under concurrent Serve, Stop, BroadcastNotification, and other method calls.
+All external dependencies (logger, configuration, internal MCP server, SSE server) are injected via the constructor or can be explicitly replaced for testing. This provides high testability and modularity.
+
+## Error Handling
+- All errors when sending notifications (BroadcastNotification) are logged but do not interrupt the main execution flow.
+- Lifecycle-related methods return errors for proper handling at the application level.
+
+## Public Method Contracts of MCPServer
+- Serve(ctx, daemonMode, handler): Starts the server in the required mode, thread-safe.
+- Stop(ctx): Gracefully shuts down the server, releases resources, thread-safe.
+- SendNotificationToClient(ctx, method, data): Sends a notification to a single client, returns an error on failure.
+- GetAllTools(): Returns all registered tools.
+- GetServer(): Returns the internal *server.MCPServer for integration and tests.
+
+## Features
+- Tools are created uniformly via buildTools.
+- exitTool (the tool for the final user answer) is built based on MCPServerConfig.Tool (name, description, argument, argument description), not hardcoded.
+- For tests, a notificationBroadcaster interface is provided, allowing mocking of notification sending and error handling.

@@ -17,6 +17,7 @@ func (mc *MCPConnector) setupLoggingRoute(serverID string, mcpClient client.MCPC
 		// MCP logging via notifications/message
 		if stdioClient, ok := mcpClient.(*client.Client); ok {
 			stdioClient.OnNotification(func(notification mcp.JSONRPCNotification) {
+				mc.logger.Debugf("[MCP-LOG] notification: %s", notification.Method)
 				if notification.Method != "notifications/message" {
 					return
 				}

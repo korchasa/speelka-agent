@@ -225,9 +225,6 @@ func (m *Manager) Apply(base, newConfig *types.Configuration) (*types.Configurat
 	if newConfig.Runtime.Log.DefaultLevel != "" {
 		base.Runtime.Log.DefaultLevel = newConfig.Runtime.Log.DefaultLevel
 	}
-	if newConfig.Runtime.Log.Output != "" {
-		base.Runtime.Log.Output = newConfig.Runtime.Log.Output
-	}
 	if newConfig.Runtime.Log.Format != "" {
 		base.Runtime.Log.Format = newConfig.Runtime.Log.Format
 	}

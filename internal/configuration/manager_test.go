@@ -34,6 +34,9 @@ func (m *SimpleLogger) WithFields(fields logrus.Fields) types.LogEntrySpec {
 func (m *SimpleLogger) SetLevel(level logrus.Level)                    {}
 func (m *SimpleLogger) SetMCPServer(mcpServer types.MCPServerNotifier) {}
 func (m *SimpleLogger) SetFormatter(formatter logrus.Formatter)        {}
+func (m *SimpleLogger) HandleMCPSetLevel(ctx context.Context, req interface{}) (interface{}, error) {
+	return nil, nil
+}
 
 // SimpleLogEntry implements the LogEntrySpec interface for testing
 type SimpleLogEntry struct{}

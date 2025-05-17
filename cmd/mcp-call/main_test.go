@@ -35,9 +35,9 @@ type callTooler interface {
 	CallTool(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error)
 }
 
-// Test debug filtering
-// Test object output
-// Test error output
+// Check debug filtering
+// Check object output
+// Check error output
 
 func TestHandleLoggingNotification(t *testing.T) {
 	var buf bytes.Buffer

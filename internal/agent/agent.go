@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -15,80 +16,54 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var ExitTool = mcp.NewTool("answer",
-	mcp.WithDescription("Send response to the user"),
-	mcp.WithString("text",
+type Agent struct {
+	config        types.AgentConfig
+	llmService    types.LLMServiceSpec
+	toolConnector types.ToolConnectorSpec
+	logger        types.LoggerSpec
+	chat          *chat.Chat // Injected chat instance
+}
+
+var exitTool = mcp.NewTool(
+	"answer",
+	mcp.WithDescription("Use this tool to answer the user and finish the session. The argument 'text' is the final answer."),
+	mcp.WithString(
+		"text",
+		mcp.Description("The final answer to the user's request"),
 		mcp.Required(),
-		mcp.Description("Text to send to the user"),
 	),
 )
-
-type Agent struct {
-	config       types.AgentConfig
-	llmService   types.LLMServiceSpec
-	mcpServer    types.MCPServerSpec
-	mcpConnector types.MCPConnectorSpec
-	logger       types.LoggerSpec
-	chat         *chat.Chat // Injected chat instance
-}
-
-// GetMCPServer returns the MCP server instance for external use
-func (a *Agent) GetMCPServer() types.MCPServerSpec {
-	return a.mcpServer
-}
 
 // NewAgent creates a new instance of Agent with the given dependencies
 func NewAgent(
 	config types.AgentConfig,
 	llmService types.LLMServiceSpec,
-	mcpServer types.MCPServerSpec,
-	mcpConnector types.MCPConnectorSpec,
+	toolConnector types.ToolConnectorSpec,
 	logger types.LoggerSpec,
 	chat *chat.Chat,
 ) *Agent {
 	return &Agent{
-		config:       config,
-		llmService:   llmService,
-		mcpServer:    mcpServer,
-		mcpConnector: mcpConnector,
-		logger:       logger,
-		chat:         chat,
+		config:        config,
+		llmService:    llmService,
+		toolConnector: toolConnector,
+		logger:        logger,
+		chat:          chat,
 	}
-}
-
-// RegisterTools registers all tools for the agent
-func (a *Agent) RegisterTools() {
-	// Register exit tool
-	a.mcpServer.AddTool(ExitTool, nil) // No handler needed as we catch exit tool in process
-
-	// Register agent's core tool for handling user queries
-	toolConfig := a.config.Tool
-	a.mcpServer.AddTool(
-		mcp.NewTool(
-			toolConfig.Name,
-			mcp.WithDescription(toolConfig.Description),
-			mcp.WithString(
-				toolConfig.ArgumentName,
-				mcp.Description(toolConfig.ArgumentDescription),
-				mcp.Required(),
-			),
-		),
-		a.HandleRequest,
-	)
 }
 
 // GetAllTools returns all available tools (internal and from MCPs)
 func (a *Agent) GetAllTools(ctx context.Context) ([]mcp.Tool, error) {
-	// Get tools from MCP connector
-	mcpTools, err := a.mcpConnector.GetAllTools(ctx)
+	mcpTools, err := a.toolConnector.GetAllTools(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tools from MCP connector: %w", err)
 	}
-
-	// Combine with exit tool
-	allTools := append(mcpTools, ExitTool)
-
-	return allTools, nil
+	mcpTools = append(mcpTools, exitTool)
+	var toolNames []string
+	for _, t := range mcpTools {
+		toolNames = append(toolNames, t.Name)
+	}
+	a.logger.Infof("Tools for LLM: %v", toolNames)
+	return mcpTools, nil
 }
 
 // isExitCommand checks if a tool call is for the exit tool
@@ -96,100 +71,68 @@ func (a *Agent) isExitCommand(call types.CallToolRequest) bool {
 	return call.ToolName() == "answer"
 }
 
-// HandleRequest processes the incoming MCP request
-func (a *Agent) HandleRequest(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	a.logger.Debugf("> HandleRequest: %s", utils.SDump(map[string]any{"req": req}))
-
-	toolConfig := a.config.Tool
-	if req.Params.Name != toolConfig.Name {
-		a.logger.Errorf("invalid tool name: %s", req.Params.Name)
-		return mcp.NewToolResultError("invalid tool name"), nil
-	}
-
-	// Check if the argument exists and is not nil before type assertion
-	argValue, exists := req.Params.Arguments[toolConfig.ArgumentName]
-	if !exists || argValue == nil {
-		a.logger.Errorf("missing or nil input argument: %s", toolConfig.ArgumentName)
-		return mcp.NewToolResultError(fmt.Sprintf("missing or nil input argument: %s", toolConfig.ArgumentName)), nil
-	}
-
-	// Safely convert to string
-	userRequest, ok := argValue.(string)
-	if !ok {
-		a.logger.Errorf("invalid input argument type: expected string, got %T", argValue)
-		return mcp.NewToolResultError(fmt.Sprintf("invalid input argument type: expected string, got %T", argValue)), nil
-	}
-
-	if userRequest == "" {
-		a.logger.Errorf("empty input variable")
-		return mcp.NewToolResultError("empty input variable"), nil
-	}
-
-	a.logger.Infof("> Request from client: %s", userRequest)
-
-	res, err := a.process(ctx, userRequest)
-	if err != nil {
-		a.logger.Error(err.Error())
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	return res, nil
-}
-
-// process processes user requests through the LLM and tool execution
-func (a *Agent) process(ctx context.Context, userRequest string) (*mcp.CallToolResult, error) {
+// runSession manages the main loop of interaction with LLM and tools, returning the final answer and meta information.
+// CallDirect now simply calls runSession and returns the result.
+func (a *Agent) runSession(ctx context.Context, input string) (string, types.MetaInfo, error) {
+	fmt.Fprintf(os.Stderr, "[runSession] started session\n")
+	start := time.Now()
 	tools, err := a.GetAllTools(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tools: %w", err)
+		return "", types.MetaInfo{}, err
 	}
-
-	session, err := a.beginSession(userRequest, tools)
+	fmt.Fprintf(os.Stderr, "[runSession] got tools:\n")
+	session, err := a.beginSession(input, tools)
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin session: %w", err)
+		return "", types.MetaInfo{}, err
 	}
-
 	iteration := 0
-	// Main loop for LLM and tool interaction
+	var meta types.MetaInfo
 	for iteration < a.config.MaxLLMIterations {
 		iteration++
-
-		a.logger.WithFields(logrus.Fields{
-			"messages": len(session.GetLLMMessages()),
-			"tools":    len(tools),
-		}).Infof(">> Start iteration %d: sending request to LLM", iteration)
-
 		resp, err := a.llmService.SendRequest(ctx, session.GetLLMMessages(), tools)
 		if err != nil {
-			return nil, fmt.Errorf("failed to send request to LLM: %w", err)
+			return "", types.MetaInfo{}, err
 		}
 		session.AddAssistantMessage(resp)
-
-		// Enforce request budget after each LLM response
 		if session.ExceededRequestBudget() {
-			return a.handleRequestBudgetExceeded(session)
+			info := session.GetInfo()
+			return "", types.MetaInfo{
+				Tokens:     info.TotalTokens,
+				Cost:       info.TotalCost,
+				DurationMs: time.Since(start).Milliseconds(),
+			}, fmt.Errorf("exceeded request budget: total cost %.4f > budget %.4f", info.TotalCost, info.RequestBudget)
 		}
-
 		if len(resp.Calls) == 0 {
-			return nil, fmt.Errorf("LLM returned no tool calls")
+			return "", types.MetaInfo{}, fmt.Errorf("LLM returned no tool calls")
 		}
-
 		for _, call := range resp.Calls {
 			if a.isExitCommand(call) {
-				return a.handleLLMAnswerToolRequest(call, resp, session), nil
+				finalMessage, _ := call.Params.Arguments["text"].(string)
+				info := session.GetInfo()
+				meta = types.MetaInfo{
+					Tokens:           info.TotalTokens,
+					Cost:             info.TotalCost,
+					DurationMs:       time.Since(start).Milliseconds(),
+					PromptTokens:     resp.Metadata.Tokens.PromptTokens,
+					CompletionTokens: resp.Metadata.Tokens.CompletionTokens,
+					ReasoningTokens:  resp.Metadata.Tokens.ReasoningTokens,
+				}
+				return finalMessage, meta, nil
 			}
 		}
 		a.handleLLMToolCallRequest(ctx, resp, session, iteration)
 	}
-
-	return a.handleIterationLimit(session)
+	info := session.GetInfo()
+	return "", types.MetaInfo{
+		Tokens:     info.TotalTokens,
+		Cost:       info.TotalCost,
+		DurationMs: time.Since(start).Milliseconds(),
+	}, fmt.Errorf("exceeded maximum number of LLM iterations (%d)", a.config.MaxLLMIterations)
 }
 
-// handleRequestBudgetExceeded returns a tool result error when the request budget is exceeded
-func (a *Agent) handleRequestBudgetExceeded(session *chat.Chat) (*mcp.CallToolResult, error) {
-	info := session.GetInfo()
-	errMsg := fmt.Sprintf("exceeded request budget: total cost %.4f > budget %.4f", info.TotalCost, info.RequestBudget)
-	a.logger.Errorf(errMsg)
-	a.logger.Infof("Chat ended by exceeding request budget: %s", utils.SDump(info))
-	return mcp.NewToolResultError(errMsg), nil
+// CallDirect now simply calls runSession and returns the result.
+func (a *Agent) CallDirect(ctx context.Context, input string) (string, types.MetaInfo, error) {
+	return a.runSession(ctx, input)
 }
 
 func (a *Agent) beginSession(userRequest string, tools []mcp.Tool) (*chat.Chat, error) {
@@ -228,7 +171,7 @@ func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResp
 	}).Infof("<< LLM asked to call tools:\n%s", strings.Join(toolCalls, "\n"))
 	for _, call := range resp.Calls {
 		session.AddToolCall(call)
-		result, err := a.mcpConnector.ExecuteTool(ctx, call)
+		result, err := a.toolConnector.ExecuteTool(ctx, call)
 		if err != nil {
 			a.logger.Errorf("failed to execute tool %s: %v", call.ToolName(), err)
 			errorResult := mcp.NewToolResultError(fmt.Sprintf("Error: %v", err))
@@ -241,90 +184,26 @@ func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResp
 	a.logger.Infof("Iteration complete: %s", utils.SDump(session.GetInfo()))
 }
 
-func (a *Agent) handleIterationLimit(session *chat.Chat) (*mcp.CallToolResult, error) {
-	// If we reach here, we've exceeded the maximum number of iterations
-	errMsg := fmt.Sprintf("exceeded maximum number of LLM iterations (%d)", a.config.MaxLLMIterations)
-	a.logger.Errorf(errMsg)
-	a.logger.Infof("Chat ended by exceeding max iterations: %s", utils.SDump(session.GetInfo()))
-	return mcp.NewToolResultError(errMsg), nil
-}
-
-func (a *Agent) handleLLMAnswerToolRequest(call types.CallToolRequest, resp types.LLMResponse, session *chat.Chat) *mcp.CallToolResult {
+func (a *Agent) HandleLLMAnswerToolRequest(call types.CallToolRequest, resp types.LLMResponse, session *chat.Chat) *mcp.CallToolResult {
 	// Robust nil and type checking for 'text' argument
 	argValue, exists := call.Params.Arguments["text"]
 	if !exists || argValue == nil {
-		a.logger.Errorf("missing or nil 'text' argument in exit tool call")
+		fmt.Fprintf(os.Stderr, "[HandleLLMAnswerToolRequest] missing or nil 'text' argument in exit tool call\n")
 		return mcp.NewToolResultError("missing or nil 'text' argument in exit tool call")
 	}
 	finalMessage, ok := argValue.(string)
 	if !ok {
-		a.logger.Errorf("invalid 'text' argument type: expected string, got %T", argValue)
+		fmt.Fprintf(os.Stderr, "[HandleLLMAnswerToolRequest] invalid 'text' argument type: expected string, got %T\n", argValue)
 		return mcp.NewToolResultError(fmt.Sprintf("invalid 'text' argument type: expected string, got %T", argValue))
 	}
 	if finalMessage == "" {
-		a.logger.Errorf("empty 'text' argument in exit tool call")
+		fmt.Fprintf(os.Stderr, "[HandleLLMAnswerToolRequest] empty 'text' argument in exit tool call\n")
 		return mcp.NewToolResultError("empty 'text' argument in exit tool call")
 	}
 	a.logger.WithFields(logrus.Fields{
 		"request_cost":     resp.Metadata.Cost,
 		"request_duration": resp.Metadata.DurationMs,
 	}).Infof("<< LLM asked to answer the user with: %s", finalMessage)
-	a.logger.Infof("Chat ended by LLM with message: %s %s", finalMessage, utils.SDump(session.GetInfo()))
+	fmt.Fprintf(os.Stderr, "[HandleLLMAnswerToolRequest] Chat ended by LLM with message: %s %s\n", finalMessage, utils.SDump(session.GetInfo()))
 	return mcp.NewToolResultText(finalMessage)
-}
-
-// CallDirect runs the agent in direct call mode for a single input, returning the answer, meta info, and error.
-func (a *Agent) CallDirect(ctx context.Context, input string) (string, types.MetaInfo, error) {
-	start := time.Now()
-	tools, err := a.GetAllTools(ctx)
-	if err != nil {
-		return "", types.MetaInfo{}, err
-	}
-	session, err := a.beginSession(input, tools)
-	if err != nil {
-		return "", types.MetaInfo{}, err
-	}
-	iteration := 0
-	var meta types.MetaInfo
-	for iteration < a.config.MaxLLMIterations {
-		iteration++
-		resp, err := a.llmService.SendRequest(ctx, session.GetLLMMessages(), tools)
-		if err != nil {
-			return "", types.MetaInfo{}, err
-		}
-		session.AddAssistantMessage(resp)
-		if session.ExceededRequestBudget() {
-			info := session.GetInfo()
-			return "", types.MetaInfo{
-				Tokens:     info.TotalTokens,
-				Cost:       info.TotalCost,
-				DurationMs: time.Since(start).Milliseconds(),
-			}, fmt.Errorf("exceeded request budget: total cost %.4f > budget %.4f", info.TotalCost, info.RequestBudget)
-		}
-		if len(resp.Calls) == 0 {
-			return "", types.MetaInfo{}, fmt.Errorf("LLM returned no tool calls")
-		}
-		for _, call := range resp.Calls {
-			if a.isExitCommand(call) {
-				finalMessage := call.Params.Arguments["text"].(string)
-				info := session.GetInfo()
-				meta = types.MetaInfo{
-					Tokens:           info.TotalTokens,
-					Cost:             info.TotalCost,
-					DurationMs:       time.Since(start).Milliseconds(),
-					PromptTokens:     resp.Metadata.Tokens.PromptTokens,
-					CompletionTokens: resp.Metadata.Tokens.CompletionTokens,
-					ReasoningTokens:  resp.Metadata.Tokens.ReasoningTokens,
-				}
-				return finalMessage, meta, nil
-			}
-		}
-		a.handleLLMToolCallRequest(ctx, resp, session, iteration)
-	}
-	info := session.GetInfo()
-	return "", types.MetaInfo{
-		Tokens:     info.TotalTokens,
-		Cost:       info.TotalCost,
-		DurationMs: time.Since(start).Milliseconds(),
-	}, fmt.Errorf("exceeded maximum number of LLM iterations (%d)", a.config.MaxLLMIterations)
 }

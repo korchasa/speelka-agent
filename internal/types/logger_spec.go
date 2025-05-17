@@ -6,6 +6,7 @@ package types
 import (
 	"context"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/sirupsen/logrus"
 )
 
@@ -27,14 +28,12 @@ const (
 type LogConfig struct {
 	// DefaultLevel is the string value from config ("info", "debug", etc.)
 	DefaultLevel string
-	// Output is the output identifier string (":stdout:", ":stderr:", ":mcp:", file path)
-	Output string
 	// Format is the formatter identifier string ("custom", "json", "text", etc.)
 	Format string
 	// Level is the computed logrus.Level
 	Level logrus.Level
-	// UseMCPLogs indicates whether to use MCP logging
-	UseMCPLogs bool
+	// DisableMCP disables MCP notifications even if server is connected
+	DisableMCP bool
 }
 
 // LogEntrySpec defines the interface for a log entry with fields.
@@ -74,6 +73,7 @@ type LogEntrySpec interface {
 
 // MCPServerNotifier defines the interface for sending MCP notifications (locally to avoid circular imports)
 type MCPServerNotifier interface {
+	AddTool(tool *mcp.Tool)
 	SendNotificationToClient(ctx context.Context, method string, data map[string]interface{}) error
 }
 
@@ -95,5 +95,5 @@ type LoggerSpec interface {
 	Fatalf(format string, args ...interface{})
 	WithField(key string, value interface{}) LogEntrySpec
 	WithFields(fields logrus.Fields) LogEntrySpec
-	SetMCPServer(mcpServer MCPServerNotifier)
+	HandleMCPSetLevel(ctx context.Context, req interface{}) (interface{}, error)
 }

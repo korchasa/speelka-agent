@@ -27,7 +27,6 @@ func TestDefaultLoader_LoadConfiguration(t *testing.T) {
 
 	// Verify default runtime values
 	assert.Equal(t, "info", config.Runtime.Log.DefaultLevel)
-	assert.Equal(t, types.LogOutputMCP, config.Runtime.Log.Output)
 	assert.Equal(t, "text", config.Runtime.Log.Format)
 
 	// Verify default transport values
@@ -76,7 +75,6 @@ func TestDefaultLoader_LoadConfiguration(t *testing.T) {
 	config, err = mgr.Apply(config, config)
 	assert.NoError(t, err)
 	assert.Equal(t, "info", config.Runtime.Log.DefaultLevel)
-	assert.Equal(t, types.LogOutputMCP, config.Runtime.Log.Output)
 	assert.Equal(t, "text", config.Runtime.Log.Format)
 
 	// Override RawFormat and check

@@ -3,7 +3,9 @@
 ## Core Components
 - **Agent**: Orchestrates LLM loop, tool execution, chat state. No config/server/CLI logic. Exposes interface for app layer.
 - **App MCP**: MCP server/daemon wiring. Instantiates agent, provides CLI/server entrypoints.
-- **App Direct**: Direct CLI call wiring. Instantiates agent for single-shot mode.
+- **App Direct**: Direct CLI call wiring. Instantiates agent for single-shot mode. Implements NewAgentCLI and dummyToolConnector, does not depend on app_mcp.
+    - `app.go`: CLI application, contains NewAgentCLI and dummyToolConnector
+    - `types.go`: Types for CLI mode
 - **Chat**: Manages history, token/cost tracking, enforces request budget. All state in `chatInfo` struct.
 - **Config Manager**: Loads/validates config (YAML, JSON, env), type-safe, strict validation.
 - **LLM Service**: Integrates LLM providers, returns structured responses, retry/backoff logic.
@@ -200,3 +202,18 @@ The logger is always created according to the configuration, and the stub is inj
 - Test serializes default config and compares with golden file.
 - On structure change, test signals incompatibility.
 - Test: `TestConfiguration_Serialization_Golden` (`internal/types/configuration_test.go`).
+
+## New MCPServer Test Cases
+- Thread safety check: concurrent Stop and Serve calls do not cause races or panics.
+- Error logging check: BroadcastNotification logs an error if sending a notification fails (uses mock interface notificationBroadcasterWithError).
+- Tool consistency check: the set of tools from GetAllTools matches those actually registered on the server.
+- Log filtering and secret passing check: logger does not filter PII/secrets, responsibility is on business logic.
+
+## Mock Interfaces for Testing
+- notificationBroadcaster: allows substituting the internal MCP server to check notification sending.
+- notificationBroadcasterWithError: extends notificationBroadcaster to simulate errors when sending notifications.
+- errorCatchingLogger: records the fact of error logging to check BroadcastNotification behavior.
+
+## Example of Using Mocks
+In the BroadcastNotification_LogsError test, MCPServer replaces the server field with mockServerWithError and the logger with errorCatchingLogger. This allows checking that the error is actually logged without affecting production code.
+// exitTool is now built based on MCPServerConfig.Tool (name, description, argument, argument description), not hardcoded.

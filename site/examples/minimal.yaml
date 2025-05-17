@@ -5,8 +5,8 @@
 
 runtime:
   log:
-    output: ":mcp:"
-
+    default_level: "info"
+    disable_mcp: false
 agent:
   name: "minimal-speelka-agent"
 

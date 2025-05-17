@@ -2,8 +2,8 @@
   "runtime": {
     "log": {
       "default_level": "",
-      "output": "",
-      "format": ""
+      "format": "",
+      "disable_mcp": false
     },
     "transports": {
       "stdio": {

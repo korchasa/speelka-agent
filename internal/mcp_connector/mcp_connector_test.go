@@ -84,22 +84,10 @@ func (m *mockLogger) Fatalf(string, ...interface{})                      {}
 func (m *mockLogger) WithField(string, interface{}) types.LogEntrySpec   { return m }
 func (m *mockLogger) WithFields(fields logrus.Fields) types.LogEntrySpec { return m }
 func (m *mockLogger) SetMCPServer(types.MCPServerNotifier)               {}
-
-// fakeMCPClient implements client.MCPClient with only Initialize for test
-
-type fakeMCPClient struct {
-	initResult *mcp.InitializeResult
-	called     *bool
+func (m *mockLogger) HandleMCPSetLevel(ctx context.Context, req interface{}) (interface{}, error) {
+	return nil, nil
 }
 
-func (f *fakeMCPClient) Initialize(ctx context.Context, req mcp.InitializeRequest) (*mcp.InitializeResult, error) {
-	if f.called != nil {
-		*f.called = true
-	}
-	return f.initResult, nil
-}
-
-// Other methods are not needed for this test
 // Manually call the logic for saving capabilities
 // assert.False(t, called, "Initialize should not be called explicitly in this test")
 // assert.True(t, ok, "capabilities should be saved")

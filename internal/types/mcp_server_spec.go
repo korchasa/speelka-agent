@@ -22,9 +22,6 @@ type MCPServerSpec interface {
 	// It returns an error if the server fails to stop.
 	Stop(ctx context.Context) error
 
-	// AddTool adds a tool to the MCP server.
-	AddTool(tool mcp.Tool, handler server.ToolHandlerFunc)
-
 	// GetAllTools returns all tools registered on the server.
 	GetAllTools() []mcp.Tool
 
@@ -99,8 +96,8 @@ type MCPServerConfig struct {
 	// Debug determines if debug mode is enabled.
 	Debug bool
 
-	// LogRawOutput is the raw log output string (e.g. ":mcp:", ":stdout:", etc.)
-	LogRawOutput string
+	// MCPLogEnabled determines if MCP logging is enabled.
+	MCPLogEnabled bool
 }
 
 type MCPServerToolConfig struct {

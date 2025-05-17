@@ -6,6 +6,7 @@ package llm_service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/korchasa/speelka-agent-go/internal/utils"
@@ -140,31 +141,24 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 			options = append(options, llms.WithMaxTokens(s.config.MaxTokens))
 		}
 
-		// Compose a string with message texts for logging
-		// fallback: serialization
-		var msgTexts []string
+		// Compose detailed logging of messages
+		var msgDetails []string
 		for _, m := range messages {
-			var parts []string
+			var partDetails []string
 			for _, p := range m.Parts {
-				switch pt := p.(type) {
-				case interface{ String() string }:
-					parts = append(parts, pt.String())
-				default:
-					// fallback: serialization
-					parts = append(parts, "[non-string part]")
-				}
+				partDetails = append(partDetails, fmt.Sprintf("%T: %v", p, p))
 			}
-			msgTexts = append(msgTexts, fmt.Sprintf("[%s] %s", m.Role, utils.Join(parts, " | ")))
+			msgDetails = append(msgDetails, fmt.Sprintf("[%s] %s", m.Role, strings.Join(partDetails, ", ")))
 		}
-		joinedMsgs := ""
-		if len(msgTexts) > 0 {
-			joinedMsgs = " | Messages: " + utils.Join(msgTexts, "; ")
+		joinedDetails := ""
+		if len(msgDetails) > 0 {
+			joinedDetails = " | Messages: " + strings.Join(msgDetails, "; ")
 		}
 		s.logger.Infof(
 			">> [LLM] Calling GenerateContent (model=%s, provider=%s)%s...",
 			s.config.Model,
 			s.config.Provider,
-			joinedMsgs,
+			joinedDetails,
 		)
 		startGen := time.Now()
 		response, err = s.client.GenerateContent(ctx, messages, options...)

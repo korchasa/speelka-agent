@@ -91,7 +91,6 @@ func TestJSONLoader_LoadConfiguration(t *testing.T) {
 				assert.Equal(t, "test-api-key", config.Agent.LLM.APIKey)
 				assert.Equal(t, "You are a helpful assistant. User query: {{query}} Available tools: {{tools}}", config.Agent.LLM.PromptTemplate)
 				assert.Equal(t, "debug", config.Runtime.Log.DefaultLevel)
-				assert.NotNil(t, config.Runtime.Log.Output)
 			},
 		},
 		{

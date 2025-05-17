@@ -20,7 +20,6 @@ func TestNewConfiguration(t *testing.T) {
 func TestConfiguration_Converters(t *testing.T) {
 	baseConfig := NewConfiguration()
 	baseConfig.Runtime.Log.DefaultLevel = "info"
-	baseConfig.Runtime.Log.Output = LogOutputStdout
 	baseConfig.Runtime.Transports.Stdio.Enabled = true
 	baseConfig.Runtime.Transports.Stdio.BufferSize = 4096
 	baseConfig.Runtime.Transports.HTTP.Enabled = true
@@ -93,7 +92,6 @@ func TestConfiguration_Converters(t *testing.T) {
 		assert.Equal(t, true, mcpSrvCfg.Stdio.Enabled)
 		assert.Equal(t, 4096, mcpSrvCfg.Stdio.BufferSize)
 		assert.Equal(t, "tool1", mcpSrvCfg.Tool.Name)
-		assert.Equal(t, LogOutputStdout, mcpSrvCfg.LogRawOutput)
 	})
 
 	t.Run("GetMCPConnectorConfig", func(t *testing.T) {
@@ -141,118 +139,54 @@ func TestConfiguration_Serialization_Golden(t *testing.T) {
 }
 
 func TestBuildLogConfig(t *testing.T) {
-	t.Run("valid stdout info custom", func(t *testing.T) {
+	t.Run("valid info custom", func(t *testing.T) {
 		raw := struct {
 			DefaultLevel string `json:"default_level" yaml:"default_level"`
-			Output       string `json:"output" yaml:"output"`
 			Format       string `json:"format" yaml:"format"`
+			DisableMCP   bool   `json:"disable_mcp" yaml:"disable_mcp"`
 		}{
 			DefaultLevel: "info",
-			Output:       LogOutputStdout,
 			Format:       "custom",
+			DisableMCP:   false,
 		}
 		cfg, err := BuildLogConfig(raw)
 		assert.NoError(t, err)
 		assert.Equal(t, "info", cfg.DefaultLevel)
-		assert.Equal(t, LogOutputStdout, cfg.Output)
 		assert.Equal(t, "custom", cfg.Format)
-		assert.Equal(t, "info", cfg.DefaultLevel)
-		assert.Equal(t, false, cfg.UseMCPLogs)
+		assert.Equal(t, false, cfg.DisableMCP)
 		assert.Equal(t, "info", cfg.Level.String())
 	})
 
-	t.Run("valid stderr debug json", func(t *testing.T) {
+	t.Run("valid debug json disable_mcp", func(t *testing.T) {
 		raw := struct {
 			DefaultLevel string `json:"default_level" yaml:"default_level"`
-			Output       string `json:"output" yaml:"output"`
 			Format       string `json:"format" yaml:"format"`
+			DisableMCP   bool   `json:"disable_mcp" yaml:"disable_mcp"`
 		}{
 			DefaultLevel: "debug",
-			Output:       LogOutputStderr,
 			Format:       "json",
+			DisableMCP:   true,
 		}
 		cfg, err := BuildLogConfig(raw)
 		assert.NoError(t, err)
-		assert.Equal(t, LogOutputStderr, cfg.Output)
+		assert.Equal(t, "debug", cfg.DefaultLevel)
 		assert.Equal(t, "json", cfg.Format)
+		assert.Equal(t, true, cfg.DisableMCP)
 		assert.Equal(t, "debug", cfg.Level.String())
-	})
-
-	t.Run("valid mcp warn text", func(t *testing.T) {
-		raw := struct {
-			DefaultLevel string `json:"default_level" yaml:"default_level"`
-			Output       string `json:"output" yaml:"output"`
-			Format       string `json:"format" yaml:"format"`
-		}{
-			DefaultLevel: "warn",
-			Output:       LogOutputMCP,
-			Format:       "text",
-		}
-		cfg, err := BuildLogConfig(raw)
-		assert.NoError(t, err)
-		assert.Equal(t, LogOutputMCP, cfg.Output)
-		assert.Equal(t, true, cfg.UseMCPLogs)
-		assert.Equal(t, "warning", cfg.Level.String())
-	})
-
-	t.Run("file output", func(t *testing.T) {
-		raw := struct {
-			DefaultLevel string `json:"default_level" yaml:"default_level"`
-			Output       string `json:"output" yaml:"output"`
-			Format       string `json:"format" yaml:"format"`
-		}{
-			DefaultLevel: "error",
-			Output:       "/tmp/test.log",
-			Format:       "custom",
-		}
-		cfg, err := BuildLogConfig(raw)
-		assert.NoError(t, err)
-		assert.Equal(t, "/tmp/test.log", cfg.Output)
-		assert.Equal(t, "error", cfg.Level.String())
 	})
 
 	t.Run("invalid level", func(t *testing.T) {
 		raw := struct {
 			DefaultLevel string `json:"default_level" yaml:"default_level"`
-			Output       string `json:"output" yaml:"output"`
 			Format       string `json:"format" yaml:"format"`
+			DisableMCP   bool   `json:"disable_mcp" yaml:"disable_mcp"`
 		}{
-			DefaultLevel: "notalevel",
-			Output:       LogOutputStdout,
-			Format:       "custom",
+			DefaultLevel: "badlevel",
+			Format:       "text",
+			DisableMCP:   false,
 		}
 		_, err := BuildLogConfig(raw)
 		assert.Error(t, err)
-	})
-
-	t.Run("invalid output", func(t *testing.T) {
-		raw := struct {
-			DefaultLevel string `json:"default_level" yaml:"default_level"`
-			Output       string `json:"output" yaml:"output"`
-			Format       string `json:"format" yaml:"format"`
-		}{
-			DefaultLevel: "info",
-			Output:       "",
-			Format:       "custom",
-		}
-		cfg, err := BuildLogConfig(raw)
-		assert.NoError(t, err)
-		assert.Equal(t, "", cfg.Output)
-	})
-
-	t.Run("invalid format", func(t *testing.T) {
-		raw := struct {
-			DefaultLevel string `json:"default_level" yaml:"default_level"`
-			Output       string `json:"output" yaml:"output"`
-			Format       string `json:"format" yaml:"format"`
-		}{
-			DefaultLevel: "info",
-			Output:       LogOutputStdout,
-			Format:       "unknown",
-		}
-		cfg, err := BuildLogConfig(raw)
-		assert.NoError(t, err)
-		assert.Equal(t, "unknown", cfg.Format)
 	})
 }
 

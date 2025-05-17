@@ -16,7 +16,6 @@ func NewDefaultLoader() *DefaultLoader {
 func (l *DefaultLoader) LoadConfiguration() (*types.Configuration, error) {
 	cfg := types.NewConfiguration()
 	// Runtime defaults
-	cfg.Runtime.Log.Output = types.LogOutputMCP
 	cfg.Runtime.Log.Format = "text"
 	cfg.Runtime.Log.DefaultLevel = "info"
 	cfg.Runtime.Transports.Stdio.Enabled = true

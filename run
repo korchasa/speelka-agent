@@ -170,7 +170,7 @@ case $CMD in
             load_env
             go build -o bin/mcp-call ./cmd/mcp-call/main.go
             check_command "mcp"
-            SPL_LLM_TEMPERATURE=0.2 SPL_CHAT_MAX_TOKENS=16000 ./bin/mcp-call --tool process --params '{"input": "What is in the oldest file in the directory, including all nested directories? Show only 10 first lines of the file."}' go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
+            SPL_LLM_TEMPERATURE=0.2 SPL_CHAT_MAX_TOKENS=16000 ./bin/mcp-call --tool process --call-timeout 30 --params '{"input": "What is in the oldest file in the directory, including all nested directories? Show only 10 first lines of the file."}' go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
         )
         ;;
     inspect)

@@ -18,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// MCPConnector implements the contracts.MCPConnectorSpec interface
+// MCPConnector implements the contracts.ToolConnectorSpec interface
 // Responsibility: Managing connections to external MCP servers
 // Features: Provides access to tools from all connected servers
 type MCPConnector struct {
@@ -61,30 +61,24 @@ func (mc *MCPConnector) InitAndConnectToMCPs(ctx context.Context) error {
 
 // connectAndRegisterServer handles connection and tool registration for a single server.
 func (mc *MCPConnector) connectAndRegisterServer(ctx context.Context, serverID string, srvCfg types.MCPServerConnection) error {
-	mc.logger.Debugf("[MCP-CONNECT] connectAndRegisterServer: serverID=%s, time=%s", serverID, time.Now().Format(time.RFC3339Nano))
-	mc.logger.Debugf("[MCP-CONNECT] Server config: %s", utils.SDump(srvCfg))
+	mc.logger.Infof("[MCP-CONNECT] Server config: %s", utils.SDump(srvCfg))
 	mcpClient, err := mc.ConnectServer(ctx, serverID, srvCfg)
 	if err != nil {
-		mc.logger.Errorf("[MCP-CONNECT] [ERROR] ConnectServer failed for %s: %v", serverID, err)
 		return error_handling.WrapError(
 			err,
 			fmt.Sprintf("failed to connect to MCP server %s", serverID),
 			error_handling.ErrorCategoryExternal,
 		)
 	}
-	mc.logger.Debugf("[MCP-CONNECT] Connected to MCP server `%s` at %s", serverID, time.Now().Format(time.RFC3339Nano))
 
-	mc.logger.Debugf("[MCP-CONNECT] Listing tools for server `%s`", serverID)
 	toolsResp, err := mcpClient.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
-		mc.logger.Errorf("[MCP-CONNECT] [ERROR] ListTools failed for %s: %v", serverID, err)
 		return error_handling.WrapError(
 			err,
 			fmt.Sprintf("failed to list tools from MCP server %s", serverID),
 			error_handling.ErrorCategoryExternal,
 		)
 	}
-	mc.logger.Debugf("[MCP-CONNECT] ListTools returned %d tools for server `%s`", len(toolsResp.Tools), serverID)
 	filteredTools := mc.filterAllowedTools(serverID, toolsResp.Tools, srvCfg)
 	mc.clients[serverID] = mcpClient
 	mc.tools[serverID] = filteredTools
