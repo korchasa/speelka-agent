@@ -6,6 +6,7 @@ package llm_service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/korchasa/speelka-agent-go/internal/utils"
@@ -126,7 +127,6 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 	var llmsCalls []llms.ToolCall
 	sendFn := func() error {
 		var err error
-		s.logger.Debugf(">> Send request to LLM with %d messages: %s", len(messages), utils.SDump(map[string]any{"messages": messages, "tools": llmTools}))
 		// Prepare options for LLM
 		options := []llms.CallOption{
 			llms.WithTools(llmTools),
@@ -141,8 +141,30 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 			options = append(options, llms.WithMaxTokens(s.config.MaxTokens))
 		}
 
+		// Compose detailed logging of messages
+		var msgDetails []string
+		for _, m := range messages {
+			var partDetails []string
+			for _, p := range m.Parts {
+				partDetails = append(partDetails, fmt.Sprintf("%T: %v", p, p))
+			}
+			msgDetails = append(msgDetails, fmt.Sprintf("[%s] %s", m.Role, strings.Join(partDetails, ", ")))
+		}
+		joinedDetails := ""
+		if len(msgDetails) > 0 {
+			joinedDetails = " | Messages: " + strings.Join(msgDetails, "; ")
+		}
+		s.logger.Infof(
+			">> [LLM] Calling GenerateContent (model=%s, provider=%s)%s...",
+			s.config.Model,
+			s.config.Provider,
+			joinedDetails,
+		)
+		startGen := time.Now()
 		response, err = s.client.GenerateContent(ctx, messages, options...)
+		genDuration := time.Since(startGen)
 		if err != nil {
+			s.logger.Errorf("<< [LLM] GenerateContent error after %v: %v", genDuration, err)
 			// Wrap the error to categorize it as transient for retry attempts
 			return error_handling.WrapError(
 				err,
@@ -150,6 +172,7 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 				error_handling.ErrorCategoryTransient,
 			)
 		}
+		s.logger.Infof("<< [LLM] GenerateContent success after %v", genDuration)
 		s.logger.Debugf("<< LLM response received with %d choices: %s", len(response.Choices), utils.SDump(response))
 		if len(response.Choices) == 0 {
 			return error_handling.NewError(

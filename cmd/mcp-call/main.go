@@ -34,6 +34,7 @@ type Flags struct {
 	initTimeout  int
 	toolsTimeout int
 	callTimeout  int
+	setLogLevel  string
 }
 
 func main() {
@@ -41,7 +42,7 @@ func main() {
 	flags, args, params, err := prepare()
 	if err != nil {
 		logErrorf("Error: %v", err)
-		logInfof("Usage: mcp-call --tool toolName [--params '{...}'] [--init-timeout seconds] [--tools-timeout seconds] [--call-timeout seconds] command [args...]")
+		logInfof("Usage: mcp-call --tool toolName [--params '{...}'] [--init-timeout seconds] [--tools-timeout seconds] [--call-timeout seconds] [--set-log-level level] command [args...]")
 		os.Exit(1)
 	}
 
@@ -51,11 +52,13 @@ func main() {
 	// Initialize the MCP server
 	command := args[0]
 	commandArgs := args[1:]
-	mcpClient, _, err := initServer(ctx, command, commandArgs, time.Duration(flags.initTimeout)*time.Second)
+	mcpClient, initResult, err := initServer(ctx, command, commandArgs, time.Duration(flags.initTimeout)*time.Second)
 	if err != nil {
 		logErrorf("Error initializing server: %v", err)
 		os.Exit(1)
 	}
+	// Output initialization result
+	logSuccessf("Initialization result:\n%s", jsonify(initResult))
 	defer func(mcpClient *client.Client) {
 		err := mcpClient.Close()
 		if err != nil {
@@ -69,6 +72,41 @@ func main() {
 	if err != nil {
 		logErrorf("Error listing tools: %v", err)
 		os.Exit(1)
+	}
+
+	// === MCP LOGGING: notifications/message handler ===
+	// MCP logs are now explicitly marked as [MCP-LOG] in the output for clarity.
+	mcpClient.OnNotification(func(notification mcp.JSONRPCNotification) {
+		var logMsg mcp.LoggingMessageNotification
+		params, err := json.Marshal(notification.Params)
+		if err != nil {
+			logErrorf("Failed to marshal notification params: %v", err)
+			return
+		}
+		if err := json.Unmarshal(params, &logMsg.Params); err != nil {
+			logErrorf("Failed to unmarshal LoggingMessageNotification.Params: %v", err)
+			return
+		}
+		level := string(logMsg.Params.Level)
+		color := colorBlue
+		msg := ""
+		if s, ok := logMsg.Params.Data.(string); ok {
+			msg = s
+		} else {
+			b, _ := json.Marshal(logMsg.Params.Data)
+			msg = string(b)
+		}
+		log.Printf(color+"[MCP-LOG %s] %s: %s"+colorReset, strings.ToUpper(level), logMsg.Params.Logger, msg)
+	})
+
+	// If the --set-log-level flag is set, send MCP logging/setLevel
+	if flags.setLogLevel != "" {
+		err := setLogLevel(ctx, mcpClient, flags.setLogLevel)
+		if err != nil {
+			logErrorf("Failed to set log level: %v", err)
+			os.Exit(1)
+		}
+		logSuccessf("Log level set to '%s' on server", flags.setLogLevel)
 	}
 
 	// Call the tool and display results
@@ -90,7 +128,8 @@ func prepare() (Flags, []string, map[string]interface{}, error) {
 	flag.StringVar(&flags.paramsJSON, "params", "", "JSON string of parameters to pass to the tool")
 	flag.IntVar(&flags.initTimeout, "init-timeout", 5, "Timeout in seconds for server initialization")
 	flag.IntVar(&flags.toolsTimeout, "tools-timeout", 5, "Timeout in seconds for listing tools")
-	flag.IntVar(&flags.callTimeout, "call-timeout", 300, "Timeout in seconds for tool call execution")
+	flag.IntVar(&flags.callTimeout, "call-timeout", 10, "Timeout in seconds for tool call execution")
+	flag.StringVar(&flags.setLogLevel, "set-log-level", "", "Set log level on the server (debug, info, warning, error, critical, alert, emergency)")
 
 	// Parse flags but keep the remaining arguments for the command to execute
 	flag.Parse()
@@ -299,8 +338,9 @@ func logErrorf(format string, args ...interface{}) {
 }
 
 // logStderr logs a message in magenta color (for stderr output)
+// Stderr logs are now explicitly marked as [STDERR] in the output for clarity.
 func logStderr(line string) {
-	log.Printf("%s<<<< stderr:%s %s", colorYellow, colorReset, line)
+	log.Printf("%s[STDERR]%s %s", colorYellow, colorReset, line)
 }
 
 func jsonify(v interface{}) string {
@@ -310,4 +350,17 @@ func jsonify(v interface{}) string {
 		os.Exit(1)
 	}
 	return string(b)
+}
+
+// setLogLevel sends MCP logging/setLevel to the server
+// Send as a tool call
+func setLogLevel(ctx context.Context, mcpClient *client.Client, level string) error {
+	err := mcpClient.SetLevel(ctx, mcp.SetLevelRequest{
+		Params: struct {
+			Level mcp.LoggingLevel `json:"level"`
+		}{
+			Level: mcp.LoggingLevel(level),
+		},
+	})
+	return err
 }

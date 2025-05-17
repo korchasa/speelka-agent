@@ -6,7 +6,8 @@
 # Runtime configuration
 runtime:
   log:
-    level: "info"
+    default_level: "info"
+    output: ':stderr:' # Log output: file path or :stderr:/:stdout:/:mcp:
 
   transports:
     stdio:

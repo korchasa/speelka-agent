@@ -127,3 +127,24 @@ func TestCalculator_CalculateLLMResponse(t *testing.T) {
 		}
 	})
 }
+
+func TestCalculator_CalculateCost(t *testing.T) {
+	calc := NewCalculator()
+
+	t.Run("known model", func(t *testing.T) {
+		cost, err := calc.(*Calculator).CalculateCost("gpt-4o", 1000, 500)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cost < 0.0074 || cost > 0.0076 {
+			t.Errorf("expected cost ~0.0075, got %f", cost)
+		}
+	})
+
+	t.Run("unknown model", func(t *testing.T) {
+		_, err := calc.(*Calculator).CalculateCost("nonexistent-model", 100, 100)
+		if err == nil {
+			t.Error("expected error for unknown model, got nil")
+		}
+	})
+}

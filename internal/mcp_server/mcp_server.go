@@ -6,35 +6,94 @@ package mcp_server
 import (
 	"context"
 	"fmt"
-
-	"github.com/korchasa/speelka-agent-go/internal/utils"
+	"os"
+	"sync"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// MCPServer implements the contracts.MCPServerSpec interface
-// Responsibility: Managing the lifecycle of the MCP server and processing requests
-// Features: Stores server state and provides access to the tool registry
+// MCPServer implements an MCP server for handling client requests and managing the lifecycle of tools.
+// Thread-safe for public methods. All external dependencies are injected via the constructor (DI).
 type MCPServer struct {
-	server    *server.MCPServer
-	config    types.MCPServerConfig
-	logger    types.LoggerSpec
-	sseServer *server.SSEServer
+	server    *server.MCPServer     // Internal MCP server
+	config    types.MCPServerConfig // Server configuration
+	logger    types.LoggerSpec      // Logger (DI)
+	sseServer *server.SSEServer     // HTTP SSE server (optional)
+
+	mainToolHandler server.ToolHandlerFunc // handler for the main tool
+	mu              sync.Mutex             // Protects the state of server/sseServer
 }
 
-// NewMCPServer creates a new MCPServer instance
-// Responsibility: Factory method for creating an MCP server
-// Features: Initializes the data structure with the given parameters
+// NewMCPServer creates a new instance of MCPServer with the given configuration and logger.
+// All dependencies are injected via parameters (Dependency Injection).
 func NewMCPServer(config types.MCPServerConfig, logger types.LoggerSpec) *MCPServer {
-	return &MCPServer{
+	var opts []server.ServerOption
+	if config.MCPLogEnabled {
+		opts = append(opts, server.WithLogging())
+	}
+	if config.Debug {
+		opts = append(opts, server.WithHooks((&MCPServer{config: config, logger: logger}).BuildHooks()))
+	}
+
+	mcpSrv := server.NewMCPServer(
+		config.Name,
+		config.Version,
+		opts...,
+	)
+
+	mcps := &MCPServer{
+		server: mcpSrv,
 		config: config,
 		logger: logger,
 	}
+
+	// Register tools immediately
+	for _, tool := range mcps.buildTools() {
+		fmt.Fprintf(os.Stderr, "[MCPServer] Registering tool: %s\n", tool.Name)
+		var h server.ToolHandlerFunc = nil
+		if tool.Name == config.Tool.Name {
+			h = func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+				fmt.Fprintf(os.Stderr, "[MCPServer] Handler called for %s\n", tool.Name)
+				mcps.mu.Lock()
+				fmt.Fprintf(os.Stderr, "[MCPServer] handler: mutex acquired\n")
+				handler := mcps.mainToolHandler
+				mcps.mu.Unlock()
+				fmt.Fprintf(os.Stderr, "[MCPServer] handler: mutex released\n")
+				if handler == nil {
+					fmt.Fprintf(os.Stderr, "[MCPServer] mainToolHandler not set for %s\n", tool.Name)
+					return nil, fmt.Errorf("main tool handler is not set for '%s'", tool.Name)
+				}
+				fmt.Fprintf(os.Stderr, "[MCPServer] handler: calling mainToolHandler for %s\n", tool.Name)
+				res, err := handler(ctx, req)
+				fmt.Fprintf(os.Stderr, "[MCPServer] handler: mainToolHandler finished for %s, err=%v\n", tool.Name, err)
+				return res, err
+			}
+		} else if tool.Name == "logging/setLevel" {
+			h = func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+				fmt.Fprintf(os.Stderr, "[MCPServer] Handler called for logging/setLevel\n")
+				res, err := logger.HandleMCPSetLevel(ctx, req)
+				if err != nil {
+					return nil, err
+				}
+				result, ok := res.(*mcp.CallToolResult)
+				if !ok {
+					return nil, fmt.Errorf("unexpected result type from HandleMCPSetLevel")
+				}
+				return result, nil
+			}
+		}
+		mcps.server.AddTool(tool, h)
+	}
+
+	return mcps
 }
 
+// Serve starts the MCP server in daemon (HTTP SSE) or script (stdio) mode.
+// Thread-safe. Releases resources before completion.
 func (s *MCPServer) Serve(ctx context.Context, daemonMode bool, handler server.ToolHandlerFunc) error {
+	fmt.Fprintf(os.Stderr, "[MCPServer] Serve: entry, daemonMode=%v\n", daemonMode)
 	if daemonMode {
 		s.logger.Info("Running in daemon mode with HTTP SSE MCP server")
 		if err := s.serveDaemon(handler); err != nil {
@@ -42,20 +101,19 @@ func (s *MCPServer) Serve(ctx context.Context, daemonMode bool, handler server.T
 		}
 	} else {
 		s.logger.Info("Running in script mode with stdio MCP server")
-		if err := s.serveStdio(handler); err != nil {
+		if err := s.serveStdioWithContext(handler, ctx); err != nil {
 			return fmt.Errorf("failed to start Stdio MCP Server: %w", err)
 		}
 	}
+	fmt.Fprintf(os.Stderr, "[MCPServer] Serve: finished\n")
 	return nil
 }
 
-// serveDaemon initializes and starts the HTTP MCP server
-// Responsibility: Starting the server in daemon mode with HTTP interface
-// Features: Sets the launch flag and logs configuration information
+// serveDaemon initializes and starts the HTTP SSE MCP server.
+// Used only inside Serve.
 func (s *MCPServer) serveDaemon(handler server.ToolHandlerFunc) error {
-	var err error
-	if err = s.createAndInitMCPServer(handler); err != nil {
-		return fmt.Errorf("failed to create and initialize MCP server: %w", err)
+	if s.server == nil {
+		return fmt.Errorf("server is not *server.MCPServer")
 	}
 	s.logger.Info("MCP SSE server initialized successfully")
 
@@ -68,54 +126,54 @@ func (s *MCPServer) serveDaemon(handler server.ToolHandlerFunc) error {
 	return nil
 }
 
-// serveStdio initializes and starts the stdio MCP server
-// Responsibility: Starting the server in input-output mode through standard streams
-// Features: Sets the launch flag and prepares stdin/stdout handling
-func (s *MCPServer) serveStdio(handler server.ToolHandlerFunc) error {
-	var err error
-	if err = s.createAndInitMCPServer(handler); err != nil {
-		return fmt.Errorf("failed to create and initialize MCP server: %w", err)
+// serveStdioWithContext initializes and starts the stdio MCP server with external context support.
+// Used only inside Serve.
+func (s *MCPServer) serveStdioWithContext(handler server.ToolHandlerFunc, ctx context.Context) error {
+	fmt.Fprintf(os.Stderr, "[MCPServer] serveStdioWithContext: entry\n")
+	if s.server == nil {
+		fmt.Fprintf(os.Stderr, "[MCPServer] serveStdioWithContext: server == nil\n")
+		return fmt.Errorf("server is not *server.MCPServer")
 	}
 	s.logger.Info("MCP Stdio server initialized successfully")
-
-	if err := server.ServeStdio(s.server); err != nil {
-		return fmt.Errorf("failed to serve stdio MCP server: %w", err)
-	}
-	return nil
+	fmt.Fprintf(os.Stderr, "[MCPServer] serveStdioWithContext: starting ServeStdioWithContext\n")
+	return ServeStdioWithContext(s.server, s.logger, ctx)
 }
 
-func (s *MCPServer) createAndInitMCPServer(handler server.ToolHandlerFunc) error {
-	var opts []server.ServerOption
-	opts = append(opts, server.WithLogging())
-	if s.config.Debug {
-		opts = append(opts, server.WithHooks(s.BuildHooks()))
+// ServeStdioWithContext starts the stdio MCP server with external context support.
+// Used for integration and testing.
+func ServeStdioWithContext(mcpSrv *server.MCPServer, logger types.LoggerSpec, ctx context.Context) error {
+	if mcpSrv != nil {
+		return server.NewStdioServer(mcpSrv).Listen(ctx, os.Stdin, os.Stdout)
 	}
+	return fmt.Errorf("mcpSrv is not *server.MCPServer")
+}
 
-	s.server = server.NewMCPServer(
-		s.config.Name,
-		s.config.Version,
-		opts...,
-	)
-
-	s.logger.Debugf("MCP server initialized with config: %s", utils.SDump(s.config))
-
-	tool := mcp.NewTool(s.config.Tool.Name,
-		mcp.WithDescription(s.config.Tool.Description),
-		mcp.WithString(s.config.Tool.ArgumentName,
-			mcp.Required(),
-			mcp.Description(s.config.Tool.ArgumentDescription),
+// buildTools returns a list of all tools that should be registered on the server.
+// Used for unifying tool registration and tests.
+func (s *MCPServer) buildTools() []mcp.Tool {
+	tools := []mcp.Tool{
+		mcp.NewTool(s.config.Tool.Name,
+			mcp.WithDescription(s.config.Tool.Description),
+			mcp.WithString(s.config.Tool.ArgumentName,
+				mcp.Description(s.config.Tool.ArgumentDescription),
+				mcp.Required(),
+			),
 		),
-	)
-
-	s.server.AddTool(tool, handler)
-
-	return nil
+	}
+	if s.config.MCPLogEnabled {
+		loggingSetLevel := mcp.NewTool("logging/setLevel",
+			mcp.WithString("level", mcp.Required(), mcp.Description("Log level to set")),
+		)
+		tools = append(tools, loggingSetLevel)
+	}
+	return tools
 }
 
-// Stop gracefully terminates the MCP server
-// Responsibility: Stopping the server and releasing resources
-// Features: Resets the launch flag and performs necessary cleanup
+// Stop gracefully shuts down the MCP server and releases all resources.
+// Safe for repeated calls and concurrent access.
 func (s *MCPServer) Stop(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.sseServer != nil {
 		if err := s.sseServer.Shutdown(ctx); err != nil {
 			s.logger.Warnf("Error stopping SSE server: %v", err)
@@ -126,75 +184,71 @@ func (s *MCPServer) Stop(ctx context.Context) error {
 	return nil
 }
 
-// BuildHooks creates hook functions for the MCP server
+// BuildHooks creates a set of hooks for logging MCP events.
+// Used for debugging and extending server behavior.
 func (s *MCPServer) BuildHooks() *server.Hooks {
 	hooks := &server.Hooks{}
 
 	hooks.AddBeforeCallTool(func(ctx context.Context, id any, message *mcp.CallToolRequest) {
-		s.logger.Debugf(">> Before call %s: %+v", message.Params.Name, message)
+		s.logger.Infof("[MCP] Before call %s: %+v", message.Params.Name, message)
 	})
 
 	hooks.AddAfterCallTool(func(ctx context.Context, id any, message *mcp.CallToolRequest, result *mcp.CallToolResult) {
-		s.logger.Debugf("<< After call %s result: %+v", message.Params.Name, result)
+		s.logger.Infof("[MCP] After call %s result: %+v", message.Params.Name, result)
 	})
 
 	hooks.AddOnError(func(ctx context.Context, id any, method mcp.MCPMethod, message any, err error) {
-		s.logger.Errorf("<< Error with method %s: %v", method, err)
+		s.logger.Errorf("[MCP] Error with method %s: %v | message: %+v", method, err, message)
 	})
 
 	return hooks
 }
 
-// AttachLogger attaches a logger to the MCP server
-func (s *MCPServer) AttachLogger(logger types.LoggerSpec) {
-	logger.SetMCPServer(s)
+// GetAllTools returns all tools registered on the server.
+// Used for testing and integration.
+func (s *MCPServer) GetAllTools() []mcp.Tool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buildTools()
 }
 
-// GetServer returns the underlying server instance
+// SendNotificationToClient sends a notification to a single client via MCP.
+// Used for logger integration and tests.
+func (s *MCPServer) SendNotificationToClient(ctx context.Context, method string, data map[string]interface{}) error {
+	if s.server == nil {
+		return fmt.Errorf("MCPServer: underlying server is not initialized")
+	}
+	err := s.server.SendNotificationToClient(ctx, method, data)
+	if err != nil {
+		return fmt.Errorf("MCPServer: failed to send notification to client: %w", err)
+	}
+	return nil
+}
+
+// GetServerCapabilities returns ServerCapabilities for tests and integration.
+func (s *MCPServer) GetServerCapabilities() mcp.ServerCapabilities {
+	caps := mcp.ServerCapabilities{}
+	if s.server != nil {
+		if s.config.MCPLogEnabled {
+			caps.Logging = &struct{}{}
+		}
+	}
+	return caps
+}
+
+// GetServer returns the internal *server.MCPServer instance (for tests and integration).
+// Returns nil if the server is not initialized.
 func (s *MCPServer) GetServer() *server.MCPServer {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.server
 }
 
-// AddTool adds a tool to the MCP server
-// Responsibility: Adding a tool to the server
-// Features: Delegates to the underlying server's AddTool method
-func (s *MCPServer) AddTool(tool mcp.Tool, handler server.ToolHandlerFunc) {
-	if s.server != nil {
-		s.server.AddTool(tool, handler)
-	} else {
-		s.logger.Warn("Cannot add tool: server not initialized")
-	}
+// SetMainToolHandler allows setting the handler for the main tool (process)
+func (s *MCPServer) SetMainToolHandler(handler server.ToolHandlerFunc) {
+	fmt.Fprintf(os.Stderr, "[MCPServer] SetMainToolHandler: setting handler\n")
+	s.mu.Lock()
+	s.mainToolHandler = handler
+	s.mu.Unlock()
+	fmt.Fprintf(os.Stderr, "[MCPServer] SetMainToolHandler: handler set\n")
 }
-
-// GetAllTools returns all tools registered on the server
-// Responsibility: Providing access to all available tools
-// Features: Collects and returns all tools from the server
-func (s *MCPServer) GetAllTools() []mcp.Tool {
-	if s.server == nil {
-		s.logger.Warn("Cannot get tools: server not initialized")
-		return []mcp.Tool{}
-	}
-
-	// Since we can't directly access the tools in the server,
-	// we'll need to implement this differently or just return a partial list.
-	// For now, return just the tool we know exists
-	return []mcp.Tool{
-		mcp.NewTool(s.config.Tool.Name,
-			mcp.WithDescription(s.config.Tool.Description),
-			mcp.WithString(s.config.Tool.ArgumentName,
-				mcp.Description(s.config.Tool.ArgumentDescription),
-				mcp.Required(),
-			),
-		),
-		ExitTool,
-	}
-}
-
-// ExitTool is used to signal that the conversation should end
-var ExitTool = mcp.NewTool("answer",
-	mcp.WithDescription("Send response to the user"),
-	mcp.WithString("text",
-		mcp.Required(),
-		mcp.Description("Text to send to the user"),
-	),
-)

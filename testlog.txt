@@ -1,0 +1,13 @@
+=== RUN   TestDirectApp_HandleCall_Success
+--- PASS: TestDirectApp_HandleCall_Success (0.00s)
+=== RUN   TestDirectApp_HandleCall_Error
+--- PASS: TestDirectApp_HandleCall_Error (0.00s)
+=== RUN   TestDirectApp_HandleCall_NotInitialized
+--- PASS: TestDirectApp_HandleCall_NotInitialized (0.00s)
+=== RUN   TestDirectApp_JSONOutput
+--- PASS: TestDirectApp_JSONOutput (0.00s)
+=== RUN   TestDirectApp_Initialize_Success
+--- PASS: TestDirectApp_Initialize_Success (0.00s)
+=== RUN   TestDirectApp_outputErrorAndExit_Config
+FAIL	github.com/korchasa/speelka-agent-go/internal/app_direct	0.176s
+FAIL

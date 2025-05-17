@@ -5,8 +5,6 @@ package types
 
 import (
 	"context"
-
-	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // AgentConfig represents the configuration for the Agent.
@@ -29,12 +27,7 @@ type AgentConfig struct {
 
 // AgentSpec represents the interface for the Agent component.
 // Responsibility: Defining the contract for the Agent component
-// Features: Defines methods for starting, stopping, and handling requests
+// Features: Defines methods for direct call mode
 type AgentSpec interface {
-	// HandleRequest processes a request to the Agent.
-	// It returns the response from the Agent and an error if the request fails.
-	HandleRequest(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error)
-
-	// RegisterTools registers all tools with the MCP server.
-	RegisterTools()
+	CallDirect(ctx context.Context, input string) (string, MetaInfo, error)
 }

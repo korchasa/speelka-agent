@@ -1,65 +1,47 @@
 # File Structure
 
 ## Root
-- `README.md`: Project overview
+- `README.md`: Project overview and instructions
 - `go.mod`, `go.sum`: Go modules
 - `Dockerfile`: Container build
 - `run`: Build/test/check script
 - `.gitignore`, `.cursorignore`, `.cursorrules`: Ignore/config rules
-- `.github/`: CI/CD workflows (`workflows/`)
-- `.junie/`: Project guidelines
-- `bin/`: (empty, for built binaries)
-- `cmd/`: Entrypoints (see below)
+- `.github/`: CI/CD workflows
+- `bin/`: Built binaries
+- `cmd/`: Entrypoints (server, mcp-call, test-mcp-logging)
 - `internal/`: Core logic (see below)
-- `site/`: Web UI, config examples, assets (see below)
+- `site/`: Web UI, config examples, static assets
 - `vendor/`: Vendored Go dependencies
-- `documents/`: Project documentation (see below)
-- `LICENSE`: MIT
+- `documents/`: Project documentation
+- `LICENSE`: License
 
 ## cmd/
-- `server/`: Main server entrypoint
-- `mcp-call/`: (subdir for MCP call utilities)
+- `server/`: Main MCP server/daemon entrypoint (uses app_mcp)
+- `mcp-call/`: Standalone MCP call/test utility (for E2E and protocol tests)
+- `test-mcp-logging/`: Standalone test server/client for MCP logging
 
 ## internal/
-- `agent/`: Core agent logic (`agent.go`)
-- `app/`: (empty)
-- `app_mcp/`: MCP server app wiring (`app.go`, `direct_app_test.go`, `util.go`)
-- `app_direct/`: Direct CLI call app wiring (`direct_app.go`, `direct_types.go`)
-- `chat/`: Chat/session logic (`chat.go`, `chat_test.go`)
-- `configuration/`: Config loading/validation (`manager.go`, loaders, tests)
-- `direct_app/`: (empty)
+- `agent/`: Core agent logic (protocol-agnostic, no MCP/CLI logic)
+- `app_mcp/`: MCP server/daemon app wiring (uses NewAgentServerMode, DispatchMCPCall)
+- `app_direct/`: Direct CLI call app wiring (implements NewAgentCLI, fully independent from app_mcp)
+    - `app.go`: CLI application, contains NewAgentCLI and dummyToolConnector
+    - `types.go`: Types for CLI mode
+- `chat/`: Chat/session logic
+- `configuration/`: Config loading/validation
 - `error_handling/`: Error handling utilities
-- `llm_models/`: LLM token/cost logic, calculators
+- `llm_models/`: LLM token/cost logic
 - `llm_service/`: LLM service abstraction
-- `logger/`: Logging (logrus wrapper, formatter, entry)
+- `logger/`: Logging
 - `mcp_connector/`: MCP server connection logic
+    - mcp_connector.go — ToolConnector implementation, public methods, delegation
+    - connection.go — MCP client connection and initialization logic
+    - logging.go — log routing (MCP logs or fallback to stderr)
+    - mcp_connector_test.go — tests for log routing (MCP and stderr)
+    - utils_test.go — helper functions for testing
 - `mcp_server/`: MCP server implementation
-- `types/`: All shared types/specs
-- `utils/`: Misc utilities
+- `types/`:
+    - logger_spec.go — LogConfig, LoggerSpec, MCPServerNotifier interfaces
+    - configuration_test.go — golden serialization and overlay property-based tests
 
-## site/
-- `index.html`: Web UI
-- `css/`, `js/`, `img/`: Static assets
-- `examples/`: Example agent configs:
-  - `minimal.yaml`, `ai-news.yaml`, `infra-news.yaml`, `architect.yaml`, `all-options.yaml`, `text-extractor.yaml`
-  - **Per-server timeout:** Each MCP server in `connections.mcpServers` can have a `timeout` parameter (seconds, float or int, default 30s if not set).
-  - `ai-news-subagent-extractor.yaml` is obsolete and replaced by `text-extractor.yaml`.
-- `sitemap.xml`, `robots.txt`: SEO
-
-## vendor/
-- `modules.txt`: Vendored Go modules
-- `github.com/`, `golang.org/`, `gopkg.in/`: Vendored dependencies
-
-## documents/
-- `architecture.md`: System design
-- `file_structure.md`: This file
-- `implementation.md`: Implementation details
-- `knowledge.md`: Code/protocol refs
-- `remote_resources.md`: External links
-- `whiteboard.md`: Temp planning (ephemeral)
-- `mcp-go.xml`, `model-context-protocol.xml`: Protocol/library docs
-- `.gitignore`: Ignore rules for docs
-
-## File Removals (2024-06)
-- Deleted: `internal/app/direct_app_test.go`, `internal/app/direct_types.go`, `internal/app/util.go`, `site/examples/ai-news-subagent-extractor.yaml` (obsolete, replaced by `text-extractor.yaml`).
-- All references and tests for these files have been removed or updated.
+## Test Data
+- `internal/types/testdata/configuration_golden.json`: Golden file for config serialization tests

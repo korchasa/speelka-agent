@@ -1,0 +1,18 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# WORKFLOW
+1. Enable Autonomous mode
+2. Read existing documentation in `./documents`.
+3. Use the project check protocol to detect errors.
+4. Analyze errors by reviewing logs and stack traces if they exist.
+5. Isolate failing tests to focus on the specific issues.
+6. Study the tests to understand the expected behavior.
+7. Review relevant code sections and documentation.
+8. Reproduce the issue using a minimal example.
+9. Formulate and test hypotheses incrementally, documenting each step.
+10. Apply minimal necessary changes to fix the error once confirmed.
+11. Check the project at the end to confirm the absence of errors. If errors exist, go to step 4.
+12. STOP

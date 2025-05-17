@@ -2,178 +2,23 @@ package logger
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"reflect"
 	"testing"
 
+	"github.com/korchasa/speelka-agent-go/internal/types"
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMCPLoggerCreation(t *testing.T) {
-	// Create a new MCP logger without parameters
-	mcpLogger := NewLogger()
-
-	// Assert that the logger was created with the correct properties
-	assert.NotNil(t, mcpLogger.underlying)
-	assert.Equal(t, logrus.DebugLevel, mcpLogger.minLevel)
-}
-
-func TestMCPLoggingWithoutServer(t *testing.T) {
-	// Create a new MCP logger
-	mcpLogger := NewLogger()
-
-	// Configure the logger to write to a buffer for testing
-	buf := new(bytes.Buffer)
-	mcpLogger.underlying.Out = buf
-	mcpLogger.underlying.Level = logrus.DebugLevel
-
-	// Test logging at different levels
-	mcpLogger.Debug("test debug message")
-	mcpLogger.Info("test info message")
-	mcpLogger.Warn("test warning message")
-	mcpLogger.Error("test error message")
-
-	// Assert that the logs went to the underlying logger
-	logStr := buf.String()
-	assert.Contains(t, logStr, "test debug message")
-	assert.Contains(t, logStr, "test info message")
-	assert.Contains(t, logStr, "test warning message")
-	assert.Contains(t, logStr, "test error message")
-}
-
-func TestMCPLoggingWithFieldsWithoutServer(t *testing.T) {
-	// Create a new MCP logger
-	mcpLogger := NewLogger()
-
-	// Configure the logger to write to a buffer for testing
-	buf := new(bytes.Buffer)
-	mcpLogger.underlying.Out = buf
-	mcpLogger.underlying.Level = logrus.DebugLevel
-
-	// Test logging with fields
-	mcpLogger.WithField("key", "value").Info("test with field")
-	mcpLogger.WithFields(logrus.Fields{
-		"key1": "value1",
-		"key2": "value2",
-	}).Info("test with fields")
-
-	// Assert that the logs went to the underlying logger
-	logStr := buf.String()
-	assert.Contains(t, logStr, "test with field")
-	assert.Contains(t, logStr, "key=value")
-	assert.Contains(t, logStr, "test with fields")
-	assert.Contains(t, logStr, "key1=value1")
-	assert.Contains(t, logStr, "key2=value2")
-}
-
-func TestMCPLoggerLevelSetting(t *testing.T) {
-	// Create a new MCP logger
-	mcpLogger := NewLogger()
-
-	// Configure the logger to write to a buffer for testing
-	buf := new(bytes.Buffer)
-	mcpLogger.underlying.Out = buf
-	mcpLogger.underlying.Level = logrus.InfoLevel
-
-	// Test that debug messages are not logged initially
-	mcpLogger.Debug("debug message that should not appear")
-	assert.Empty(t, buf.String())
-
-	// Change the log level
-	mcpLogger.SetLevel(logrus.DebugLevel)
-
-	// Test that debug messages are now logged
-	mcpLogger.Debug("debug message that should appear")
-	assert.Contains(t, buf.String(), "debug message that should appear")
-	assert.NotContains(t, buf.String(), "debug message that should not appear")
-}
-
-func TestMCPLoggerEntryMethods(t *testing.T) {
-	// Create a new MCP logger
-	mcpLogger := NewLogger()
-
-	// Configure the logger to write to a buffer for testing
-	buf := new(bytes.Buffer)
-	mcpLogger.underlying.Out = buf
-	mcpLogger.underlying.Level = logrus.DebugLevel
-
-	// Test log entry methods
-	entry := mcpLogger.WithField("test", "value")
-
-	entry.Debug("debug entry")
-	entry.Info("info entry")
-	entry.Warn("warn entry")
-	entry.Error("error entry")
-
-	// Test formatted log entry methods
-	entry.Debugf("debug %s", "format")
-	entry.Infof("info %s", "format")
-	entry.Warnf("warn %s", "format")
-	entry.Errorf("error %s", "format")
-
-	// Check all messages were logged
-	logStr := buf.String()
-	assert.Contains(t, logStr, "debug entry")
-	assert.Contains(t, logStr, "info entry")
-	assert.Contains(t, logStr, "warn entry")
-	assert.Contains(t, logStr, "error entry")
-	assert.Contains(t, logStr, "debug format")
-	assert.Contains(t, logStr, "info format")
-	assert.Contains(t, logStr, "warn format")
-	assert.Contains(t, logStr, "error format")
-}
-
-func TestMCPLogLevelConversion(t *testing.T) {
-	// Test Logrus to MCP level conversion
-	assert.Equal(t, "debug", logrusToMCPLevel(logrus.DebugLevel))
-	assert.Equal(t, "debug", logrusToMCPLevel(logrus.TraceLevel))
-	assert.Equal(t, "info", logrusToMCPLevel(logrus.InfoLevel))
-	assert.Equal(t, "warning", logrusToMCPLevel(logrus.WarnLevel))
-	assert.Equal(t, "error", logrusToMCPLevel(logrus.ErrorLevel))
-	assert.Equal(t, "critical", logrusToMCPLevel(logrus.FatalLevel))
-	assert.Equal(t, "alert", logrusToMCPLevel(logrus.PanicLevel))
-
-	// Test MCP to Logrus level conversion
-	debugLevel, err := mcpToLogrusLevel("debug")
-	assert.NoError(t, err)
-	assert.Equal(t, logrus.DebugLevel, debugLevel)
-
-	infoLevel, err := mcpToLogrusLevel("info")
-	assert.NoError(t, err)
-	assert.Equal(t, logrus.InfoLevel, infoLevel)
-
-	noticeLevel, err := mcpToLogrusLevel("notice")
-	assert.NoError(t, err)
-	assert.Equal(t, logrus.InfoLevel, noticeLevel)
-
-	warningLevel, err := mcpToLogrusLevel("warning")
-	assert.NoError(t, err)
-	assert.Equal(t, logrus.WarnLevel, warningLevel)
-
-	errorLevel, err := mcpToLogrusLevel("error")
-	assert.NoError(t, err)
-	assert.Equal(t, logrus.ErrorLevel, errorLevel)
-
-	criticalLevel, err := mcpToLogrusLevel("critical")
-	assert.NoError(t, err)
-	assert.Equal(t, logrus.FatalLevel, criticalLevel)
-
-	alertLevel, err := mcpToLogrusLevel("alert")
-	assert.NoError(t, err)
-	assert.Equal(t, logrus.FatalLevel, alertLevel)
-
-	emergencyLevel, err := mcpToLogrusLevel("emergency")
-	assert.NoError(t, err)
-	assert.Equal(t, logrus.FatalLevel, emergencyLevel)
-
-	// Test invalid MCP level
-	_, err = mcpToLogrusLevel("invalid")
-	assert.Error(t, err)
-}
-
 func TestLogger_RespectsConfigLogLevel(t *testing.T) {
 	var buf bytes.Buffer
-	logger := NewLogger()
-	logger.SetOutput(&buf)
+	logger := newTestLogger(false)
+	logger.underlying.SetOutput(&buf)
 	logger.SetLevel(logrus.WarnLevel)
 
 	logger.Info("this is info")
@@ -188,5 +33,274 @@ func TestLogger_RespectsConfigLogLevel(t *testing.T) {
 	}
 	if !bytes.Contains([]byte(output), []byte("this is warn")) {
 		t.Error("warn log should be present at warn level")
+	}
+}
+
+func TestLogger_UsesJSONFormatterWhenConfigured(t *testing.T) {
+	logger := newTestLogger(false)
+	var buf bytes.Buffer
+	logger.underlying.SetOutput(&buf)
+	logger.SetLevel(logrus.InfoLevel)
+	logger.underlying.SetFormatter(&logrus.JSONFormatter{})
+
+	logger.Info("json test", "foo")
+	output := buf.String()
+	assert.Contains(t, output, "json test")
+	assert.Contains(t, output, "foo")
+	var js map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(output), &js))
+}
+
+func TestMCPServer_DeclaresLoggingCapability(t *testing.T) {
+	mcpServer := server.NewMCPServer("test-server", "0.1.0", server.WithLogging())
+	// Get the capabilities field via reflection
+	val := reflect.ValueOf(mcpServer).Elem().FieldByName("capabilities")
+	if !val.IsValid() {
+		t.Fatal("capabilities field not found in MCPServer")
+	}
+	logging := val.FieldByName("logging")
+	if !logging.IsValid() {
+		t.Fatal("logging field not found in capabilities")
+	}
+	assert.True(t, logging.Bool(), "logging capability must be enabled")
+}
+
+func TestLogger_DisableMCP(t *testing.T) {
+	var mockServer mockMCPServer
+	logger := newTestLogger(true)
+
+	logger.Infof("test info %s", "should-not-send-mcp")
+
+	assert.Empty(t, mockServer.lastMethod)
+}
+
+func TestLoggerLevelSetting(t *testing.T) {
+	logger := newTestLogger(false)
+	logger.SetLevel(logrus.InfoLevel)
+	assert.Equal(t, logrus.InfoLevel, logger.minLevel)
+	logger.SetLevel(logrus.DebugLevel)
+	assert.Equal(t, logrus.DebugLevel, logger.minLevel)
+}
+
+func TestLoggerEntryMethods(t *testing.T) {
+	logger := newTestLogger(false)
+	entry := logger.WithField("test", "value")
+	entry.Debug("debug entry")
+	entry.Info("info entry")
+	entry.Warn("warn entry")
+	entry.Error("error entry")
+	entry.Debugf("debug %s", "format")
+	entry.Infof("info %s", "format")
+	entry.Warnf("warn %s", "format")
+	entry.Errorf("error %s", "format")
+}
+
+func TestLogger_WithFields(t *testing.T) {
+	logger := newTestLogger(false)
+	fields := logrus.Fields{"foo": "bar", "num": 42}
+	entry := logger.WithFields(fields)
+	if entry == nil {
+		t.Fatal("WithFields returned nil")
+	}
+	entry.Info("test with fields")
+}
+
+func TestLogrusToMCPLevel(t *testing.T) {
+	cases := []struct {
+		in   logrus.Level
+		want string
+	}{
+		{logrus.DebugLevel, "debug"},
+		{logrus.InfoLevel, "info"},
+		{logrus.WarnLevel, "warning"},
+		{logrus.ErrorLevel, "error"},
+		{logrus.FatalLevel, "critical"},
+		{logrus.PanicLevel, "alert"},
+		{logrus.TraceLevel, "debug"},
+	}
+	for _, c := range cases {
+		got := logrusToMCPLevel(c.in)
+		if got != c.want {
+			t.Errorf("logrusToMCPLevel(%v) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func getAllToolNamesFromMCPServer(s *server.MCPServer) []string {
+	val := reflect.ValueOf(s).Elem().FieldByName("tools")
+	if !val.IsValid() {
+		return nil
+	}
+	names := make([]string, 0, val.Len())
+	for _, key := range val.MapKeys() {
+		names = append(names, key.String())
+	}
+	return names
+}
+
+func TestLogger_RegistersSetLevelToolAndChangesLevel(t *testing.T) {
+	mcpSrv := server.NewMCPServer("test-server", "0.1.0", server.WithLogging())
+	logger := newTestLogger(false)
+	// Register tool via MCPServer
+	loggingSetLevel := mcp.NewTool("logging/setLevel",
+		mcp.WithString("level", mcp.Required(), mcp.Description("Log level to set")),
+	)
+	mcpSrv.AddTool(loggingSetLevel, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		res, err := logger.HandleMCPSetLevel(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		result, ok := res.(*mcp.CallToolResult)
+		if !ok {
+			return nil, fmt.Errorf("unexpected result type from HandleMCPSetLevel")
+		}
+		return result, nil
+	})
+
+	// Check that the logging/setLevel tool is registered
+	names := getAllToolNamesFromMCPServer(mcpSrv)
+	found := false
+	for _, name := range names {
+		if name == "logging/setLevel" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "logging/setLevel tool must be registered by MCPServer")
+
+	// Check that the logging level changes via handler
+	callReq := mcp.CallToolRequest{
+		Params: struct {
+			Name      string                 `json:"name"`
+			Arguments map[string]interface{} `json:"arguments,omitempty"`
+			Meta      *struct {
+				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
+			} `json:"_meta,omitempty"`
+		}{
+			Name:      "logging/setLevel",
+			Arguments: map[string]interface{}{"level": "debug"},
+		},
+	}
+	res, err := logger.HandleMCPSetLevel(context.Background(), callReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, "debug", logger.GetLogrusLevel().String())
+}
+
+func newTestLogger(disableMCP bool) *Logger {
+	cfg := types.LogConfig{
+		DefaultLevel: "debug",
+		Format:       "text",
+		Level:        logrus.DebugLevel,
+		DisableMCP:   disableMCP,
+	}
+	return NewLogger(cfg)
+}
+
+type mockMCPServer struct {
+	lastMethod string
+	lastData   map[string]interface{}
+}
+
+func (m *mockMCPServer) AddTool(_ *mcp.Tool) {}
+
+func (m *mockMCPServer) SendNotificationToClient(_ context.Context, method string, data map[string]interface{}) error {
+	m.lastMethod = method
+	m.lastData = data
+	return nil
+}
+
+func TestLogger_sendNotification(t *testing.T) {
+	logger := newTestLogger(false)
+	mockSrv := &mockMCPServer{}
+	logger.mcpServer = mockSrv
+	logger.minLevel = logrus.InfoLevel
+	logger.disableMCP = false
+
+	logger.sendNotification(logrus.InfoLevel, "test message", logrus.Fields{"foo": "bar"})
+	if mockSrv.lastMethod != "notifications/message" {
+		t.Errorf("expected method notifications/message, got %s", mockSrv.lastMethod)
+	}
+	if mockSrv.lastData["message"] != "test message" {
+		t.Errorf("expected message 'test message', got %v", mockSrv.lastData["message"])
+	}
+	if mockSrv.lastData["level"] != "info" {
+		t.Errorf("expected level 'info', got %v", mockSrv.lastData["level"])
+	}
+	// Проверяем, что поля передаются
+	data, ok := mockSrv.lastData["data"].(logrus.Fields)
+	if !ok || data["foo"] != "bar" {
+		t.Errorf("expected data.foo = 'bar', got %v", mockSrv.lastData["data"])
+	}
+
+	// Проверяем, что при disableMCP не вызывается
+	logger.disableMCP = true
+	mockSrv.lastMethod = ""
+	logger.sendNotification(logrus.InfoLevel, "should not send", nil)
+	if mockSrv.lastMethod != "" {
+		t.Error("expected no notification when disableMCP is true")
+	}
+
+	// Проверяем, что при уровне ниже minLevel не вызывается
+	logger.disableMCP = false
+	logger.minLevel = logrus.InfoLevel
+	mockSrv.lastMethod = ""
+	mockSrv.lastData = nil
+	logger.sendNotification(logrus.DebugLevel, "should not send", nil)
+	if mockSrv.lastMethod != "" || mockSrv.lastData != nil {
+		t.Errorf("expected no notification when level < minLevel, got method=%v data=%v", mockSrv.lastMethod, mockSrv.lastData)
+	}
+}
+
+func TestLogger_SetFormatter(t *testing.T) {
+	logger := newTestLogger(false)
+	formatter := &logrus.JSONFormatter{}
+	logger.SetFormatter(formatter)
+	if _, ok := logger.underlying.Formatter.(*logrus.JSONFormatter); !ok {
+		t.Error("SetFormatter did not set JSONFormatter")
+	}
+}
+
+func TestLogger_Debug_Debugf_Warnf_Error_Errorf(t *testing.T) {
+	logger := newTestLogger(false)
+	logger.SetLevel(logrus.DebugLevel)
+	logger.Debug("debug message")
+	logger.Debugf("debugf %s", "message")
+	logger.Warnf("warnf %s", "message")
+	logger.Error("error message")
+	logger.Errorf("errorf %s", "message")
+	// Проверяем, что не паникует и не вызывает os.Exit
+}
+
+func TestMcpToLogrusLevel(t *testing.T) {
+	cases := []struct {
+		in    string
+		want  logrus.Level
+		wantE bool
+	}{
+		{"debug", logrus.DebugLevel, false},
+		{"info", logrus.InfoLevel, false},
+		{"notice", logrus.InfoLevel, false},
+		{"warning", logrus.WarnLevel, false},
+		{"error", logrus.ErrorLevel, false},
+		{"critical", logrus.FatalLevel, false},
+		{"alert", logrus.FatalLevel, false},
+		{"emergency", logrus.FatalLevel, false},
+		{"unknown", logrus.InfoLevel, true},
+	}
+	for _, c := range cases {
+		got, err := mcpToLogrusLevel(c.in)
+		if c.wantE {
+			if err == nil {
+				t.Errorf("expected error for %q", c.in)
+			}
+		} else {
+			if got != c.want {
+				t.Errorf("mcpToLogrusLevel(%q) = %v, want %v", c.in, got, c.want)
+			}
+			if err != nil {
+				t.Errorf("unexpected error for %q: %v", c.in, err)
+			}
+		}
 	}
 }

@@ -6,8 +6,8 @@
 # Runtime configuration
 runtime:
   log:
-    level: info
-    output: stdout
+    default_level: info
+    output: ':stdout:' # Log output: file path or :stderr:/:stdout:/:mcp:
 
   # Transport configuration
   transports:
@@ -118,4 +118,6 @@ agent:
       initial_backoff: 1
       max_backoff: 30
       backoff_multiplier: 2
+
+default_level: info
 

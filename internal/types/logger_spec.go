@@ -4,26 +4,36 @@
 package types
 
 import (
-	"io"
+	"context"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/sirupsen/logrus"
+)
+
+const (
+	LogOutputStdout = ":stdout:"
+	LogOutputStderr = ":stderr:"
+	LogOutputMCP    = ":mcp:"
 )
 
 // LogConfig represents the configuration for logging.
 // Responsibility: Storing logging system settings
 // Features: Defines the level, format, and output location for logs
+// LogConfig is used only for business logic, not for parsing.
+// DefaultLevel is the string value from config ("info", "debug", etc.)
+// Output is the output identifier string (":stdout:", ":stderr:", ":mcp:", file path)
+// Format is the formatter identifier string ("custom", "json", "text", etc.)
+// Level is the computed logrus.Level
+// UseMCPLogs indicates whether to use MCP logging
 type LogConfig struct {
-	// RawLevel is the raw log level.
-	RawLevel string
-
-	// Level is the log level.
+	// DefaultLevel is the string value from config ("info", "debug", etc.)
+	DefaultLevel string
+	// Format is the formatter identifier string ("custom", "json", "text", etc.)
+	Format string
+	// Level is the computed logrus.Level
 	Level logrus.Level
-
-	// RawOutput is the raw output of the log level.
-	RawOutput string
-
-	// Output is the log output.
-	Output io.Writer
+	// DisableMCP disables MCP notifications even if server is connected
+	DisableMCP bool
 }
 
 // LogEntrySpec defines the interface for a log entry with fields.
@@ -61,11 +71,18 @@ type LogEntrySpec interface {
 	Fatalf(format string, args ...interface{})
 }
 
+// MCPServerNotifier defines the interface for sending MCP notifications (locally to avoid circular imports)
+type MCPServerNotifier interface {
+	AddTool(tool *mcp.Tool)
+	SendNotificationToClient(ctx context.Context, method string, data map[string]interface{}) error
+}
+
 // LoggerSpec defines the interface for our MCP-aware logger
 // Responsibility: Providing a unified logging interface
 // Features: Supports different log levels, structured logging, and MCP integration
 type LoggerSpec interface {
 	SetLevel(level logrus.Level)
+	SetFormatter(formatter logrus.Formatter)
 	Debug(args ...interface{})
 	Debugf(format string, args ...interface{})
 	Info(args ...interface{})
@@ -78,5 +95,5 @@ type LoggerSpec interface {
 	Fatalf(format string, args ...interface{})
 	WithField(key string, value interface{}) LogEntrySpec
 	WithFields(fields logrus.Fields) LogEntrySpec
-	SetMCPServer(mcpServer interface{})
+	HandleMCPSetLevel(ctx context.Context, req interface{}) (interface{}, error)
 }

@@ -185,7 +185,7 @@ func WithSSEEndpoint(endpoint string) SSEOption {
 // WithSSEContextFunc sets a function that will be called to customise the context
 // to the server using the incoming request.
 //
-// Deprecated: Use WithContextFunc instead. This will be removed in a future version.
+// Deprecated: Use WithHTTPContextFunc instead. This will be removed in a future version.
 //
 //go:deprecated
 func WithSSEContextFunc(fn SSEContextFunc) SSEOption {
@@ -297,7 +297,11 @@ func (s *SSEServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 	defer s.sessions.Delete(sessionID)
 
 	if err := s.server.RegisterSession(r.Context(), session); err != nil {
-		http.Error(w, fmt.Sprintf("Session registration failed: %v", err), http.StatusInternalServerError)
+		http.Error(
+			w,
+			fmt.Sprintf("Session registration failed: %v", err),
+			http.StatusInternalServerError,
+		)
 		return
 	}
 	defer s.server.UnregisterSession(r.Context(), sessionID)
@@ -480,7 +484,14 @@ func (s *SSEServer) writeJSONRPCError(
 	response := createErrorResponse(id, code, message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("Failed to encode response: %v", err),
+			http.StatusInternalServerError,
+		)
+		return
+	}
 }
 
 // SendEventToSession sends an event to a specific SSE session identified by sessionID.
@@ -621,7 +632,11 @@ func (s *SSEServer) MessageHandler() http.Handler {
 // ServeHTTP implements the http.Handler interface.
 func (s *SSEServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.dynamicBasePathFunc != nil {
-		http.Error(w, (&ErrDynamicPathConfig{Method: "ServeHTTP"}).Error(), http.StatusInternalServerError)
+		http.Error(
+			w,
+			(&ErrDynamicPathConfig{Method: "ServeHTTP"}).Error(),
+			http.StatusInternalServerError,
+		)
 		return
 	}
 	path := r.URL.Path

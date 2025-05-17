@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +20,7 @@ func TestYAMLLoader_LoadConfiguration(t *testing.T) {
 	validYAML := `
 runtime:
   log:
-    level: debug
+    default_level: debug
     output: ./test.log
 
 agent:
@@ -51,7 +50,7 @@ agent:
 	invalidYAML := `
 runtime
   log:
-    level: debug
+    default_level: debug
     INVALID: YAML: SYNTAX
 `
 
@@ -86,12 +85,7 @@ runtime
 				assert.Equal(t, "gpt-4", config.Agent.LLM.Model)
 				assert.Equal(t, "test-api-key", config.Agent.LLM.APIKey)
 				assert.Equal(t, "You are a helpful assistant. User query: {{query}} Available tools: {{tools}}", config.Agent.LLM.PromptTemplate)
-				assert.Equal(t, "debug", config.Runtime.Log.RawLevel)
-				assert.Equal(t, "./test.log", config.Runtime.Log.RawOutput)
-				// After Apply, check parsed fields
-				config.Apply(config)
-				assert.NotNil(t, config.Runtime.Log.Output)
-				assert.Equal(t, logrus.DebugLevel, config.Runtime.Log.LogLevel)
+				assert.Equal(t, "debug", config.Runtime.Log.DefaultLevel)
 			},
 		},
 		{
@@ -134,8 +128,8 @@ runtime
 				yaml := `
 runtime:
   log:
-    level: info
-    output: stdout
+    default_level: info
+    output: ":stdout:"
 agent:
   name: timeout-agent
   tool:
@@ -159,10 +153,48 @@ agent:
 			}(),
 			expectError: false,
 			validate: func(t *testing.T, config *types.Configuration) {
-				config.Apply(config)
+				mgr := NewConfigurationManager(nil)
+				var err error
+				config, err = mgr.Apply(config, config)
+				assert.NoError(t, err)
 				server, ok := config.Agent.Connections.McpServers["slow"]
 				assert.True(t, ok)
 				assert.Equal(t, 42.0, server.Timeout)
+			},
+		},
+		{
+			name: "Log format YAML field",
+			filePath: func() string {
+				path := filepath.Join(tempDir, "log-format-config.yaml")
+				yaml := `runtime:
+  log:
+    default_level: info
+    output: ":stdout:"
+    format: json
+agent:
+  name: log-format-agent
+  tool:
+    name: log-format-tool
+    description: Tool with log format
+    argument_name: input
+    argument_description: Input
+  llm:
+    provider: openai
+    model: gpt-4
+    api_key: test-api-key
+    prompt_template: "Test {{input}}. Tools: {{tools}}"
+`
+				_ = os.WriteFile(path, []byte(yaml), 0644)
+				return path
+			}(),
+			expectError: false,
+			validate: func(t *testing.T, config *types.Configuration) {
+				assert.Equal(t, "json", config.Runtime.Log.Format)
+				mgr := NewConfigurationManager(nil)
+				var err error
+				config, err = mgr.Apply(config, config)
+				assert.NoError(t, err)
+				assert.Equal(t, "json", config.Runtime.Log.Format)
 			},
 		},
 	}

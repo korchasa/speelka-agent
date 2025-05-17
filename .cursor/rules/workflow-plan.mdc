@@ -1,0 +1,23 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# WORKFLOW (until STOP section)
+1. Read existing documentation in `./documents`.
+2. Analyze the user query and restate the user query.
+4. Analyze of the problem. Collect the ALL related information from all available sources:
+  - source files
+  - libraries
+  - web search
+  - resources from the `.documents/remote_resources.md` file
+  - etc.
+5. Generate a task in `./documents/whiteboard.md`, including:
+  - Goal: Why are we performing the task? What is the goal?
+  - Overview: What is happening now? Why did the task arise? What is happening around it? Include pros and cons that are relevant, and describe them in terms that align with your needs and goals.
+  - Definition of Done: When do we consider the task completed? By what criteria?
+  - Solution: How can the task be solved? A list of understandable small atomic subtasks.
+  - Consequences: What becomes easier or more difficult to do because of this change? Explain what follows from making the decision. This can include the effects, outcomes, outputs, follow ups, and more.
+6. Critique the task and refine it taking the criticism into account.
+7. Add passed project checks to the DoD.
+8. STOP

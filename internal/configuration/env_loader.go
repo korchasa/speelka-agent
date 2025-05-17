@@ -25,11 +25,11 @@ func (l *EnvLoader) LoadConfiguration() (*types.Configuration, error) {
 
 	// Parse environment variables
 	// Runtime configuration
-	if os.Getenv("SPL_LOG_LEVEL") != "" {
-		config.Runtime.Log.RawLevel = os.Getenv("SPL_LOG_LEVEL")
+	if os.Getenv("SPL_LOG_FORMAT") != "" {
+		config.Runtime.Log.Format = os.Getenv("SPL_LOG_FORMAT")
 	}
-	if os.Getenv("SPL_LOG_OUTPUT") != "" {
-		config.Runtime.Log.RawOutput = os.Getenv("SPL_LOG_OUTPUT")
+	if os.Getenv("SPL_LOG_DEFAULT_LEVEL") != "" {
+		config.Runtime.Log.DefaultLevel = os.Getenv("SPL_LOG_DEFAULT_LEVEL")
 	}
 
 	// Runtime transport configuration

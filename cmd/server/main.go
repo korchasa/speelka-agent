@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -12,17 +13,13 @@ import (
 	"runtime/debug"
 	"syscall"
 
-	app_direct "github.com/korchasa/speelka-agent-go/internal/app_direct"
-	app_mcp "github.com/korchasa/speelka-agent-go/internal/app_mcp"
+	"github.com/korchasa/speelka-agent-go/internal/app_direct"
+	"github.com/korchasa/speelka-agent-go/internal/app_mcp"
 	"github.com/korchasa/speelka-agent-go/internal/configuration"
 	"github.com/korchasa/speelka-agent-go/internal/logger"
+	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/sirupsen/logrus"
 )
-
-// Global logger instance
-// Responsibility: Providing access to the logger from anywhere in the program
-// Features: Initialized at the start and used throughout the application
-var log *logger.Logger
 
 // Command line parameters
 // Responsibility: Determine the server operating mode
@@ -33,33 +30,11 @@ var (
 	callInput  = flag.String("call", "", "Run in direct call mode with the given user query (bypasses MCP server)")
 )
 
-// panicHandler intercepts panics and logs them with a full call stack
-// Responsibility: Providing panic information for debugging
-// Features: Captures the panic, logs it, and then continues the panic
-func panicHandler() {
-	if r := recover(); r != nil {
-		stackTrace := debug.Stack()
-		log.WithFields(logrus.Fields{
-			"panic": r,
-			"stack": string(stackTrace),
-		}).Error("PANIC OCCURRED")
-
-		// Continue the panic after logging
-		panic(r)
-	}
-}
-
 // main - application entry point
 // Responsibility: Starting the server and handling termination
 // Features: Sets up signal handling for graceful shutdown
 func main() {
 	flag.Parse()
-
-	log = logger.NewLogger()
-	log.SetFormatter(logger.NewCustomLogFormatter())
-	log.Info("Logger initialized")
-
-	defer panicHandler()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -74,22 +49,49 @@ func main() {
 		cancel()
 	}()
 
-	configManager, err := loadConfiguration(ctx)
+	startupLogger := logger.NewLogger(types.LogConfig{
+		DefaultLevel: "warn",
+		Format:       "text",
+		Level:        logrus.WarnLevel,
+		DisableMCP:   true,
+	})
+	startupLogger.SetFormatter(logger.NewCustomLogFormatter())
+	configManager, err := loadConfiguration(ctx, startupLogger)
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		startupLogger.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Ensure logger log level matches configuration
-	logConfig := configManager.GetLogConfig()
-	log.SetLevel(logConfig.Level) // Set logger level from config
-	log.Infof("Logger level set to %s from configuration", logConfig.Level.String())
+	// Get final log level and output from configuration
+	conf := configManager.GetConfiguration()
+	logConfig, err := types.BuildLogConfig(conf.Runtime.Log)
+	if err != nil {
+		startupLogger.Fatalf("Invalid log config: %v", err)
+	}
+	level := logConfig.Level
+	// Global logger
+	log := logger.NewLogger(logConfig)
+	log.SetLevel(level)
+	log.SetFormatter(logger.NewCustomLogFormatter())
+
+	// panic handler now uses the global logger
+	defer func() {
+		if r := recover(); r != nil {
+			stackTrace := debug.Stack()
+			log.WithFields(logrus.Fields{
+				"panic": r,
+				"stack": string(stackTrace),
+			}).Error("PANIC OCCURRED")
+			panic(r)
+		}
+	}()
 
 	var application app_mcp.Application
 	if *callInput != "" {
 		// Direct call mode
-		application = app_direct.NewDirectApp(log, configManager)
-		// For CLI mode, execute and exit
-		application.(*app_direct.DirectApp).Execute(ctx, *callInput)
+		application := app_direct.NewDirectApp(log, configManager)
+		result, code, _ := application.Execute(ctx, *callInput)
+		_ = json.NewEncoder(os.Stdout).Encode(result)
+		os.Exit(code)
 		return
 	} else {
 		// MCP server mode
@@ -111,16 +113,11 @@ func main() {
 	}
 }
 
-func loadConfiguration(ctx context.Context) (*configuration.Manager, error) {
-	// Create configuration manager
+func loadConfiguration(ctx context.Context, log types.LoggerSpec) (*configuration.Manager, error) {
 	configManager := configuration.NewConfigurationManager(log)
-
-	// Load configuration from file if specified, then from environment variables
-	// and validate the configuration
 	err := configManager.LoadConfiguration(ctx, *configFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
-
 	return configManager, nil
 }

@@ -13,8 +13,16 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
+func newTestLogger() types.LoggerSpec {
+	return &loggerAdapter{logger.NewLogger(types.LogConfig{DefaultLevel: "debug", Format: "text", Level: 1, DisableMCP: true})}
+}
+
+type loggerAdapter struct {
+	*logger.Logger
+}
+
 func TestChat_InitializationAndGetInfo(t *testing.T) {
-	log := logger.NewLogger()
+	log := newTestLogger()
 	calculator := llm_models.NewCalculator()
 	maxTokens := 2048
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, maxTokens, 0.0)
@@ -30,7 +38,7 @@ func TestChat_InitializationAndGetInfo(t *testing.T) {
 }
 
 func TestChat_Begin_SystemPromptAndToolDescription(t *testing.T) {
-	log := logger.NewLogger()
+	log := newTestLogger()
 	calculator := llm_models.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}. Tools: {{tools}}", "query", log, calculator, 2048, 0.0)
 
@@ -45,7 +53,6 @@ func TestChat_Begin_SystemPromptAndToolDescription(t *testing.T) {
 	assert.Equal(t, llms.ChatMessageTypeSystem, msgs[0].Role)
 	if len(msgs[0].Parts) > 0 {
 		if text, ok := msgs[0].Parts[0].(llms.TextContent); ok {
-			assert.Contains(t, text.Text, "Hello")
 			assert.Contains(t, text.Text, "echo")
 		} else {
 			t.Errorf("Expected TextContent in system message part")
@@ -60,7 +67,7 @@ func TestChat_Begin_SystemPromptAndToolDescription(t *testing.T) {
 }
 
 func TestChat_AddAssistantMessage_TokenCostApproximation(t *testing.T) {
-	log := logger.NewLogger()
+	log := newTestLogger()
 	calculator := llm_models.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
@@ -86,7 +93,7 @@ func TestChat_AddAssistantMessage_TokenCostApproximation(t *testing.T) {
 }
 
 func TestChat_AddAssistantMessage_FallbackEstimation(t *testing.T) {
-	log := logger.NewLogger()
+	log := newTestLogger()
 	calculator := llm_models.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
@@ -106,7 +113,7 @@ func TestChat_AddAssistantMessage_FallbackEstimation(t *testing.T) {
 }
 
 func TestChat_AddToolCall_And_AddToolResult(t *testing.T) {
-	log := logger.NewLogger()
+	log := newTestLogger()
 	calculator := llm_models.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
@@ -142,7 +149,7 @@ func TestChat_AddToolCall_And_AddToolResult(t *testing.T) {
 }
 
 func TestChat_AddToolResult_ErrorHandling(t *testing.T) {
-	log := logger.NewLogger()
+	log := newTestLogger()
 	calculator := llm_models.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
@@ -188,7 +195,7 @@ func TestChat_AddToolResult_ErrorHandling(t *testing.T) {
 }
 
 func TestChat_BuildPromptPartForToolsDescription(t *testing.T) {
-	log := logger.NewLogger()
+	log := newTestLogger()
 	calculator := llm_models.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 
@@ -202,7 +209,7 @@ func TestChat_BuildPromptPartForToolsDescription(t *testing.T) {
 }
 
 func TestChat_GetLLMMessages_StackCorrectness(t *testing.T) {
-	log := logger.NewLogger()
+	log := newTestLogger()
 	calculator := llm_models.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
@@ -224,7 +231,7 @@ func TestChat_GetLLMMessages_StackCorrectness(t *testing.T) {
 }
 
 func TestChat_RequestBudgetEnforcement(t *testing.T) {
-	log := logger.NewLogger()
+	log := newTestLogger()
 	calculator := llm_models.NewCalculator()
 	budget := 0.0015 // Budget for two messages (each 0.001)
 	ch := chat.NewChat("gpt-4", "System: {{query}}", "query", log, calculator, 2048, budget)
@@ -247,4 +254,31 @@ func TestChat_RequestBudgetEnforcement(t *testing.T) {
 	// Add another message to exceed the budget
 	ch.AddAssistantMessage(resp)
 	assert.True(t, ch.ExceededRequestBudget(), "Should exceed budget after second message")
+}
+
+func TestChat_InputSubstitutionInPrompt(t *testing.T) {
+	log := newTestLogger()
+	calculator := llm_models.NewCalculator()
+	ch := chat.NewChat("gpt-4o", "System: {{input}} | {{query}} | {{tools}}", "query", log, calculator, 2048, 0.0)
+
+	tools := []mcp.Tool{
+		mcp.NewTool("echo", mcp.WithString("msg", mcp.Required(), mcp.Description("Message to echo"))),
+	}
+	userInput := "Hello world!"
+	err := ch.Begin(userInput, tools)
+	assert.NoError(t, err)
+
+	msgs := ch.GetLLMMessages()
+	assert.Len(t, msgs, 1)
+	assert.Equal(t, llms.ChatMessageTypeSystem, msgs[0].Role)
+	if len(msgs[0].Parts) > 0 {
+		if text, ok := msgs[0].Parts[0].(llms.TextContent); ok {
+			assert.Contains(t, text.Text, userInput)
+			assert.Contains(t, text.Text, "echo")
+		} else {
+			t.Errorf("Expected TextContent in system message part")
+		}
+	} else {
+		t.Errorf("No parts in system message")
+	}
 }
