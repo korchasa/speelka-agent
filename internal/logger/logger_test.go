@@ -95,6 +95,37 @@ func TestLoggerEntryMethods(t *testing.T) {
 	entry.Errorf("error %s", "format")
 }
 
+func TestLogger_WithFields(t *testing.T) {
+	logger := newTestLogger(false)
+	fields := logrus.Fields{"foo": "bar", "num": 42}
+	entry := logger.WithFields(fields)
+	if entry == nil {
+		t.Fatal("WithFields returned nil")
+	}
+	entry.Info("test with fields")
+}
+
+func TestLogrusToMCPLevel(t *testing.T) {
+	cases := []struct {
+		in   logrus.Level
+		want string
+	}{
+		{logrus.DebugLevel, "debug"},
+		{logrus.InfoLevel, "info"},
+		{logrus.WarnLevel, "warning"},
+		{logrus.ErrorLevel, "error"},
+		{logrus.FatalLevel, "critical"},
+		{logrus.PanicLevel, "alert"},
+		{logrus.TraceLevel, "debug"},
+	}
+	for _, c := range cases {
+		got := logrusToMCPLevel(c.in)
+		if got != c.want {
+			t.Errorf("logrusToMCPLevel(%v) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
 func getAllToolNamesFromMCPServer(s *server.MCPServer) []string {
 	val := reflect.ValueOf(s).Elem().FieldByName("tools")
 	if !val.IsValid() {
@@ -168,4 +199,108 @@ func newTestLogger(disableMCP bool) *Logger {
 
 type mockMCPServer struct {
 	lastMethod string
+	lastData   map[string]interface{}
+}
+
+func (m *mockMCPServer) AddTool(_ *mcp.Tool) {}
+
+func (m *mockMCPServer) SendNotificationToClient(_ context.Context, method string, data map[string]interface{}) error {
+	m.lastMethod = method
+	m.lastData = data
+	return nil
+}
+
+func TestLogger_sendNotification(t *testing.T) {
+	logger := newTestLogger(false)
+	mockSrv := &mockMCPServer{}
+	logger.mcpServer = mockSrv
+	logger.minLevel = logrus.InfoLevel
+	logger.disableMCP = false
+
+	logger.sendNotification(logrus.InfoLevel, "test message", logrus.Fields{"foo": "bar"})
+	if mockSrv.lastMethod != "notifications/message" {
+		t.Errorf("expected method notifications/message, got %s", mockSrv.lastMethod)
+	}
+	if mockSrv.lastData["message"] != "test message" {
+		t.Errorf("expected message 'test message', got %v", mockSrv.lastData["message"])
+	}
+	if mockSrv.lastData["level"] != "info" {
+		t.Errorf("expected level 'info', got %v", mockSrv.lastData["level"])
+	}
+	// Проверяем, что поля передаются
+	data, ok := mockSrv.lastData["data"].(logrus.Fields)
+	if !ok || data["foo"] != "bar" {
+		t.Errorf("expected data.foo = 'bar', got %v", mockSrv.lastData["data"])
+	}
+
+	// Проверяем, что при disableMCP не вызывается
+	logger.disableMCP = true
+	mockSrv.lastMethod = ""
+	logger.sendNotification(logrus.InfoLevel, "should not send", nil)
+	if mockSrv.lastMethod != "" {
+		t.Error("expected no notification when disableMCP is true")
+	}
+
+	// Проверяем, что при уровне ниже minLevel не вызывается
+	logger.disableMCP = false
+	logger.minLevel = logrus.InfoLevel
+	mockSrv.lastMethod = ""
+	mockSrv.lastData = nil
+	logger.sendNotification(logrus.DebugLevel, "should not send", nil)
+	if mockSrv.lastMethod != "" || mockSrv.lastData != nil {
+		t.Errorf("expected no notification when level < minLevel, got method=%v data=%v", mockSrv.lastMethod, mockSrv.lastData)
+	}
+}
+
+func TestLogger_SetFormatter(t *testing.T) {
+	logger := newTestLogger(false)
+	formatter := &logrus.JSONFormatter{}
+	logger.SetFormatter(formatter)
+	if _, ok := logger.underlying.Formatter.(*logrus.JSONFormatter); !ok {
+		t.Error("SetFormatter did not set JSONFormatter")
+	}
+}
+
+func TestLogger_Debug_Debugf_Warnf_Error_Errorf(t *testing.T) {
+	logger := newTestLogger(false)
+	logger.SetLevel(logrus.DebugLevel)
+	logger.Debug("debug message")
+	logger.Debugf("debugf %s", "message")
+	logger.Warnf("warnf %s", "message")
+	logger.Error("error message")
+	logger.Errorf("errorf %s", "message")
+	// Проверяем, что не паникует и не вызывает os.Exit
+}
+
+func TestMcpToLogrusLevel(t *testing.T) {
+	cases := []struct {
+		in    string
+		want  logrus.Level
+		wantE bool
+	}{
+		{"debug", logrus.DebugLevel, false},
+		{"info", logrus.InfoLevel, false},
+		{"notice", logrus.InfoLevel, false},
+		{"warning", logrus.WarnLevel, false},
+		{"error", logrus.ErrorLevel, false},
+		{"critical", logrus.FatalLevel, false},
+		{"alert", logrus.FatalLevel, false},
+		{"emergency", logrus.FatalLevel, false},
+		{"unknown", logrus.InfoLevel, true},
+	}
+	for _, c := range cases {
+		got, err := mcpToLogrusLevel(c.in)
+		if c.wantE {
+			if err == nil {
+				t.Errorf("expected error for %q", c.in)
+			}
+		} else {
+			if got != c.want {
+				t.Errorf("mcpToLogrusLevel(%q) = %v, want %v", c.in, got, c.want)
+			}
+			if err != nil {
+				t.Errorf("unexpected error for %q: %v", c.in, err)
+			}
+		}
+	}
 }

@@ -28,3 +28,21 @@ func TestLLMModelsCatalog_GetModel(t *testing.T) {
 		})
 	}
 }
+
+func TestLLMModelsCatalog_ListModels(t *testing.T) {
+	cat := NewDefaultCatalog()
+	models := cat.ListModels()
+	if len(models) == 0 {
+		t.Fatal("expected at least one model in catalog")
+	}
+	found := false
+	for _, m := range models {
+		if m.Name == "gpt-4o" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected to find model 'gpt-4o' in catalog")
+	}
+}

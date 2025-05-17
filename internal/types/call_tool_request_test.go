@@ -5,6 +5,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
+	"github.com/tmc/langchaingo/llms"
 )
 
 func TestCallToolRequest_String(t *testing.T) {
@@ -67,4 +68,25 @@ func TestCallToolRequest_String(t *testing.T) {
 		ok := out == "testTool({\"foo\":\"bar\",\"num\":42})#789" || out == "testTool({\"num\":42,\"foo\":\"bar\"})#789"
 		assert.True(t, ok, "got: %s", out)
 	})
+}
+
+func TestNewCallToolRequest_ToolName_ToLLM(t *testing.T) {
+	call := llms.ToolCall{
+		ID: "id-1",
+		FunctionCall: &llms.FunctionCall{
+			Name:      "mytool",
+			Arguments: `{"foo":42}`,
+		},
+	}
+	ctr, err := NewCallToolRequest(call)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ctr.ToolName() != "mytool" {
+		t.Errorf("expected tool name 'mytool', got '%s'", ctr.ToolName())
+	}
+	llm := ctr.ToLLM()
+	if llm.ID != "id-1" {
+		t.Errorf("expected llm ID 'id-1', got '%s'", llm.ID)
+	}
 }

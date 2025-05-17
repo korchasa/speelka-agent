@@ -329,3 +329,28 @@ func TestMainToolHandler_NotSet_ReturnsError(t *testing.T) {
 	require.Contains(t, err.Error(), "main tool handler is not set")
 	_ = result
 }
+
+func TestMCPServer_buildTools(t *testing.T) {
+	cfg := types.MCPServerConfig{
+		Name:    "test",
+		Version: "1.0",
+		Tool: types.MCPServerToolConfig{
+			Name: "main-tool", Description: "desc", ArgumentName: "arg", ArgumentDescription: "desc",
+		},
+		MCPLogEnabled: true,
+	}
+	srv := NewMCPServer(cfg, &mockLogger{})
+	tools := srv.buildTools()
+	if len(tools) < 1 {
+		t.Error("buildTools should return at least one tool")
+	}
+	found := false
+	for _, tool := range tools {
+		if tool.Name == "main-tool" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("main tool not found in buildTools")
+	}
+}

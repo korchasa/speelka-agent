@@ -140,7 +140,7 @@ func (l *Logger) WithFields(fields logrus.Fields) types.LogEntrySpec {
 
 // sendNotification sends a log notification via MCP if the level is at or above the minimum level
 func (l *Logger) sendNotification(level logrus.Level, msg string, fields logrus.Fields) {
-	if l.disableMCP || l.mcpServer == nil || level < l.minLevel {
+	if l.disableMCP || l.mcpServer == nil || level > l.minLevel {
 		return
 	}
 
