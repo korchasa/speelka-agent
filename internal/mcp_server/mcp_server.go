@@ -96,47 +96,17 @@ func (s *MCPServer) Serve(ctx context.Context, daemonMode bool, handler server.T
 	fmt.Fprintf(os.Stderr, "[MCPServer] Serve: entry, daemonMode=%v\n", daemonMode)
 	if daemonMode {
 		s.logger.Info("Running in daemon mode with HTTP SSE MCP server")
-		if err := s.serveDaemon(handler); err != nil {
+		if err := s.initSSEServer(handler); err != nil {
 			return fmt.Errorf("failed to start HTTP MCP server: %w", err)
 		}
 	} else {
 		s.logger.Info("Running in script mode with stdio MCP server")
-		if err := s.serveStdioWithContext(handler, ctx); err != nil {
+		if err := s.initStdioServer(handler, ctx); err != nil {
 			return fmt.Errorf("failed to start Stdio MCP Server: %w", err)
 		}
 	}
 	fmt.Fprintf(os.Stderr, "[MCPServer] Serve: finished\n")
 	return nil
-}
-
-// serveDaemon initializes and starts the HTTP SSE MCP server.
-// Used only inside Serve.
-func (s *MCPServer) serveDaemon(handler server.ToolHandlerFunc) error {
-	if s.server == nil {
-		return fmt.Errorf("server is not *server.MCPServer")
-	}
-	s.logger.Info("MCP SSE server initialized successfully")
-
-	addr := fmt.Sprintf("%s:%d", s.config.HTTP.Host, s.config.HTTP.Port)
-	baseUrl := fmt.Sprintf("http://%s:%d", s.config.HTTP.Host, s.config.HTTP.Port)
-	s.sseServer = server.NewSSEServer(s.server, server.WithBaseURL(baseUrl))
-	if err := s.sseServer.Start(addr); err != nil {
-		return fmt.Errorf("failed to serve SSE MCP server: %w", err)
-	}
-	return nil
-}
-
-// serveStdioWithContext initializes and starts the stdio MCP server with external context support.
-// Used only inside Serve.
-func (s *MCPServer) serveStdioWithContext(handler server.ToolHandlerFunc, ctx context.Context) error {
-	fmt.Fprintf(os.Stderr, "[MCPServer] serveStdioWithContext: entry\n")
-	if s.server == nil {
-		fmt.Fprintf(os.Stderr, "[MCPServer] serveStdioWithContext: server == nil\n")
-		return fmt.Errorf("server is not *server.MCPServer")
-	}
-	s.logger.Info("MCP Stdio server initialized successfully")
-	fmt.Fprintf(os.Stderr, "[MCPServer] serveStdioWithContext: starting ServeStdioWithContext\n")
-	return ServeStdioWithContext(s.server, s.logger, ctx)
 }
 
 // ServeStdioWithContext starts the stdio MCP server with external context support.
@@ -148,23 +118,58 @@ func ServeStdioWithContext(mcpSrv *server.MCPServer, logger types.LoggerSpec, ct
 	return fmt.Errorf("mcpSrv is not *server.MCPServer")
 }
 
-// buildTools returns a list of all tools that should be registered on the server.
-// Used for unifying tool registration and tests.
-func (s *MCPServer) buildTools() []mcp.Tool {
-	tools := []mcp.Tool{
-		mcp.NewTool(s.config.Tool.Name,
-			mcp.WithDescription(s.config.Tool.Description),
-			mcp.WithString(s.config.Tool.ArgumentName,
-				mcp.Description(s.config.Tool.ArgumentDescription),
-				mcp.Required(),
-			),
-		),
+// --- Приватные orchestration-функции ---
+
+// initSSEServer инициализирует и запускает HTTP SSE MCP сервер.
+func (s *MCPServer) initSSEServer(handler server.ToolHandlerFunc) error {
+	if s.server == nil {
+		return fmt.Errorf("server is not *server.MCPServer")
 	}
+	s.logger.Info("MCP SSE server initialized successfully")
+	addr := fmt.Sprintf("%s:%d", s.config.HTTP.Host, s.config.HTTP.Port)
+	baseUrl := fmt.Sprintf("http://%s:%d", s.config.HTTP.Host, s.config.HTTP.Port)
+	s.sseServer = server.NewSSEServer(s.server, server.WithBaseURL(baseUrl))
+	if err := s.sseServer.Start(addr); err != nil {
+		return fmt.Errorf("failed to serve SSE MCP server: %w", err)
+	}
+	return nil
+}
+
+// initStdioServer инициализирует и запускает stdio MCP сервер с поддержкой внешнего контекста.
+func (s *MCPServer) initStdioServer(handler server.ToolHandlerFunc, ctx context.Context) error {
+	fmt.Fprintf(os.Stderr, "[MCPServer] initStdioServer: entry\n")
+	if s.server == nil {
+		fmt.Fprintf(os.Stderr, "[MCPServer] initStdioServer: server == nil\n")
+		return fmt.Errorf("server is not *server.MCPServer")
+	}
+	s.logger.Info("MCP Stdio server initialized successfully")
+	fmt.Fprintf(os.Stderr, "[MCPServer] initStdioServer: starting ServeStdioWithContext\n")
+	return ServeStdioWithContext(s.server, s.logger, ctx)
+}
+
+// buildMainTool создаёт основной инструмент сервера.
+func (s *MCPServer) buildMainTool() mcp.Tool {
+	return mcp.NewTool(s.config.Tool.Name,
+		mcp.WithDescription(s.config.Tool.Description),
+		mcp.WithString(s.config.Tool.ArgumentName,
+			mcp.Description(s.config.Tool.ArgumentDescription),
+			mcp.Required(),
+		),
+	)
+}
+
+// buildLoggingTool создаёт инструмент для управления логированием.
+func (s *MCPServer) buildLoggingTool() mcp.Tool {
+	return mcp.NewTool("logging/setLevel",
+		mcp.WithString("level", mcp.Required(), mcp.Description("Log level to set")),
+	)
+}
+
+// buildTools возвращает список всех инструментов для регистрации на сервере.
+func (s *MCPServer) buildTools() []mcp.Tool {
+	tools := []mcp.Tool{s.buildMainTool()}
 	if s.config.MCPLogEnabled {
-		loggingSetLevel := mcp.NewTool("logging/setLevel",
-			mcp.WithString("level", mcp.Required(), mcp.Description("Log level to set")),
-		)
-		tools = append(tools, loggingSetLevel)
+		tools = append(tools, s.buildLoggingTool())
 	}
 	return tools
 }

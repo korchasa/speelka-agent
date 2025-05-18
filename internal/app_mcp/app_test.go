@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
@@ -259,4 +260,71 @@ func (m *mockConfigManager) GetConfiguration() *types.Configuration {
 
 func (m *mockConfigManager) LoadConfiguration(ctx context.Context, configFilePath string) error {
 	return nil
+}
+
+func Test_validateToolName(t *testing.T) {
+	cfg := &mockConfigManager{toolName: "answer", argName: "text"}
+	t.Run("valid name", func(t *testing.T) {
+		err := validateToolName("answer", cfg)
+		if err != nil {
+			t.Errorf("expected nil, got %v", err)
+		}
+	})
+	t.Run("invalid name", func(t *testing.T) {
+		err := validateToolName("wrong", cfg)
+		if err == nil || err.Error() != "invalid tool name: wrong" {
+			t.Errorf("expected error for invalid tool name, got %v", err)
+		}
+	})
+}
+
+func Test_extractUserInput(t *testing.T) {
+	argName := "text"
+	t.Run("ok", func(t *testing.T) {
+		input, err := extractUserInput(map[string]interface{}{argName: "hi"}, argName)
+		if err != nil || input != "hi" {
+			t.Errorf("expected 'hi', got %q, %v", input, err)
+		}
+	})
+	t.Run("missing", func(t *testing.T) {
+		_, err := extractUserInput(map[string]interface{}{}, argName)
+		if err == nil || err.Error() != "missing or nil input argument: text" {
+			t.Errorf("expected error for missing arg, got %v", err)
+		}
+	})
+	t.Run("nil value", func(t *testing.T) {
+		_, err := extractUserInput(map[string]interface{}{argName: nil}, argName)
+		if err == nil || err.Error() != "missing or nil input argument: text" {
+			t.Errorf("expected error for nil arg, got %v", err)
+		}
+	})
+	t.Run("wrong type", func(t *testing.T) {
+		_, err := extractUserInput(map[string]interface{}{argName: 123}, argName)
+		if err == nil || err.Error() != "invalid input argument type: expected string, got int" {
+			t.Errorf("expected error for type, got %v", err)
+		}
+	})
+	t.Run("empty string", func(t *testing.T) {
+		_, err := extractUserInput(map[string]interface{}{argName: ""}, argName)
+		if err == nil || err.Error() != "empty input variable" {
+			t.Errorf("expected error for empty, got %v", err)
+		}
+	})
+}
+
+func Test_buildDirectCallResult(t *testing.T) {
+	meta := types.MetaInfo{Tokens: 1}
+	t.Run("success", func(t *testing.T) {
+		res := buildDirectCallResult("ok", meta, nil)
+		if !res.Success || res.Result["answer"] != "ok" || res.Meta.Tokens != 1 || res.Error.Type != "" {
+			t.Errorf("unexpected result: %+v", res)
+		}
+	})
+	t.Run("error", func(t *testing.T) {
+		err := fmt.Errorf("fail")
+		res := buildDirectCallResult("", meta, err)
+		if res.Success || res.Result["answer"] != "" || res.Error.Type != "internal" || res.Error.Message != "fail" {
+			t.Errorf("unexpected error result: %+v", res)
+		}
+	})
 }

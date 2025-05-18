@@ -75,43 +75,22 @@ type directAgent interface {
 
 // HandleCall executes the direct call on the initialized agent, matching DirectApp's interface.
 func (a *App) HandleCall(ctx context.Context, input string) types.DirectCallResult {
-	fmt.Fprintf(os.Stderr, "[HandleCall] incoming request: %q\n", input)
+	logHandleCallStep("incoming request", input)
 	if a.agent == nil {
-		return types.DirectCallResult{
-			Success: false,
-			Result:  map[string]any{"answer": ""},
-			Meta:    types.MetaInfo{},
-			Error:   types.DirectCallError{Type: "internal", Message: "agent not initialized"},
-		}
+		return buildDirectCallResult("", types.MetaInfo{}, fmt.Errorf("agent not initialized"))
 	}
-	fmt.Fprintf(os.Stderr, "[HandleCall] agent initialized\n")
+	logHandleCallStep("agent initialized", "")
 	da, ok := a.agent.(directAgent)
 	if !ok {
-		fmt.Fprintf(os.Stderr, "[HandleCall] agent does not implement directAgent interface\n")
-		return types.DirectCallResult{
-			Success: false,
-			Result:  map[string]any{"answer": ""},
-			Meta:    types.MetaInfo{},
-			Error:   types.DirectCallError{Type: "internal", Message: "agent does not implement directAgent interface"},
-		}
+		logHandleCallStep("agent does not implement directAgent interface", "")
+		return buildDirectCallResult("", types.MetaInfo{}, fmt.Errorf("agent does not implement directAgent interface"))
 	}
-	fmt.Fprintf(os.Stderr, "[HandleCall] agent implements directAgent interface\n")
+	logHandleCallStep("agent implements directAgent interface", "")
 	answer, meta, err := da.CallDirect(ctx, input)
-	fmt.Fprintf(os.Stderr, "[HandleCall] answer: %s\n", answer)
-	fmt.Fprintf(os.Stderr, "[HandleCall] meta: %+v\n", meta)
-	fmt.Fprintf(os.Stderr, "[HandleCall] error: %v\n", err)
-	res := types.DirectCallResult{
-		Success: err == nil,
-		Result:  map[string]any{"answer": answer},
-		Meta:    types.MetaInfo(meta),
-		Error:   types.DirectCallError{},
-	}
-	if err != nil {
-		res.Success = false
-		res.Result = map[string]any{"answer": ""}
-		res.Error = types.DirectCallError{Type: "internal", Message: err.Error()}
-	}
-	return res
+	logHandleCallStep("answer", answer)
+	logHandleCallStep("meta", fmt.Sprintf("%+v", meta))
+	logHandleCallStep("error", fmt.Sprintf("%v", err))
+	return buildDirectCallResult(answer, meta, err)
 }
 
 // Application is the shared interface for all application types.
@@ -124,44 +103,73 @@ type Application interface {
 
 // Обновить сигнатуру DispatchMCPCall
 func (a *App) DispatchMCPCall(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	fmt.Fprintf(os.Stderr, "[DispatchMCPCall] handler called\n")
-	fmt.Fprintf(os.Stderr, "[DispatchMCPCall] incoming request: %+v\n", req)
+	logHandleCallStep("handler called", "")
+	logHandleCallStep("incoming request", fmt.Sprintf("%+v", req))
 	toolName := req.Params.Name
-	fmt.Fprintf(os.Stderr, "[DispatchMCPCall] toolName: %s\n", toolName)
 	argName := a.configManager.GetConfiguration().GetAgentConfig().Tool.ArgumentName
-	fmt.Fprintf(os.Stderr, "[DispatchMCPCall] argName: %s\n", argName)
-	if toolName != a.configManager.GetConfiguration().GetAgentConfig().Tool.Name {
-		errMsg := "invalid tool name: " + toolName
-		fmt.Fprintf(os.Stderr, "[DispatchMCPCall] %s\n", errMsg)
-		return mcp.NewToolResultError(errMsg), nil
-	}
-	argValue, ok := req.Params.Arguments[argName]
-	fmt.Fprintf(os.Stderr, "[DispatchMCPCall] argValue: %#v, ok: %v\n", argValue, ok)
-	if !ok || argValue == nil {
-		errMsg := "missing or nil input argument: " + argName
-		fmt.Fprintf(os.Stderr, "[DispatchMCPCall] %s\n", errMsg)
-		return mcp.NewToolResultError(errMsg), nil
-	}
-	userInput, ok := argValue.(string)
-	fmt.Fprintf(os.Stderr, "[DispatchMCPCall] userInput: %#v, ok: %v\n", userInput, ok)
-	if !ok {
-		errMsg := "invalid input argument type: expected string, got " + fmt.Sprintf("%T", argValue)
-		fmt.Fprintf(os.Stderr, "[DispatchMCPCall] %s\n", errMsg)
-		return mcp.NewToolResultError(errMsg), nil
-	}
-	if userInput == "" {
-		errMsg := "empty input variable"
-		fmt.Fprintf(os.Stderr, "[DispatchMCPCall] %s\n", errMsg)
-		return mcp.NewToolResultError(errMsg), nil
-	}
-	fmt.Fprintf(os.Stderr, "[DispatchMCPCall] calling agent core with input: %q\n", userInput)
-	answer, _, err := a.agent.CallDirect(ctx, userInput)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[DispatchMCPCall] core error: %v\n", err)
+	if err := validateToolName(toolName, a.configManager); err != nil {
+		logHandleCallStep("invalid tool name", toolName)
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	fmt.Fprintf(os.Stderr, "[DispatchMCPCall] successful answer: %s\n", answer)
+	userInput, err := extractUserInput(req.Params.Arguments, argName)
+	if err != nil {
+		logHandleCallStep("argument error", err.Error())
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	logHandleCallStep("calling agent core with input", userInput)
+	answer, _, err := a.agent.CallDirect(ctx, userInput)
+	if err != nil {
+		logHandleCallStep("core error", err.Error())
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	logHandleCallStep("successful answer", answer)
 	return mcp.NewToolResultText(answer), nil
+}
+
+// --- Приватные функции ---
+
+func validateToolName(toolName string, config types.ConfigurationManagerSpec) error {
+	expected := config.GetConfiguration().GetAgentConfig().Tool.Name
+	if toolName != expected {
+		return fmt.Errorf("invalid tool name: %s", toolName)
+	}
+	return nil
+}
+
+func extractUserInput(arguments map[string]interface{}, argName string) (string, error) {
+	argValue, ok := arguments[argName]
+	if !ok || argValue == nil {
+		return "", fmt.Errorf("missing or nil input argument: %s", argName)
+	}
+	userInput, ok := argValue.(string)
+	if !ok {
+		return "", fmt.Errorf("invalid input argument type: expected string, got %T", argValue)
+	}
+	if userInput == "" {
+		return "", fmt.Errorf("empty input variable")
+	}
+	return userInput, nil
+}
+
+func buildDirectCallResult(answer string, meta types.MetaInfo, err error) types.DirectCallResult {
+	if err != nil {
+		return types.DirectCallResult{
+			Success: false,
+			Result:  map[string]any{"answer": ""},
+			Meta:    types.MetaInfo{},
+			Error:   types.DirectCallError{Type: "internal", Message: err.Error()},
+		}
+	}
+	return types.DirectCallResult{
+		Success: true,
+		Result:  map[string]any{"answer": answer},
+		Meta:    types.MetaInfo(meta),
+		Error:   types.DirectCallError{},
+	}
+}
+
+func logHandleCallStep(step string, value string) {
+	fmt.Fprintf(os.Stderr, "[HandleCall] %s: %s\n", step, value)
 }
 
 // NewAgentServerMode создает агент и MCPServer для server/daemon режима.

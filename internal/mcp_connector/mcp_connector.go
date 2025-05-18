@@ -118,42 +118,23 @@ func (mc *MCPConnector) ExecuteTool(ctx context.Context, call types.CallToolRequ
 	mc.dataLock.RLock()
 	defer mc.dataLock.RUnlock()
 
-	serverID, mcpClient, err := mc.findServerAndClientForTool(call.Params.Name)
+	serverID, mcpClient, err := mc.findServerAndClient(call.Params.Name)
 	if err != nil {
-		mc.logger.Errorf("[MCP-CONNECT] [ERROR] findServerAndClientForTool failed: %v", err)
+		mc.logger.Errorf("[MCP-CONNECT] [ERROR] findServerAndClient failed: %v", err)
 		return nil, err
 	}
 
-	timeout := mc.getServerTimeout(serverID)
-	callTimeout := time.Duration(timeout * float64(time.Second))
-	mc.logger.Debugf("[MCP-CONNECT] About to callToolWithTimeout: tool=%s, serverID=%s, timeout=%.2fs, at=%s", call.ToolName(), serverID, timeout, time.Now().Format(time.RFC3339Nano))
-	mc.logToolExecutionStart(call, serverID, timeout)
+	callTimeout := mc.getCallTimeout(serverID)
+	mc.logger.Debugf("[MCP-CONNECT] About to callToolWithTimeout: tool=%s, serverID=%s, timeout=%.2fs, at=%s", call.ToolName(), serverID, callTimeout.Seconds(), time.Now().Format(time.RFC3339Nano))
+	mc.logToolExecutionStart(call, serverID, callTimeout.Seconds())
 
 	result, execErr, timedOut := mc.callToolWithTimeout(ctx, mcpClient, call, callTimeout)
-	mc.logger.Debugf("[MCP-CONNECT] callToolWithTimeout finished: tool=%s, serverID=%s, timedOut=%v, execErr=%v, at=%s", call.ToolName(), serverID, timedOut, execErr, time.Now().Format(time.RFC3339Nano))
-	mc.logger.Infof("<<< Tool execution complete in %s", callTimeout)
-
-	if timedOut {
-		mc.logToolTimeout(call, serverID, timeout)
-		return nil, error_handling.NewError(
-			fmt.Sprintf("tool `%s` execution timed out after %.0f seconds", call.Params.Name, timeout),
-			error_handling.ErrorCategoryInternal,
-		)
-	}
-
-	if execErr != nil {
-		mc.logToolError(call, serverID, timeout, execErr)
-		return nil, error_handling.WrapError(
-			execErr,
-			fmt.Sprintf("failed to call tool `%s`", call.Params.Name),
-			error_handling.ErrorCategoryInternal,
-		)
-	}
-	return result, nil
+	return mc.handleToolExecutionResult(call, serverID, callTimeout.Seconds(), result, execErr, timedOut)
 }
 
-// findServerAndClientForTool searches for the server and client by tool name.
-func (mc *MCPConnector) findServerAndClientForTool(toolName string) (string, client.MCPClient, error) {
+// --- Приватные orchestration-функции ---
+
+func (mc *MCPConnector) findServerAndClient(toolName string) (string, client.MCPClient, error) {
 	for serverID, serverTools := range mc.tools {
 		for _, tool := range serverTools {
 			if tool.Name == toolName {
@@ -174,13 +155,31 @@ func (mc *MCPConnector) findServerAndClientForTool(toolName string) (string, cli
 	)
 }
 
-// getServerTimeout returns the timeout for the server.
-func (mc *MCPConnector) getServerTimeout(serverID string) float64 {
+func (mc *MCPConnector) getCallTimeout(serverID string) time.Duration {
 	timeout := 30.0
 	if srvCfg, ok := mc.config.McpServers[serverID]; ok && srvCfg.Timeout > 0 {
 		timeout = srvCfg.Timeout
 	}
-	return timeout
+	return time.Duration(timeout * float64(time.Second))
+}
+
+func (mc *MCPConnector) handleToolExecutionResult(call types.CallToolRequest, serverID string, timeoutSec float64, result *mcp.CallToolResult, execErr error, timedOut bool) (*mcp.CallToolResult, error) {
+	if timedOut {
+		mc.logToolTimeout(call, serverID, timeoutSec)
+		return nil, error_handling.NewError(
+			fmt.Sprintf("tool `%s` execution timed out after %.0f seconds", call.Params.Name, timeoutSec),
+			error_handling.ErrorCategoryInternal,
+		)
+	}
+	if execErr != nil {
+		mc.logToolError(call, serverID, timeoutSec, execErr)
+		return nil, error_handling.WrapError(
+			execErr,
+			fmt.Sprintf("failed to call tool `%s`", call.Params.Name),
+			error_handling.ErrorCategoryInternal,
+		)
+	}
+	return result, nil
 }
 
 // logToolExecutionStart logs the start of tool execution.

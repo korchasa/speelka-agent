@@ -293,10 +293,76 @@ func Test_getServerTimeout(t *testing.T) {
 		},
 	}
 	mc := NewMCPConnector(cfg, &mockLogger{})
-	if mc.getServerTimeout("srv") != 42 {
-		t.Error("getServerTimeout should return configured timeout")
+	if mc.getCallTimeout("srv") != 42*time.Second {
+		t.Error("getCallTimeout should return configured timeout as duration")
 	}
-	if mc.getServerTimeout("unknown") != 30 {
-		t.Error("getServerTimeout should return default for unknown server")
+	if mc.getCallTimeout("unknown") != 30*time.Second {
+		t.Error("getCallTimeout should return default duration for unknown server")
 	}
+}
+
+func Test_findServerAndClient(t *testing.T) {
+	mc := NewMCPConnector(types.MCPConnectorConfig{}, &mockLogger{})
+	mc.clients["srv"] = &mockMCPClient{}
+	mc.tools["srv"] = []mcp.Tool{{Name: "foo"}}
+	t.Run("found", func(t *testing.T) {
+		serverID, client, err := mc.findServerAndClient("foo")
+		if err != nil || serverID != "srv" || client == nil {
+			t.Errorf("expected found, got %v, %v, %v", serverID, client, err)
+		}
+	})
+	t.Run("not found", func(t *testing.T) {
+		_, _, err := mc.findServerAndClient("bar")
+		if err == nil || err.Error() != "tool `bar` not found" {
+			t.Errorf("expected not found error, got %v", err)
+		}
+	})
+	mc.tools["srv2"] = []mcp.Tool{{Name: "baz"}}
+	t.Run("no client", func(t *testing.T) {
+		_, _, err := mc.findServerAndClient("baz")
+		if err == nil || err.Error() != "not connected to server: srv2" {
+			t.Errorf("expected not connected error, got %v", err)
+		}
+	})
+}
+
+func Test_getCallTimeout(t *testing.T) {
+	cfg := types.MCPConnectorConfig{
+		McpServers: map[string]types.MCPServerConnection{
+			"srv": {Timeout: 42},
+		},
+	}
+	mc := NewMCPConnector(cfg, &mockLogger{})
+	if mc.getCallTimeout("srv") != 42*time.Second {
+		t.Error("getCallTimeout should return configured timeout as duration")
+	}
+	if mc.getCallTimeout("unknown") != 30*time.Second {
+		t.Error("getCallTimeout should return default duration for unknown server")
+	}
+}
+
+func Test_handleToolExecutionResult(t *testing.T) {
+	mc := NewMCPConnector(types.MCPConnectorConfig{}, &mockLogger{})
+	call := types.CallToolRequest{}
+	call.Params.Name = "foo"
+	res := &mcp.CallToolResult{Result: mcp.Result{Meta: map[string]any{"ok": true}}}
+	t.Run("success", func(t *testing.T) {
+		result, err := mc.handleToolExecutionResult(call, "srv", 10, res, nil, false)
+		if err != nil || result != res {
+			t.Errorf("expected success, got %v, %v", result, err)
+		}
+	})
+	t.Run("timeout", func(t *testing.T) {
+		result, err := mc.handleToolExecutionResult(call, "srv", 10, nil, nil, true)
+		if err == nil || !strings.Contains(err.Error(), "timed out") || result != nil {
+			t.Errorf("expected timeout error, got %v, %v", result, err)
+		}
+	})
+	t.Run("exec error", func(t *testing.T) {
+		errExec := fmt.Errorf("fail")
+		result, err := mc.handleToolExecutionResult(call, "srv", 10, nil, errExec, false)
+		if err == nil || !strings.Contains(err.Error(), "fail") || result != nil {
+			t.Errorf("expected exec error, got %v, %v", result, err)
+		}
+	})
 }

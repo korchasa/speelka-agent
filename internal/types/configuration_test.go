@@ -253,3 +253,40 @@ agent:
 	assert.Equal(t, false, cfg.Runtime.Transports.HTTP.Enabled)
 	assert.Equal(t, "docker", cfg.Agent.Connections.McpServers["time"].Command)
 }
+
+func Test_parseLogLevel(t *testing.T) {
+	cases := []struct {
+		name    string
+		input   string
+		expect  string
+		isError bool
+	}{
+		{"empty string", "", "info", false},
+		{"info", "info", "info", false},
+		{"debug", "debug", "debug", false},
+		{"warn", "warn", "warning", false},
+		{"warning", "warning", "warning", false},
+		{"error", "error", "error", false},
+		{"fatal", "fatal", "fatal", false},
+		{"panic", "panic", "panic", false},
+		{"trace", "trace", "trace", false},
+		{"invalid", "notalevel", "info", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			lvl, err := parseLogLevel(c.input)
+			if c.isError {
+				if err == nil {
+					t.Errorf("expected error for %q, got nil", c.input)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error for %q: %v", c.input, err)
+				}
+				if lvl.String() != c.expect {
+					t.Errorf("expected %q, got %q", c.expect, lvl.String())
+				}
+			}
+		})
+	}
+}

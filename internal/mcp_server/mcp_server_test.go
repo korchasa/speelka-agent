@@ -354,3 +354,57 @@ func TestMCPServer_buildTools(t *testing.T) {
 		t.Error("main tool not found in buildTools")
 	}
 }
+
+func Test_initSSEServer_and_initStdioServer(t *testing.T) {
+	cfg := types.MCPServerConfig{
+		Name:    "test-server",
+		Version: "0.1.0",
+		Tool: types.MCPServerToolConfig{
+			Name:                "main-tool",
+			Description:         "desc",
+			ArgumentName:        "arg",
+			ArgumentDescription: "desc",
+		},
+		HTTP: types.HTTPConfig{Host: "127.0.0.1", Port: 12345},
+	}
+	logger := &mockLogger{}
+	srv := NewMCPServer(cfg, logger)
+	t.Run("SSE server not initialized", func(t *testing.T) {
+		srv.server = nil
+		err := srv.initSSEServer(nil)
+		if err == nil || err.Error() != "server is not *server.MCPServer" {
+			t.Errorf("expected error for nil server, got %v", err)
+		}
+	})
+	t.Run("Stdio server not initialized", func(t *testing.T) {
+		srv.server = nil
+		err := srv.initStdioServer(nil, context.Background())
+		if err == nil || err.Error() != "server is not *server.MCPServer" {
+			t.Errorf("expected error for nil server, got %v", err)
+		}
+	})
+}
+
+func Test_buildMainTool_and_buildLoggingTool(t *testing.T) {
+	cfg := types.MCPServerConfig{
+		Name:    "test-server",
+		Version: "0.1.0",
+		Tool: types.MCPServerToolConfig{
+			Name:                "main-tool",
+			Description:         "desc",
+			ArgumentName:        "arg",
+			ArgumentDescription: "desc",
+		},
+		MCPLogEnabled: true,
+	}
+	logger := &mockLogger{}
+	srv := NewMCPServer(cfg, logger)
+	mainTool := srv.buildMainTool()
+	if mainTool.Name != "main-tool" {
+		t.Errorf("expected main-tool, got %s", mainTool.Name)
+	}
+	logTool := srv.buildLoggingTool()
+	if logTool.Name != "logging/setLevel" {
+		t.Errorf("expected logging/setLevel, got %s", logTool.Name)
+	}
+}
