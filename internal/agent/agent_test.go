@@ -58,7 +58,7 @@ func TestHandleLLMAnswerToolRequest(t *testing.T) {
 	t.Run("missing text argument", func(t *testing.T) {
 		call := types.CallToolRequest{}
 		call.Params.Arguments = map[string]interface{}{}
-		res := a.HandleLLMAnswerToolRequest(call, resp, sess)
+		res := a.HandleLLMFinishToolRequest(call, resp, sess)
 		if !res.IsError {
 			t.Errorf("expected error for missing text argument, got success")
 		}
@@ -67,7 +67,7 @@ func TestHandleLLMAnswerToolRequest(t *testing.T) {
 	t.Run("nil text argument", func(t *testing.T) {
 		call := types.CallToolRequest{}
 		call.Params.Arguments = map[string]interface{}{"text": nil}
-		res := a.HandleLLMAnswerToolRequest(call, resp, sess)
+		res := a.HandleLLMFinishToolRequest(call, resp, sess)
 		if !res.IsError {
 			t.Errorf("expected error for nil text argument, got success")
 		}
@@ -76,7 +76,7 @@ func TestHandleLLMAnswerToolRequest(t *testing.T) {
 	t.Run("non-string text argument", func(t *testing.T) {
 		call := types.CallToolRequest{}
 		call.Params.Arguments = map[string]interface{}{"text": 123}
-		res := a.HandleLLMAnswerToolRequest(call, resp, sess)
+		res := a.HandleLLMFinishToolRequest(call, resp, sess)
 		if !res.IsError {
 			t.Errorf("expected error for non-string text argument, got success")
 		}
@@ -85,7 +85,7 @@ func TestHandleLLMAnswerToolRequest(t *testing.T) {
 	t.Run("empty string text argument", func(t *testing.T) {
 		call := types.CallToolRequest{}
 		call.Params.Arguments = map[string]interface{}{"text": ""}
-		res := a.HandleLLMAnswerToolRequest(call, resp, sess)
+		res := a.HandleLLMFinishToolRequest(call, resp, sess)
 		if !res.IsError {
 			t.Errorf("expected error for empty string text argument, got success")
 		}
@@ -94,7 +94,7 @@ func TestHandleLLMAnswerToolRequest(t *testing.T) {
 	t.Run("valid string text argument", func(t *testing.T) {
 		call := types.CallToolRequest{}
 		call.Params.Arguments = map[string]interface{}{"text": "hello"}
-		res := a.HandleLLMAnswerToolRequest(call, resp, sess)
+		res := a.HandleLLMFinishToolRequest(call, resp, sess)
 		if res.IsError {
 			t.Errorf("expected success for valid string, got error")
 		}
@@ -113,7 +113,7 @@ func TestHandleLLMAnswerToolRequest(t *testing.T) {
 	})
 }
 
-// --- BEGIN: Unit tests for CallDirect and runSession ---
+// --- BEGIN: Unit tests for CallDirect and RunSession ---
 type mockToolConnector struct {
 	getAllToolsErr error
 	tools          []mcp.Tool
@@ -153,7 +153,7 @@ func (m *mockLLMService) SendRequest(ctx context.Context, messages []llms.Messag
 	return types.LLMResponse{}, nil
 }
 
-func TestAgent_CallDirect_runSession(t *testing.T) {
+func TestAgent_RunSession(t *testing.T) {
 	t.Run("error on GetAllTools", func(t *testing.T) {
 		chatInstance := chat.NewChat("model", "prompt", "arg", &dummyLogger{}, nil, 10, 0.0)
 		agent := &Agent{
@@ -163,7 +163,7 @@ func TestAgent_CallDirect_runSession(t *testing.T) {
 			logger:        &dummyLogger{},
 			chat:          chatInstance,
 		}
-		_, _, err := agent.CallDirect(context.Background(), "input")
+		_, _, err := agent.RunSession(context.Background(), "input")
 		if err == nil || err.Error() != "fail" && !strings.Contains(err.Error(), "fail") {
 			t.Errorf("expected error from GetAllTools, got %v", err)
 		}
@@ -173,11 +173,11 @@ func TestAgent_CallDirect_runSession(t *testing.T) {
 		agent := &Agent{
 			config:        types.AgentConfig{MaxLLMIterations: 1},
 			llmService:    &mockLLMService{err: fmt.Errorf("llm fail")},
-			toolConnector: &mockToolConnector{tools: []mcp.Tool{exitTool}},
+			toolConnector: &mockToolConnector{tools: []mcp.Tool{finishTool}},
 			logger:        &dummyLogger{},
 			chat:          chatInstance,
 		}
-		_, _, err := agent.CallDirect(context.Background(), "input")
+		_, _, err := agent.RunSession(context.Background(), "input")
 		if err == nil || !strings.Contains(err.Error(), "llm fail") {
 			t.Errorf("expected error from LLMService, got %v", err)
 		}
@@ -199,20 +199,30 @@ func TestAgent_CallDirect_runSession(t *testing.T) {
 		agent := &Agent{
 			config:        types.AgentConfig{MaxLLMIterations: 1},
 			llmService:    &mockLLMService{responses: []types.LLMResponse{{Calls: []types.CallToolRequest{call}}}},
-			toolConnector: &mockToolConnector{tools: []mcp.Tool{exitTool}},
+			toolConnector: &mockToolConnector{tools: []mcp.Tool{finishTool}},
 			logger:        &dummyLogger{},
 			chat:          chatInstance,
 		}
-		_, _, err = agent.CallDirect(context.Background(), "input")
+		_, _, err = agent.RunSession(context.Background(), "input")
 		if err == nil || !strings.Contains(err.Error(), "exceeded maximum number of LLM iterations") {
 			t.Errorf("expected max iterations error, got %v", err)
 		}
 	})
 	t.Run("success exitTool", func(t *testing.T) {
 		chatInstance := chat.NewChat("model", "prompt", "arg", &dummyLogger{}, nil, 10, 0.0)
-		calls := []types.CallToolRequest{{}}
-		calls[0].Params.Name = "answer"
-		calls[0].Params.Arguments = map[string]interface{}{"text": "done!"}
+		llmCall := llms.ToolCall{
+			ID:   "call-id-1",
+			Type: "function",
+			FunctionCall: &llms.FunctionCall{
+				Name:      finishTool.Name,
+				Arguments: `{"text": "done!"}`,
+			},
+		}
+		call, err := types.NewCallToolRequest(llmCall)
+		if err != nil {
+			t.Fatalf("failed to create CallToolRequest: %v", err)
+		}
+		calls := []types.CallToolRequest{call}
 		llmResp := types.LLMResponse{
 			Text:  "irrelevant",
 			Calls: calls,
@@ -223,11 +233,11 @@ func TestAgent_CallDirect_runSession(t *testing.T) {
 		agent := &Agent{
 			config:        types.AgentConfig{MaxLLMIterations: 2},
 			llmService:    &mockLLMService{responses: []types.LLMResponse{llmResp}},
-			toolConnector: &mockToolConnector{tools: []mcp.Tool{exitTool}},
+			toolConnector: &mockToolConnector{tools: []mcp.Tool{finishTool}},
 			logger:        &dummyLogger{},
 			chat:          chatInstance,
 		}
-		msg, meta, err := agent.CallDirect(context.Background(), "input")
+		msg, meta, err := agent.RunSession(context.Background(), "input")
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -240,4 +250,4 @@ func TestAgent_CallDirect_runSession(t *testing.T) {
 	})
 }
 
-// --- END: Unit tests for CallDirect and runSession ---
+// --- END: Unit tests for CallDirect and RunSession ---

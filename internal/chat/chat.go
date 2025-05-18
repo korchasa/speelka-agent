@@ -143,15 +143,20 @@ func (c *Chat) AddAssistantMessage(response types.LLMResponse) {
 
 // AddToolCall adds a tool call to the chat history.
 func (c *Chat) AddToolCall(toolCall types.CallToolRequest) {
+	llmCall := toolCall.ToLLM()
+	if llmCall.FunctionCall == nil || llmCall.ID == "" {
+		c.logger.Warnf("AddToolCall: toolCall has nil FunctionCall or empty ID: %+v", toolCall)
+		return
+	}
 	message := llms.MessageContent{
 		Role: llms.ChatMessageTypeAI,
 		Parts: []llms.ContentPart{
 			llms.ToolCall{
-				ID:   toolCall.ID,
-				Type: toolCall.ToLLM().Type,
+				ID:   llmCall.ID,
+				Type: llmCall.Type,
 				FunctionCall: &llms.FunctionCall{
-					Name:      toolCall.ToLLM().FunctionCall.Name,
-					Arguments: toolCall.ToLLM().FunctionCall.Arguments,
+					Name:      llmCall.FunctionCall.Name,
+					Arguments: llmCall.FunctionCall.Arguments,
 				},
 			},
 		},

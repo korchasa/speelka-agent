@@ -114,13 +114,13 @@ func (mc *MCPConnector) GetAllTools(ctx context.Context) ([]mcp.Tool, error) {
 
 // ExecuteTool executes a tool on an MCP server.
 func (mc *MCPConnector) ExecuteTool(ctx context.Context, call types.CallToolRequest) (*mcp.CallToolResult, error) {
-	mc.logger.Debugf("[MCP-CONNECT] ExecuteTool called for tool: %s at %s", call.ToolName(), time.Now().Format(time.RFC3339Nano))
+	mc.logger.Infof("ExecuteTool called for tool: %s at %s", call.ToolName(), time.Now().Format(time.RFC3339Nano))
 	mc.dataLock.RLock()
 	defer mc.dataLock.RUnlock()
 
 	serverID, mcpClient, err := mc.findServerAndClient(call.Params.Name)
 	if err != nil {
-		mc.logger.Errorf("[MCP-CONNECT] [ERROR] findServerAndClient failed: %v", err)
+		mc.logger.Warnf("FindServerAndClient failed: %v", err)
 		return nil, err
 	}
 
@@ -131,8 +131,6 @@ func (mc *MCPConnector) ExecuteTool(ctx context.Context, call types.CallToolRequ
 	result, execErr, timedOut := mc.callToolWithTimeout(ctx, mcpClient, call, callTimeout)
 	return mc.handleToolExecutionResult(call, serverID, callTimeout.Seconds(), result, execErr, timedOut)
 }
-
-// --- Приватные orchestration-функции ---
 
 func (mc *MCPConnector) findServerAndClient(toolName string) (string, client.MCPClient, error) {
 	for serverID, serverTools := range mc.tools {

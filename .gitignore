@@ -47,3 +47,4 @@ cmd/test
 main
 speelka-agent
 context
+.files_to_check.txt

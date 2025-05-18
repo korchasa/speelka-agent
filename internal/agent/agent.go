@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -24,8 +23,8 @@ type Agent struct {
 	chat          *chat.Chat // Injected chat instance
 }
 
-var exitTool = mcp.NewTool(
-	"answer",
+var finishTool = mcp.NewTool(
+	"finish",
 	mcp.WithDescription("Use this tool to answer the user and finish the session. The argument 'text' is the final answer."),
 	mcp.WithString(
 		"text",
@@ -57,7 +56,7 @@ func (a *Agent) GetAllTools(ctx context.Context) ([]mcp.Tool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tools from MCP connector: %w", err)
 	}
-	mcpTools = append(mcpTools, exitTool)
+	mcpTools = append(mcpTools, finishTool)
 	var toolNames []string
 	for _, t := range mcpTools {
 		toolNames = append(toolNames, t.Name)
@@ -66,21 +65,19 @@ func (a *Agent) GetAllTools(ctx context.Context) ([]mcp.Tool, error) {
 	return mcpTools, nil
 }
 
-// isExitCommand checks if a tool call is for the exit tool
-func (a *Agent) isExitCommand(call types.CallToolRequest) bool {
-	return call.ToolName() == "answer"
+// isFinishCommand checks if a tool call is for the finish tool
+func (a *Agent) isFinishCommand(call types.CallToolRequest) bool {
+	return call.ToolName() == finishTool.Name
 }
 
-// runSession manages the main loop of interaction with LLM and tools, returning the final answer and meta information.
-// CallDirect now simply calls runSession and returns the result.
-func (a *Agent) runSession(ctx context.Context, input string) (string, types.MetaInfo, error) {
-	fmt.Fprintf(os.Stderr, "[runSession] started session\n")
+// RunSession manages the main loop of interaction with LLM and tools, returning the final answer and meta information.
+// CallDirect now simply calls RunSession and returns the result.
+func (a *Agent) RunSession(ctx context.Context, input string) (string, types.MetaInfo, error) {
 	start := time.Now()
 	tools, err := a.GetAllTools(ctx)
 	if err != nil {
 		return "", types.MetaInfo{}, err
 	}
-	fmt.Fprintf(os.Stderr, "[runSession] got tools:\n")
 	session, err := a.beginSession(input, tools)
 	if err != nil {
 		return "", types.MetaInfo{}, err
@@ -106,7 +103,7 @@ func (a *Agent) runSession(ctx context.Context, input string) (string, types.Met
 			return "", types.MetaInfo{}, fmt.Errorf("LLM returned no tool calls")
 		}
 		for _, call := range resp.Calls {
-			if a.isExitCommand(call) {
+			if a.isFinishCommand(call) {
 				finalMessage, _ := call.Params.Arguments["text"].(string)
 				info := session.GetInfo()
 				meta = types.MetaInfo{
@@ -128,11 +125,6 @@ func (a *Agent) runSession(ctx context.Context, input string) (string, types.Met
 		Cost:       info.TotalCost,
 		DurationMs: time.Since(start).Milliseconds(),
 	}, fmt.Errorf("exceeded maximum number of LLM iterations (%d)", a.config.MaxLLMIterations)
-}
-
-// CallDirect now simply calls runSession and returns the result.
-func (a *Agent) CallDirect(ctx context.Context, input string) (string, types.MetaInfo, error) {
-	return a.runSession(ctx, input)
 }
 
 func (a *Agent) beginSession(userRequest string, tools []mcp.Tool) (*chat.Chat, error) {
@@ -184,26 +176,22 @@ func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResp
 	a.logger.Infof("Iteration complete: %s", utils.SDump(session.GetInfo()))
 }
 
-func (a *Agent) HandleLLMAnswerToolRequest(call types.CallToolRequest, resp types.LLMResponse, session *chat.Chat) *mcp.CallToolResult {
+func (a *Agent) HandleLLMFinishToolRequest(call types.CallToolRequest, resp types.LLMResponse, session *chat.Chat) *mcp.CallToolResult {
 	// Robust nil and type checking for 'text' argument
 	argValue, exists := call.Params.Arguments["text"]
 	if !exists || argValue == nil {
-		fmt.Fprintf(os.Stderr, "[HandleLLMAnswerToolRequest] missing or nil 'text' argument in exit tool call\n")
-		return mcp.NewToolResultError("missing or nil 'text' argument in exit tool call")
+		return mcp.NewToolResultError("missing or nil 'text' argument in finish tool call")
 	}
 	finalMessage, ok := argValue.(string)
 	if !ok {
-		fmt.Fprintf(os.Stderr, "[HandleLLMAnswerToolRequest] invalid 'text' argument type: expected string, got %T\n", argValue)
 		return mcp.NewToolResultError(fmt.Sprintf("invalid 'text' argument type: expected string, got %T", argValue))
 	}
 	if finalMessage == "" {
-		fmt.Fprintf(os.Stderr, "[HandleLLMAnswerToolRequest] empty 'text' argument in exit tool call\n")
-		return mcp.NewToolResultError("empty 'text' argument in exit tool call")
+		return mcp.NewToolResultError("empty 'text' argument in finish tool call")
 	}
 	a.logger.WithFields(logrus.Fields{
 		"request_cost":     resp.Metadata.Cost,
 		"request_duration": resp.Metadata.DurationMs,
 	}).Infof("<< LLM asked to answer the user with: %s", finalMessage)
-	fmt.Fprintf(os.Stderr, "[HandleLLMAnswerToolRequest] Chat ended by LLM with message: %s %s\n", finalMessage, utils.SDump(session.GetInfo()))
 	return mcp.NewToolResultText(finalMessage)
 }

@@ -151,7 +151,7 @@ graph TD
 - `--call` flag: single-shot agent run, outputs structured JSON to stdout
 - All errors mapped to JSON and exit codes (0: success, 1: user/config, 2: internal/tool)
 - Use cases: scripting, automation, CI
-- **app_direct** implements NewAgentCLI and dummyToolConnector, does not depend on app_mcp
+- **app_direct** implements NewAgentCLI using real MCP connector to discover external tools
 
 ## Log Routing Logic
 - After initializing a connection to an MCP server (ConnectServer), the connector saves the server's capabilities.
@@ -167,7 +167,7 @@ graph TD
 - internal/mcp_connector/connection.go — MCP client connection and initialization logic
 - internal/mcp_connector/logging.go — log routing (MCP logs or fallback to stderr)
 - internal/types/logger_spec.go — LogConfig, LoggerSpec, MCPServerNotifier interfaces
-- internal/app_direct/app.go — CLI mode, NewAgentCLI, dummyToolConnector
+- internal/app_direct/app.go — CLI mode, uses NewAgentCLI with real MCP connector
 
 ## Testing
 - Capabilities are saved after initialize

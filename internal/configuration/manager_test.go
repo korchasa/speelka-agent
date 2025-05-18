@@ -86,13 +86,15 @@ func TestManager_ValidateConfiguration(t *testing.T) {
 	validConfig.Agent.LLM.Model = "gpt-4"
 	validConfig.Agent.LLM.APIKey = "test-api-key"
 	validConfig.Agent.LLM.PromptTemplate = "You are a helpful assistant. User query: {{query}} Available tools: {{tools}}"
-	assert.NoError(t, mgr.Validate(validConfig))
+	mgr.config = validConfig
+	assert.NoError(t, mgr.Validate())
 
 	invalidConfig := &types.Configuration{}
+	mgr.config = invalidConfig
 	// Leave Agent.Name and Tool/LLM empty
-	err := mgr.Validate(invalidConfig)
+	err := mgr.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Agent name is required")
+	assert.Contains(t, err.Error(), "agent name is required")
 }
 
 func TestManager_OverlayApply(t *testing.T) {

@@ -29,5 +29,5 @@ type AgentConfig struct {
 // Responsibility: Defining the contract for the Agent component
 // Features: Defines methods for direct call mode
 type AgentSpec interface {
-	CallDirect(ctx context.Context, input string) (string, MetaInfo, error)
+	RunSession(ctx context.Context, input string) (string, MetaInfo, error)
 }

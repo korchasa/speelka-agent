@@ -148,7 +148,7 @@ case $CMD in
         echo -e "${BLUE}Running integration test for --call flag (with child mcps)...${NC}"
         load_env
         go build -o bin/speelka-agent ./cmd/server/main.go
-        ./bin/speelka-agent --config "site/examples/minimal.yaml" --call "What is 2+2?"
+        ./bin/speelka-agent --config "site/examples/minimal.yaml" --call "What is in the oldest file in the directory, including all nested directories? Show only 10 first lines of the file."
         # Check exit code is 0 (success)
         if [ $? -ne 0 ]; then
             echo -e "${RED}FAIL: Expected exit code 0, got $?${NC}"
@@ -199,6 +199,14 @@ case $CMD in
             echo -e "${RED}Error: TODO/FIXME/Println found!${NC}"
             exit 1
         fi
+        # Проверка на русский текст во всех неигнорируемых файлах
+        git ls-files > .files_to_check.txt
+        if cat .files_to_check.txt | xargs grep -n -E '[А-Яа-яЁё]' ; then
+            echo -e "${RED}Error: Russian text found!${NC}"
+            rm .files_to_check.txt
+            exit 1
+        fi
+        rm .files_to_check.txt
         ;;
     check)
         echo -e "${BLUE}Running all project checks...${NC}"

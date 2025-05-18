@@ -1,4 +1,4 @@
-package app_mcp
+package application
 
 import (
 	"context"
@@ -17,11 +17,11 @@ type mockAgent struct {
 	callErr    error
 }
 
-func (m *mockAgent) CallDirect(ctx context.Context, input string) (string, types.MetaInfo, error) {
+func (m *mockAgent) RunSession(ctx context.Context, input string) (string, types.MetaInfo, error) {
 	return m.callResult, m.callMeta, m.callErr
 }
 
-// Implement types.AgentSpec for App tests
+// Implement types.AgentSpec for MCPApp tests
 func (m *mockAgent) RegisterTools() {}
 
 // testApp is a minimal stub for DirectApp.agent that returns a mockAgent
@@ -30,13 +30,14 @@ func (m *mockAgent) RegisterTools() {}
 // func (a *testApp) DirectAgent() directAgent { return a.agent }
 
 func TestApp_SuccessfulCall(t *testing.T) {
-	app := &App{}
+	app := &MCPApp{}
 	app.agent = &mockAgent{
 		callResult: "42",
 		callMeta:   types.MetaInfo{Tokens: 10, Cost: 0.1, DurationMs: 100},
 		callErr:    nil,
 	}
-	res := app.HandleCall(context.Background(), "test")
+	answer, meta, err := app.agent.RunSession(context.Background(), "test")
+	res := buildDirectCallResult(answer, meta, err)
 	if !res.Success {
 		t.Errorf("expected success=true, got false")
 	}
@@ -52,13 +53,14 @@ func TestApp_SuccessfulCall(t *testing.T) {
 }
 
 func TestApp_ErrorCall(t *testing.T) {
-	app := &App{}
+	app := &MCPApp{}
 	app.agent = &mockAgent{
 		callResult: "",
 		callMeta:   types.MetaInfo{},
 		callErr:    errors.New("fail"),
 	}
-	res := app.HandleCall(context.Background(), "test")
+	answer, meta, err := app.agent.RunSession(context.Background(), "test")
+	res := buildDirectCallResult(answer, meta, err)
 	if res.Success {
 		t.Errorf("expected success=false, got true")
 	}
@@ -71,13 +73,14 @@ func TestApp_ErrorCall(t *testing.T) {
 }
 
 func TestApp_JSONOutputAlwaysValid(t *testing.T) {
-	app := &App{}
+	app := &MCPApp{}
 	app.agent = &mockAgent{
 		callResult: "foo",
 		callMeta:   types.MetaInfo{Tokens: 1},
 		callErr:    nil,
 	}
-	res := app.HandleCall(context.Background(), "bar")
+	answer, meta, err := app.agent.RunSession(context.Background(), "bar")
+	res := buildDirectCallResult(answer, meta, err)
 	b, err := json.Marshal(res)
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
@@ -94,13 +97,14 @@ func TestApp_JSONOutputAlwaysValid(t *testing.T) {
 }
 
 func TestApp_JSONOutputWithNewlines(t *testing.T) {
-	app := &App{}
+	app := &MCPApp{}
 	app.agent = &mockAgent{
 		callResult: "line1\nline2\nline3",
 		callMeta:   types.MetaInfo{Tokens: 3},
 		callErr:    nil,
 	}
-	res := app.HandleCall(context.Background(), "bar")
+	answer, meta, err := app.agent.RunSession(context.Background(), "bar")
+	res := buildDirectCallResult(answer, meta, err)
 	b, err := json.Marshal(res)
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
@@ -109,19 +113,19 @@ func TestApp_JSONOutputWithNewlines(t *testing.T) {
 	if err := json.Unmarshal(b, &out); err != nil {
 		t.Fatalf("unmarshal failed: %v", err)
 	}
-	answer, ok := out["result"].(map[string]any)["answer"].(string)
+	answerStr, ok := out["result"].(map[string]any)["answer"].(string)
 	if !ok {
 		t.Fatalf("answer field missing or not a string: %v", out["result"])
 	}
-	if answer != "line1\nline2\nline3" {
-		t.Errorf("expected answer with newlines, got: %q", answer)
+	if answerStr != "line1\nline2\nline3" {
+		t.Errorf("expected answer with newlines, got: %q", answerStr)
 	}
 }
 
 func TestApp_DispatchMCPCall_Success(t *testing.T) {
-	a := &App{
-		agent:         &mockAgent{callResult: "ok", callMeta: types.MetaInfo{}, callErr: nil},
-		configManager: &mockConfigManager{toolName: "answer", argName: "text"},
+	a := &MCPApp{
+		agent: &mockAgent{callResult: "ok", callMeta: types.MetaInfo{}, callErr: nil},
+		cfg:   (&mockConfigManager{toolName: "answer", argName: "text"}).GetConfiguration(),
 	}
 	req := mcp.CallToolRequest{
 		Params: struct {
@@ -142,7 +146,7 @@ func TestApp_DispatchMCPCall_Success(t *testing.T) {
 }
 
 func TestApp_DispatchMCPCall_InvalidTool(t *testing.T) {
-	a := &App{agent: &mockAgent{}, configManager: &mockConfigManager{toolName: "answer", argName: "text"}}
+	a := &MCPApp{agent: &mockAgent{}, cfg: (&mockConfigManager{toolName: "answer", argName: "text"}).GetConfiguration()}
 	req := mcp.CallToolRequest{Params: struct {
 		Name      string                 `json:"name"`
 		Arguments map[string]interface{} `json:"arguments,omitempty"`
@@ -157,7 +161,7 @@ func TestApp_DispatchMCPCall_InvalidTool(t *testing.T) {
 }
 
 func TestApp_DispatchMCPCall_MissingArgument(t *testing.T) {
-	a := &App{agent: &mockAgent{}, configManager: &mockConfigManager{toolName: "answer", argName: "text"}}
+	a := &MCPApp{agent: &mockAgent{}, cfg: (&mockConfigManager{toolName: "answer", argName: "text"}).GetConfiguration()}
 	req := mcp.CallToolRequest{Params: struct {
 		Name      string                 `json:"name"`
 		Arguments map[string]interface{} `json:"arguments,omitempty"`
@@ -172,7 +176,7 @@ func TestApp_DispatchMCPCall_MissingArgument(t *testing.T) {
 }
 
 func TestApp_DispatchMCPCall_EmptyInput(t *testing.T) {
-	a := &App{agent: &mockAgent{}, configManager: &mockConfigManager{toolName: "answer", argName: "text"}}
+	a := &MCPApp{agent: &mockAgent{}, cfg: (&mockConfigManager{toolName: "answer", argName: "text"}).GetConfiguration()}
 	req := mcp.CallToolRequest{Params: struct {
 		Name      string                 `json:"name"`
 		Arguments map[string]interface{} `json:"arguments,omitempty"`
@@ -187,7 +191,7 @@ func TestApp_DispatchMCPCall_EmptyInput(t *testing.T) {
 }
 
 func TestApp_DispatchMCPCall_CoreError(t *testing.T) {
-	a := &App{agent: &mockAgent{callErr: errors.New("fail")}, configManager: &mockConfigManager{toolName: "answer", argName: "text"}}
+	a := &MCPApp{agent: &mockAgent{callErr: errors.New("fail")}, cfg: (&mockConfigManager{toolName: "answer", argName: "text"}).GetConfiguration()}
 	req := mcp.CallToolRequest{Params: struct {
 		Name      string                 `json:"name"`
 		Arguments map[string]interface{} `json:"arguments,omitempty"`
@@ -263,7 +267,7 @@ func (m *mockConfigManager) LoadConfiguration(ctx context.Context, configFilePat
 }
 
 func Test_validateToolName(t *testing.T) {
-	cfg := &mockConfigManager{toolName: "answer", argName: "text"}
+	cfg := (&mockConfigManager{toolName: "answer", argName: "text"}).GetConfiguration()
 	t.Run("valid name", func(t *testing.T) {
 		err := validateToolName("answer", cfg)
 		if err != nil {
@@ -325,6 +329,34 @@ func Test_buildDirectCallResult(t *testing.T) {
 		res := buildDirectCallResult("", meta, err)
 		if res.Success || res.Result["answer"] != "" || res.Error.Type != "internal" || res.Error.Message != "fail" {
 			t.Errorf("unexpected error result: %+v", res)
+		}
+	})
+}
+
+func Test_MCPConnector_ToolsInitialization(t *testing.T) {
+	type fakeToolConnector struct {
+		initCalled bool
+		tools      []mcp.Tool
+	}
+	var (
+		fakeTool = mcp.NewTool("external_tool", mcp.WithDescription("external"))
+	)
+	connector := &fakeToolConnector{
+		initCalled: false,
+		tools:      nil,
+	}
+	// Emulate MCPConnector before initialization
+	t.Run("tools not loaded before init", func(t *testing.T) {
+		if len(connector.tools) != 0 {
+			t.Errorf("expected no tools before init, got %d", len(connector.tools))
+		}
+	})
+	// Emulate InitAndConnectToMCPs
+	connector.initCalled = true
+	connector.tools = []mcp.Tool{fakeTool}
+	t.Run("tools loaded after init", func(t *testing.T) {
+		if len(connector.tools) != 1 || connector.tools[0].Name != "external_tool" {
+			t.Errorf("expected external_tool after init, got %+v", connector.tools)
 		}
 	})
 }

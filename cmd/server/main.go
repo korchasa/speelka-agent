@@ -13,8 +13,8 @@ import (
 	"runtime/debug"
 	"syscall"
 
-	"github.com/korchasa/speelka-agent-go/internal/app_direct"
-	"github.com/korchasa/speelka-agent-go/internal/app_mcp"
+	"github.com/korchasa/speelka-agent-go/internal/application"
+
 	"github.com/korchasa/speelka-agent-go/internal/configuration"
 	"github.com/korchasa/speelka-agent-go/internal/logger"
 	"github.com/korchasa/speelka-agent-go/internal/types"
@@ -25,7 +25,6 @@ import (
 // Responsibility: Determine the server operating mode
 // Features: When true, the server runs as an HTTP daemon; otherwise, as a stdio server
 var (
-	daemonMode = flag.Bool("daemon", false, "Run as a daemon with HTTP SSE MCP server (default: false, runs as stdio MCP server)")
 	configFile = flag.String("config", "", "Path to configuration file (YAML or JSON format)")
 	callInput  = flag.String("call", "", "Run in direct call mode with the given user query (bypasses MCP server)")
 )
@@ -56,13 +55,12 @@ func main() {
 		DisableMCP:   true,
 	})
 	startupLogger.SetFormatter(logger.NewCustomLogFormatter())
-	configManager, err := loadConfiguration(ctx, startupLogger)
+	conf, err := loadConfiguration(ctx, startupLogger)
 	if err != nil {
 		startupLogger.Fatalf("Failed to load configuration: %v", err)
 	}
 
 	// Get final log level and output from configuration
-	conf := configManager.GetConfiguration()
 	logConfig, err := types.BuildLogConfig(conf.Runtime.Log)
 	if err != nil {
 		startupLogger.Fatalf("Invalid log config: %v", err)
@@ -85,39 +83,39 @@ func main() {
 		}
 	}()
 
-	var application app_mcp.Application
+	app, err := application.NewMCPApp(log, conf)
+	if err != nil {
+		log.Fatalf("Failed to create application: %v", err)
+	}
+	err = app.Initialize(ctx)
+	if err != nil {
+		log.Fatalf("Failed to initialize application: %v", err)
+	}
 	if *callInput != "" {
 		// Direct call mode
-		application := app_direct.NewDirectApp(log, configManager)
-		result, code, _ := application.Execute(ctx, *callInput)
+		log.Infof("Running in direct call mode with input: %s", *callInput)
+		result, code, _ := app.ExecuteDirectCall(ctx, *callInput)
 		_ = json.NewEncoder(os.Stdout).Encode(result)
 		os.Exit(code)
 		return
 	} else {
-		// MCP server mode
-		var err error
-		application, err = app_mcp.NewApp(log, configManager)
-		if err != nil {
-			log.Fatalf("Failed to create agent app: %v", err)
-		}
-		// Initialize the app (creates the Agent and its dependencies)
-		err = application.Initialize(ctx)
-		if err != nil {
-			log.Fatalf("Failed to initialize agent app: %v", err)
-		}
-		// Start the agent
-		err = application.Start(*daemonMode, ctx)
+		log.Infof("Running in MCP server mode")
+		err = app.Start(ctx)
 		if err != nil {
 			log.Fatalf("Failed to start agent: %v", err)
 		}
 	}
 }
 
-func loadConfiguration(ctx context.Context, log types.LoggerSpec) (*configuration.Manager, error) {
+func loadConfiguration(ctx context.Context, log types.LoggerSpec) (*types.Configuration, error) {
 	configManager := configuration.NewConfigurationManager(log)
 	err := configManager.LoadConfiguration(ctx, *configFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
-	return configManager, nil
+	if err := configManager.Validate(); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+	conf := configManager.GetConfiguration()
+	return conf, nil
 }

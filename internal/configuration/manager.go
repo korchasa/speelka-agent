@@ -100,19 +100,19 @@ func (cm *Manager) GetConfiguration() *types.Configuration {
 }
 
 // Validate checks if the configuration is valid
-func (m *Manager) Validate(config *types.Configuration) error {
+func (cm *Manager) Validate() error {
 	var validationErrors []string
 
-	if err := m.validateAgent(config); err != nil {
+	if err := cm.validateAgent(cm.config); err != nil {
 		validationErrors = append(validationErrors, err.Error())
 	}
-	if err := m.validateTool(config); err != nil {
+	if err := cm.validateTool(cm.config); err != nil {
 		validationErrors = append(validationErrors, err.Error())
 	}
-	if err := m.validateLLM(config); err != nil {
+	if err := cm.validateLLM(cm.config); err != nil {
 		validationErrors = append(validationErrors, err.Error())
 	}
-	if err := m.validatePrompt(config); err != nil {
+	if err := cm.validatePrompt(cm.config); err != nil {
 		validationErrors = append(validationErrors, err.Error())
 	}
 	if len(validationErrors) > 0 {
@@ -121,14 +121,14 @@ func (m *Manager) Validate(config *types.Configuration) error {
 	return nil
 }
 
-func (m *Manager) validateAgent(config *types.Configuration) error {
+func (cm *Manager) validateAgent(config *types.Configuration) error {
 	if config.Agent.Name == "" {
-		return fmt.Errorf("Agent name is required")
+		return fmt.Errorf("agent name is required")
 	}
 	return nil
 }
 
-func (m *Manager) validateTool(config *types.Configuration) error {
+func (cm *Manager) validateTool(config *types.Configuration) error {
 	var errs []string
 	if config.Agent.Tool.Name == "" {
 		errs = append(errs, "Tool name is required")
@@ -148,7 +148,7 @@ func (m *Manager) validateTool(config *types.Configuration) error {
 	return nil
 }
 
-func (m *Manager) validateLLM(config *types.Configuration) error {
+func (cm *Manager) validateLLM(config *types.Configuration) error {
 	var errs []string
 	if config.Agent.LLM.APIKey == "" {
 		errs = append(errs, "LLM API key is required")
@@ -168,21 +168,21 @@ func (m *Manager) validateLLM(config *types.Configuration) error {
 	return nil
 }
 
-func (m *Manager) validatePrompt(config *types.Configuration) error {
+func (cm *Manager) validatePrompt(config *types.Configuration) error {
 	if config.Agent.LLM.PromptTemplate != "" {
-		err := m.validatePromptTemplate(config.Agent.LLM.PromptTemplate, config.Agent.Tool.ArgumentName)
+		err := cm.validatePromptTemplate(config.Agent.LLM.PromptTemplate, config.Agent.Tool.ArgumentName)
 		if err != nil {
-			return fmt.Errorf("Invalid prompt template: %v", err)
+			return fmt.Errorf("invalid prompt template: %v", err)
 		}
 	}
 	return nil
 }
 
-func (m *Manager) validatePromptTemplate(template string, argumentName string) error {
+func (cm *Manager) validatePromptTemplate(template string, argumentName string) error {
 	if strings.TrimSpace(template) == "" {
 		return fmt.Errorf("prompt template cannot be empty")
 	}
-	placeholders, err := m.extractPlaceholders(template)
+	placeholders, err := cm.extractPlaceholders(template)
 	if err != nil {
 		return fmt.Errorf("failed to extract placeholders: %w", err)
 	}
@@ -192,7 +192,7 @@ func (m *Manager) validatePromptTemplate(template string, argumentName string) e
 	return nil
 }
 
-func (m *Manager) extractPlaceholders(template string) ([]string, error) {
+func (cm *Manager) extractPlaceholders(template string) ([]string, error) {
 	r, err := regexp.Compile(`\{\{([^{}]+)\}\}`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile placeholder regex: %w", err)
@@ -217,7 +217,7 @@ func contains(slice []string, str string) bool {
 }
 
 // Apply the changes from another configuration to this one, without overwriting values not set in the new config
-func (m *Manager) Apply(base, newConfig *types.Configuration) (*types.Configuration, error) {
+func (cm *Manager) Apply(base, newConfig *types.Configuration) (*types.Configuration, error) {
 	if newConfig == nil {
 		return base, nil
 	}
@@ -354,18 +354,18 @@ func (m *Manager) Apply(base, newConfig *types.Configuration) (*types.Configurat
 
 // RedactedCopy returns a copy of the configuration with private data masked for safe logging.
 func RedactedCopy(config *types.Configuration) *types.Configuration {
-	copy := *config // shallow copy
-	copy.Agent.LLM.APIKey = "***REDACTED***"
-	if copy.Agent.Connections.McpServers != nil {
-		redactedServers := make(map[string]types.MCPServerConnection, len(copy.Agent.Connections.McpServers))
-		for k, v := range copy.Agent.Connections.McpServers {
+	cpy := *config // shallow copy
+	cpy.Agent.LLM.APIKey = "***REDACTED***"
+	if cpy.Agent.Connections.McpServers != nil {
+		redactedServers := make(map[string]types.MCPServerConnection, len(cpy.Agent.Connections.McpServers))
+		for k, v := range cpy.Agent.Connections.McpServers {
 			redacted := v
 			redacted.APIKey = "***REDACTED***"
 			redactedServers[k] = redacted
 		}
-		copy.Agent.Connections.McpServers = redactedServers
+		cpy.Agent.Connections.McpServers = redactedServers
 	}
-	return &copy
+	return &cpy
 }
 
 // GetAgentConfig returns the business AgentConfig structure based on rawConfig
