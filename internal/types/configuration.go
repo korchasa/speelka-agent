@@ -11,63 +11,61 @@ import (
 type Configuration struct {
 	Runtime struct {
 		Log struct {
-			DefaultLevel string `json:"default_level" yaml:"default_level"`
-			Format       string `json:"format" yaml:"format"`
-			DisableMCP   bool   `json:"disable_mcp" yaml:"disable_mcp"`
-		} `json:"log" yaml:"log"`
+			DefaultLevel string `koanf:"defaultlevel" json:"defaultLevel" yaml:"defaultLevel"`
+			Format       string `koanf:"format"`
+			DisableMCP   bool   `koanf:"disablemcp" json:"disableMcp" yaml:"disableMcp"`
+		} `koanf:"log"`
 		Transports struct {
 			Stdio struct {
-				Enabled    bool `json:"enabled" yaml:"enabled"`
-				BufferSize int  `json:"buffer_size" yaml:"buffer_size"`
-			} `json:"stdio" yaml:"stdio"`
+				Enabled    bool `koanf:"enabled"`
+				BufferSize int  `koanf:"buffersize" json:"bufferSize" yaml:"bufferSize"`
+			} `koanf:"stdio"`
 			HTTP struct {
-				Enabled bool   `json:"enabled" yaml:"enabled"`
-				Host    string `json:"host" yaml:"host"`
-				Port    int    `json:"port" yaml:"port"`
-			} `json:"http" yaml:"http"`
-		} `json:"transports" yaml:"transports"`
-	} `json:"runtime" yaml:"runtime"`
+				Enabled bool   `koanf:"enabled"`
+				Host    string `koanf:"host"`
+				Port    int    `koanf:"port"`
+			} `koanf:"http"`
+		} `koanf:"transports"`
+	} `koanf:"runtime"`
 	Agent struct {
-		Name    string `json:"name" yaml:"name"`
-		Version string `json:"version" yaml:"version"`
+		Name    string `koanf:"name"`
+		Version string `koanf:"version"`
 		Tool    struct {
-			Name                string `json:"name" yaml:"name"`
-			Description         string `json:"description" yaml:"description"`
-			ArgumentName        string `json:"argument_name" yaml:"argument_name"`
-			ArgumentDescription string `json:"argument_description" yaml:"argument_description"`
-		} `json:"tool" yaml:"tool"`
+			Name                string `koanf:"name"`
+			Description         string `koanf:"description"`
+			ArgumentName        string `koanf:"argumentname" json:"argumentName" yaml:"argumentName"`
+			ArgumentDescription string `koanf:"argumentdescription" json:"argumentDescription" yaml:"argumentDescription"`
+		} `koanf:"tool"`
 		Chat struct {
-			MaxTokens        int     `json:"max_tokens" yaml:"max_tokens"`
-			MaxLLMIterations int     `json:"max_llm_iterations" yaml:"max_llm_iterations"`
-			RequestBudget    float64 `json:"request_budget" yaml:"request_budget"`
-		} `json:"chat" yaml:"chat"`
+			MaxTokens        int     `koanf:"maxtokens" json:"maxTokens" yaml:"maxTokens"`
+			MaxLLMIterations int     `koanf:"maxllmiterations" json:"maxLLMIterations" yaml:"maxLLMIterations"`
+			RequestBudget    float64 `koanf:"requestbudget" json:"requestBudget" yaml:"requestBudget"`
+		} `koanf:"chat"`
 		LLM struct {
-			Provider       string  `json:"provider" yaml:"provider"`
-			Model          string  `json:"model" yaml:"model"`
-			APIKey         string  `json:"api_key" yaml:"api_key"`
-			MaxTokens      int     `json:"max_tokens" yaml:"max_tokens"`
-			Temperature    float64 `json:"temperature" yaml:"temperature"`
-			PromptTemplate string  `json:"prompt_template" yaml:"prompt_template"`
+			Provider       string  `koanf:"provider"`
+			Model          string  `koanf:"model"`
+			APIKey         string  `koanf:"apikey" json:"apiKey" yaml:"apiKey"`
+			MaxTokens      int     `koanf:"maxtokens" json:"maxTokens" yaml:"maxTokens"`
+			Temperature    float64 `koanf:"temperature"`
+			PromptTemplate string  `koanf:"prompttemplate" json:"promptTemplate" yaml:"promptTemplate"`
 			Retry          struct {
-				MaxRetries        int     `json:"max_retries" yaml:"max_retries"`
-				InitialBackoff    float64 `json:"initial_backoff" yaml:"initial_backoff"`
-				MaxBackoff        float64 `json:"max_backoff" yaml:"max_backoff"`
-				BackoffMultiplier float64 `json:"backoff_multiplier" yaml:"backoff_multiplier"`
-			} `json:"retry" yaml:"retry"`
-			// Internal flags
-			IsMaxTokensSet   bool
-			IsTemperatureSet bool
-		} `json:"llm" yaml:"llm"`
+				MaxRetries        int     `koanf:"maxretries" json:"maxRetries" yaml:"maxRetries"`
+				InitialBackoff    float64 `koanf:"initialbackoff" json:"initialBackoff" yaml:"initialBackoff"`
+				MaxBackoff        float64 `koanf:"maxbackoff" json:"maxBackoff" yaml:"maxBackoff"`
+				BackoffMultiplier float64 `koanf:"backoffmultiplier" json:"backoffMultiplier" yaml:"backoffMultiplier"`
+			} `koanf:"retry"`
+			IsMaxTokensSet bool `koanf:"ismaxtokensset" json:"isMaxTokensSet" yaml:"isMaxTokensSet"`
+		} `koanf:"llm"`
 		Connections struct {
-			McpServers map[string]MCPServerConnection `json:"mcpServers" yaml:"mcpServers"`
+			McpServers map[string]MCPServerConnection `koanf:"mcpservers" json:"mcpServers" yaml:"mcpServers"`
 			Retry      struct {
-				MaxRetries        int     `json:"max_retries" yaml:"max_retries"`
-				InitialBackoff    float64 `json:"initial_backoff" yaml:"initial_backoff"`
-				MaxBackoff        float64 `json:"max_backoff" yaml:"max_backoff"`
-				BackoffMultiplier float64 `json:"backoff_multiplier" yaml:"backoff_multiplier"`
-			} `json:"retry" yaml:"retry"`
-		} `json:"connections" yaml:"connections"`
-	} `json:"agent" yaml:"agent"`
+				MaxRetries        int     `koanf:"maxretries" json:"maxRetries" yaml:"maxRetries"`
+				InitialBackoff    float64 `koanf:"initialbackoff" json:"initialBackoff" yaml:"initialBackoff"`
+				MaxBackoff        float64 `koanf:"maxbackoff" json:"maxBackoff" yaml:"maxBackoff"`
+				BackoffMultiplier float64 `koanf:"backoffmultiplier" json:"backoffMultiplier" yaml:"backoffMultiplier"`
+			} `koanf:"retry"`
+		} `koanf:"connections"`
+	} `koanf:"agent"`
 }
 
 // NewConfiguration creates a new empty config
@@ -100,7 +98,6 @@ func (c *Configuration) GetLLMConfig() LLMConfig {
 		MaxTokens:            c.Agent.LLM.MaxTokens,
 		IsMaxTokensSet:       c.Agent.LLM.IsMaxTokensSet,
 		Temperature:          c.Agent.LLM.Temperature,
-		IsTemperatureSet:     c.Agent.LLM.IsTemperatureSet,
 		SystemPromptTemplate: c.Agent.LLM.PromptTemplate,
 		RetryConfig: RetryConfig{
 			MaxRetries:        c.Agent.LLM.Retry.MaxRetries,
@@ -150,9 +147,9 @@ func (c *Configuration) GetMCPConnectorConfig() MCPConnectorConfig {
 
 // BuildLogConfig creates a business LogConfig structure from the raw Log config
 func BuildLogConfig(raw struct {
-	DefaultLevel string `json:"default_level" yaml:"default_level"`
-	Format       string `json:"format" yaml:"format"`
-	DisableMCP   bool   `json:"disable_mcp" yaml:"disable_mcp"`
+	DefaultLevel string `koanf:"defaultlevel" json:"defaultLevel" yaml:"defaultLevel"`
+	Format       string `koanf:"format"`
+	DisableMCP   bool   `koanf:"disablemcp" json:"disableMcp" yaml:"disableMcp"`
 }) (LogConfig, error) {
 	cfg := LogConfig{
 		DefaultLevel: raw.DefaultLevel,

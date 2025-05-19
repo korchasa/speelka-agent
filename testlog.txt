@@ -1,13 +1,36 @@
-=== RUN   TestDirectApp_HandleCall_Success
---- PASS: TestDirectApp_HandleCall_Success (0.00s)
-=== RUN   TestDirectApp_HandleCall_Error
---- PASS: TestDirectApp_HandleCall_Error (0.00s)
-=== RUN   TestDirectApp_HandleCall_NotInitialized
---- PASS: TestDirectApp_HandleCall_NotInitialized (0.00s)
-=== RUN   TestDirectApp_JSONOutput
---- PASS: TestDirectApp_JSONOutput (0.00s)
-=== RUN   TestDirectApp_Initialize_Success
---- PASS: TestDirectApp_Initialize_Success (0.00s)
-=== RUN   TestDirectApp_outputErrorAndExit_Config
-FAIL	github.com/korchasa/speelka-agent-go/internal/app_direct	0.176s
+=== RUN   TestManager_LoadConfiguration_Defaults
+    manager_test.go:71: expected default log level, got 
+--- FAIL: TestManager_LoadConfiguration_Defaults (0.00s)
+=== RUN   TestManager_LoadConfiguration_YAMLFile
+--- PASS: TestManager_LoadConfiguration_YAMLFile (0.00s)
+=== RUN   TestManager_LoadConfiguration_EnvOverride
+--- PASS: TestManager_LoadConfiguration_EnvOverride (0.00s)
+=== RUN   TestManager_ValidateConfiguration
+--- PASS: TestManager_ValidateConfiguration (0.00s)
+=== RUN   TestManager_OverlayApply
+--- PASS: TestManager_OverlayApply (0.00s)
+=== RUN   TestRedactedCopy
+--- PASS: TestRedactedCopy (0.00s)
+=== RUN   TestManager_ValidatePromptTemplate
+--- PASS: TestManager_ValidatePromptTemplate (0.00s)
+=== RUN   TestManager_ExtractPlaceholders
+--- PASS: TestManager_ExtractPlaceholders (0.00s)
+=== RUN   TestManager_Overlay_PropertyBased
+--- PASS: TestManager_Overlay_PropertyBased (0.00s)
+=== RUN   TestManager_GetAgentConfig_InlineStruct
+    manager_test.go:288: 
+        	Error Trace:	/Users/korchasa/www/speelka/speelka-agent/internal/configuration/manager_test.go:288
+        	Error:      	Not equal: 
+        	            	expected: 8192
+        	            	actual  : 0
+        	Test:       	TestManager_GetAgentConfig_InlineStruct
+    manager_test.go:289: 
+        	Error Trace:	/Users/korchasa/www/speelka/speelka-agent/internal/configuration/manager_test.go:289
+        	Error:      	Not equal: 
+        	            	expected: 100
+        	            	actual  : 0
+        	Test:       	TestManager_GetAgentConfig_InlineStruct
+--- FAIL: TestManager_GetAgentConfig_InlineStruct (0.00s)
+FAIL
+FAIL	github.com/korchasa/speelka-agent-go/internal/configuration	0.193s
 FAIL

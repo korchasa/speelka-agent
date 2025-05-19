@@ -5,7 +5,7 @@
 # Runtime configuration
 runtime:
   log:
-    default_level: "info"
+    defaultLevel: "info"
     format: "json"
 
   transports:
@@ -37,10 +37,10 @@ agent:
   # LLM configuration
   llm:
     provider: "openai"
-    api_key: ""  # Set via environment variable for security
+    apiKey: ""  # Set via environment variable for security
     model: "gpt-4.1-mini"
     temperature: 0.01
-    prompt_template: |
+    promptTemplate: |
       You are an elite news curator and analyst, internationally recognized for your ability to synthesize complex developments in infrastructure, DevOps, DevSecOps, and SRE into clear, multi-source digests. Your task is to provide a daily overview of the latest happenings in these fields based on the following user query and using the provided tools.
 
       ### User Request
@@ -116,4 +116,4 @@ agent:
       max_backoff: 30.0
       backoff_multiplier: 2.0
 
-default_level: "info"
+defaultLevel: "info"

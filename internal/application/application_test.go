@@ -208,58 +208,10 @@ func TestApp_DispatchMCPCall_CoreError(t *testing.T) {
 type mockConfigManager struct{ toolName, argName string }
 
 func (m *mockConfigManager) GetConfiguration() *types.Configuration {
-	return &types.Configuration{
-		Agent: struct {
-			Name    string "json:\"name\" yaml:\"name\""
-			Version string "json:\"version\" yaml:\"version\""
-			Tool    struct {
-				Name                string "json:\"name\" yaml:\"name\""
-				Description         string "json:\"description\" yaml:\"description\""
-				ArgumentName        string "json:\"argument_name\" yaml:\"argument_name\""
-				ArgumentDescription string "json:\"argument_description\" yaml:\"argument_description\""
-			} "json:\"tool\" yaml:\"tool\""
-			Chat struct {
-				MaxTokens        int     "json:\"max_tokens\" yaml:\"max_tokens\""
-				MaxLLMIterations int     "json:\"max_llm_iterations\" yaml:\"max_llm_iterations\""
-				RequestBudget    float64 "json:\"request_budget\" yaml:\"request_budget\""
-			} "json:\"chat\" yaml:\"chat\""
-			LLM struct {
-				Provider       string  "json:\"provider\" yaml:\"provider\""
-				Model          string  "json:\"model\" yaml:\"model\""
-				APIKey         string  "json:\"api_key\" yaml:\"api_key\""
-				MaxTokens      int     "json:\"max_tokens\" yaml:\"max_tokens\""
-				Temperature    float64 "json:\"temperature\" yaml:\"temperature\""
-				PromptTemplate string  "json:\"prompt_template\" yaml:\"prompt_template\""
-				Retry          struct {
-					MaxRetries        int     "json:\"max_retries\" yaml:\"max_retries\""
-					InitialBackoff    float64 "json:\"initial_backoff\" yaml:\"initial_backoff\""
-					MaxBackoff        float64 "json:\"max_backoff\" yaml:\"max_backoff\""
-					BackoffMultiplier float64 "json:\"backoff_multiplier\" yaml:\"backoff_multiplier\""
-				} "json:\"retry\" yaml:\"retry\""
-				IsMaxTokensSet   bool
-				IsTemperatureSet bool
-			} "json:\"llm\" yaml:\"llm\""
-			Connections struct {
-				McpServers map[string]types.MCPServerConnection "json:\"mcpServers\" yaml:\"mcpServers\""
-				Retry      struct {
-					MaxRetries        int     "json:\"max_retries\" yaml:\"max_retries\""
-					InitialBackoff    float64 "json:\"initial_backoff\" yaml:\"initial_backoff\""
-					MaxBackoff        float64 "json:\"max_backoff\" yaml:\"max_backoff\""
-					BackoffMultiplier float64 "json:\"backoff_multiplier\" yaml:\"backoff_multiplier\""
-				} "json:\"retry\" yaml:\"retry\""
-			} "json:\"connections\" yaml:\"connections\""
-		}{
-			Tool: struct {
-				Name                string "json:\"name\" yaml:\"name\""
-				Description         string "json:\"description\" yaml:\"description\""
-				ArgumentName        string "json:\"argument_name\" yaml:\"argument_name\""
-				ArgumentDescription string "json:\"argument_description\" yaml:\"argument_description\""
-			}{
-				Name:         m.toolName,
-				ArgumentName: m.argName,
-			},
-		},
-	}
+	cfg := &types.Configuration{}
+	cfg.Agent.Tool.Name = m.toolName
+	cfg.Agent.Tool.ArgumentName = m.argName
+	return cfg
 }
 
 func (m *mockConfigManager) LoadConfiguration(ctx context.Context, configFilePath string) error {

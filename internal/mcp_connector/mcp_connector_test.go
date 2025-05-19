@@ -252,7 +252,7 @@ func Test_Close_clients(t *testing.T) {
 	mc := NewMCPConnector(types.MCPConnectorConfig{}, &mockLogger{})
 	mc.clients["ok"] = &mockMCPClient{}
 	mc.clients["fail"] = &mockMCPClient{closeErr: fmt.Errorf("fail close")}
-	// Не должно паниковать, ошибки логируются
+	// Should not panic, errors are logged
 	_ = mc.Close()
 }
 

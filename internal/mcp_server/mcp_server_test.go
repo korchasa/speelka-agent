@@ -352,7 +352,7 @@ func TestMainToolHandler_NotSet_ReturnsError(t *testing.T) {
 	callReq.Params.Name = "process"
 	callReq.Params.Arguments = map[string]any{"input": "test"}
 
-	// Регистрируем инструменты с nil-обработчиком (имитируем Serve)
+	// Register tools with nil handler (simulate Serve)
 	var handler server.ToolHandlerFunc = nil
 	for _, tool := range srv.buildTools() {
 		var h server.ToolHandlerFunc = nil
@@ -364,7 +364,7 @@ func TestMainToolHandler_NotSet_ReturnsError(t *testing.T) {
 				return handler(ctx, req)
 			}
 		}
-		// Проверяем, что ошибка возвращается, если handler == nil
+		// Check that error is returned if handler == nil
 		if h != nil {
 			result, err := h(context.Background(), callReq)
 			require.Error(t, err)

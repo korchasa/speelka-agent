@@ -7,91 +7,79 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/knadh/koanf/parsers/json"
+	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/providers/confmap"
+	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
+
 	"github.com/korchasa/speelka-agent-go/internal/types"
+	goyaml "gopkg.in/yaml.v3"
 )
 
 // Manager implements the types.ConfigurationManagerSpec interface.
 // Responsibility: Managing application configuration by coordinating multiple loaders
 type Manager struct {
-	logger        types.LoggerSpec
-	config        *types.Configuration
-	defaultLoader LoaderSpec
-	envLoader     LoaderSpec
+	logger types.LoggerSpec
+	config *types.Configuration
+	k      *koanf.Koanf
 }
 
 // NewConfigurationManager creates a new instance of ConfigurationManagerSpec.
 // Responsibility: Factory method for creating a configuration manager
 func NewConfigurationManager(logger types.LoggerSpec) *Manager {
-	manager := &Manager{
+	return &Manager{
 		logger: logger,
+		k:      koanf.New("."),
 	}
-	// Initialize loaders
-	manager.defaultLoader = NewDefaultLoader()
-	manager.envLoader = NewEnvLoader()
-
-	return manager
 }
 
-// LoadConfiguration loads configuration using the configured loaders.
-// It first loads default values, then from a configuration file if specified,
+// LoadConfiguration loads configuration using KoanfWrapper.
+// Loads default values, then from a configuration file if specified,
 // and finally applies environment variables which take precedence.
-// Responsibility: Coordinating the loading of configuration from multiple sources
 func (cm *Manager) LoadConfiguration(ctx context.Context, configFilePath string) error {
-	if err := cm.loadDefaultConfig(); err != nil {
-		return err
+	cm.k = koanf.New(".")
+	if err := cm.k.Load(confmap.Provider(getDefaultConfigMap(), "."), nil); err != nil {
+		return fmt.Errorf("failed to load defaults: %w", err)
 	}
-	if err := cm.loadFileConfig(configFilePath); err != nil {
-		return err
+	if configFilePath != "" {
+		var parser koanf.Parser
+		if strings.HasSuffix(configFilePath, ".yaml") || strings.HasSuffix(configFilePath, ".yml") {
+			parser = yaml.Parser()
+		} else if strings.HasSuffix(configFilePath, ".json") {
+			parser = json.Parser()
+		} else {
+			return fmt.Errorf("unsupported config file format: %s", configFilePath)
+		}
+		if err := cm.k.Load(file.Provider(configFilePath), parser); err != nil {
+			return fmt.Errorf("failed to load config file: %w", err)
+		}
 	}
-	if err := cm.applyEnvConfig(); err != nil {
-		return err
+	if err := cm.k.Load(env.Provider("SPL_", ".", envKeyToPath), nil); err != nil {
+		return fmt.Errorf("failed to load env: %w", err)
 	}
+	cfg := &types.Configuration{}
+	unmarshalConf := koanf.UnmarshalConf{Tag: "koanf", FlatPaths: false}
+	if err := cm.k.UnmarshalWithConf("", cfg, unmarshalConf); err != nil {
+		return fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+	cm.config = cfg
 	return nil
 }
 
-// loadDefaultConfig loads the default configuration
-func (cm *Manager) loadDefaultConfig() error {
-	defaultConfig, err := cm.defaultLoader.LoadConfiguration()
-	if err != nil {
-		return fmt.Errorf("failed to load default configuration: %w", err)
+// envKeyToPath converts SPL_* variables to a path for koanf
+// Now splits by a single underscore, does not change case.
+func envKeyToPath(s string) string {
+	s = strings.TrimPrefix(s, "SPL_")
+	parts := strings.Split(s, "_")
+	for i, p := range parts {
+		if len(p) == 0 {
+			continue
+		}
+		parts[i] = strings.ToLower(p)
 	}
-	cm.config = defaultConfig
-	return nil
-}
-
-// loadFileConfig loads configuration from file if path is set
-func (cm *Manager) loadFileConfig(configFilePath string) error {
-	if configFilePath == "" {
-		return nil
-	}
-	var fileLoader LoaderSpec
-	if strings.HasSuffix(configFilePath, ".yaml") || strings.HasSuffix(configFilePath, ".yml") {
-		fileLoader = NewYAMLLoader(configFilePath)
-	} else if strings.HasSuffix(configFilePath, ".json") {
-		fileLoader = NewJSONLoader(configFilePath)
-	} else {
-		return fmt.Errorf("unsupported configuration file format: %s", configFilePath)
-	}
-	fileConfig, err := fileLoader.LoadConfiguration()
-	if err != nil {
-		return fmt.Errorf("failed to load configuration from file: %w", err)
-	}
-	if _, err := cm.Apply(cm.config, fileConfig); err != nil {
-		return fmt.Errorf("failed to apply file configuration: %w", err)
-	}
-	return nil
-}
-
-// applyEnvConfig applies environment variables
-func (cm *Manager) applyEnvConfig() error {
-	envConfig, err := cm.envLoader.LoadConfiguration()
-	if err != nil {
-		return fmt.Errorf("failed to load environment variables: %w", err)
-	}
-	if _, err := cm.Apply(cm.config, envConfig); err != nil {
-		return fmt.Errorf("failed to apply environment configuration: %w", err)
-	}
-	return nil
+	return strings.Join(parts, ".")
 }
 
 // GetConfiguration returns the loaded configuration
@@ -216,142 +204,6 @@ func contains(slice []string, str string) bool {
 	return false
 }
 
-// Apply the changes from another configuration to this one, without overwriting values not set in the new config
-func (cm *Manager) Apply(base, newConfig *types.Configuration) (*types.Configuration, error) {
-	if newConfig == nil {
-		return base, nil
-	}
-	// Log
-	if newConfig.Runtime.Log.DefaultLevel != "" {
-		base.Runtime.Log.DefaultLevel = newConfig.Runtime.Log.DefaultLevel
-	}
-	if newConfig.Runtime.Log.Format != "" {
-		base.Runtime.Log.Format = newConfig.Runtime.Log.Format
-	}
-	// Transports
-	if newConfig.Runtime.Transports.Stdio.Enabled != base.Runtime.Transports.Stdio.Enabled {
-		base.Runtime.Transports.Stdio.Enabled = newConfig.Runtime.Transports.Stdio.Enabled
-	}
-	if newConfig.Runtime.Transports.Stdio.BufferSize != 0 {
-		base.Runtime.Transports.Stdio.BufferSize = newConfig.Runtime.Transports.Stdio.BufferSize
-	}
-	if newConfig.Runtime.Transports.HTTP.Enabled != base.Runtime.Transports.HTTP.Enabled {
-		base.Runtime.Transports.HTTP.Enabled = newConfig.Runtime.Transports.HTTP.Enabled
-	}
-	if newConfig.Runtime.Transports.HTTP.Host != "" {
-		base.Runtime.Transports.HTTP.Host = newConfig.Runtime.Transports.HTTP.Host
-	}
-	if newConfig.Runtime.Transports.HTTP.Port != 0 {
-		base.Runtime.Transports.HTTP.Port = newConfig.Runtime.Transports.HTTP.Port
-	}
-	// Agent
-	if newConfig.Agent.Name != "" {
-		base.Agent.Name = newConfig.Agent.Name
-	}
-	if newConfig.Agent.Version != "" {
-		base.Agent.Version = newConfig.Agent.Version
-	}
-	// Tool
-	if newConfig.Agent.Tool.Name != "" {
-		base.Agent.Tool.Name = newConfig.Agent.Tool.Name
-	}
-	if newConfig.Agent.Tool.Description != "" {
-		base.Agent.Tool.Description = newConfig.Agent.Tool.Description
-	}
-	if newConfig.Agent.Tool.ArgumentName != "" {
-		base.Agent.Tool.ArgumentName = newConfig.Agent.Tool.ArgumentName
-	}
-	if newConfig.Agent.Tool.ArgumentDescription != "" {
-		base.Agent.Tool.ArgumentDescription = newConfig.Agent.Tool.ArgumentDescription
-	}
-	// Chat
-	if newConfig.Agent.Chat.MaxTokens != 0 {
-		base.Agent.Chat.MaxTokens = newConfig.Agent.Chat.MaxTokens
-	}
-	if newConfig.Agent.Chat.MaxLLMIterations != 0 {
-		base.Agent.Chat.MaxLLMIterations = newConfig.Agent.Chat.MaxLLMIterations
-	}
-	if newConfig.Agent.Chat.RequestBudget != 0 {
-		base.Agent.Chat.RequestBudget = newConfig.Agent.Chat.RequestBudget
-	}
-	// LLM
-	if newConfig.Agent.LLM.Provider != "" {
-		base.Agent.LLM.Provider = newConfig.Agent.LLM.Provider
-	}
-	if newConfig.Agent.LLM.Model != "" {
-		base.Agent.LLM.Model = newConfig.Agent.LLM.Model
-	}
-	if newConfig.Agent.LLM.APIKey != "" {
-		base.Agent.LLM.APIKey = newConfig.Agent.LLM.APIKey
-	}
-	if newConfig.Agent.LLM.MaxTokens != 0 {
-		base.Agent.LLM.MaxTokens = newConfig.Agent.LLM.MaxTokens
-		base.Agent.LLM.IsMaxTokensSet = true
-	}
-	if newConfig.Agent.LLM.Temperature != 0 {
-		base.Agent.LLM.Temperature = newConfig.Agent.LLM.Temperature
-		base.Agent.LLM.IsTemperatureSet = true
-	}
-	if newConfig.Agent.LLM.PromptTemplate != "" {
-		base.Agent.LLM.PromptTemplate = newConfig.Agent.LLM.PromptTemplate
-	}
-	// LLM Retry
-	if newConfig.Agent.LLM.Retry.MaxRetries != 0 {
-		base.Agent.LLM.Retry.MaxRetries = newConfig.Agent.LLM.Retry.MaxRetries
-	}
-	if newConfig.Agent.LLM.Retry.InitialBackoff != 0 {
-		base.Agent.LLM.Retry.InitialBackoff = newConfig.Agent.LLM.Retry.InitialBackoff
-	}
-	if newConfig.Agent.LLM.Retry.MaxBackoff != 0 {
-		base.Agent.LLM.Retry.MaxBackoff = newConfig.Agent.LLM.Retry.MaxBackoff
-	}
-	if newConfig.Agent.LLM.Retry.BackoffMultiplier != 0 {
-		base.Agent.LLM.Retry.BackoffMultiplier = newConfig.Agent.LLM.Retry.BackoffMultiplier
-	}
-	// Connections
-	if len(newConfig.Agent.Connections.McpServers) > 0 {
-		if base.Agent.Connections.McpServers == nil {
-			base.Agent.Connections.McpServers = make(map[string]types.MCPServerConnection)
-		}
-		for name, newServer := range newConfig.Agent.Connections.McpServers {
-			oldServer, exists := base.Agent.Connections.McpServers[name]
-			if !exists {
-				base.Agent.Connections.McpServers[name] = newServer
-				continue
-			}
-			if newServer.URL != "" {
-				oldServer.URL = newServer.URL
-			}
-			if newServer.APIKey != "" {
-				oldServer.APIKey = newServer.APIKey
-			}
-			if newServer.Command != "" {
-				oldServer.Command = newServer.Command
-			}
-			if len(newServer.Args) > 0 {
-				oldServer.Args = newServer.Args
-			}
-			if newServer.Timeout != 0 {
-				oldServer.Timeout = newServer.Timeout
-			}
-			base.Agent.Connections.McpServers[name] = oldServer
-		}
-	}
-	if newConfig.Agent.Connections.Retry.MaxRetries != 0 {
-		base.Agent.Connections.Retry.MaxRetries = newConfig.Agent.Connections.Retry.MaxRetries
-	}
-	if newConfig.Agent.Connections.Retry.InitialBackoff != 0 {
-		base.Agent.Connections.Retry.InitialBackoff = newConfig.Agent.Connections.Retry.InitialBackoff
-	}
-	if newConfig.Agent.Connections.Retry.MaxBackoff != 0 {
-		base.Agent.Connections.Retry.MaxBackoff = newConfig.Agent.Connections.Retry.MaxBackoff
-	}
-	if newConfig.Agent.Connections.Retry.BackoffMultiplier != 0 {
-		base.Agent.Connections.Retry.BackoffMultiplier = newConfig.Agent.Connections.Retry.BackoffMultiplier
-	}
-	return base, nil
-}
-
 // RedactedCopy returns a copy of the configuration with private data masked for safe logging.
 func RedactedCopy(config *types.Configuration) *types.Configuration {
 	cpy := *config // shallow copy
@@ -387,4 +239,97 @@ func (cm *Manager) GetAgentConfig() types.AgentConfig {
 		MaxTokens:            cm.config.Agent.Chat.MaxTokens,
 		MaxLLMIterations:     cm.config.Agent.Chat.MaxLLMIterations,
 	}
+}
+
+// getDefaultConfigMap returns default values for configuration as map[string]interface{}
+func getDefaultConfigMap() map[string]interface{} {
+	return map[string]interface{}{
+		"runtime": map[string]interface{}{
+			"log": map[string]interface{}{
+				"format":       "text",
+				"defaultLevel": "info",
+				"disableMcp":   false,
+			},
+			"transports": map[string]interface{}{
+				"stdio": map[string]interface{}{
+					"enabled":    true,
+					"bufferSize": 8192,
+				},
+				"http": map[string]interface{}{
+					"enabled": false,
+					"host":    "localhost",
+					"port":    3000,
+				},
+			},
+		},
+		"agent": map[string]interface{}{
+			"name":    "speelka-agent",
+			"version": "1.0.0",
+			"tool": map[string]interface{}{
+				"name":                "process",
+				"description":         "Process user queries with LLM",
+				"argumentName":        "input",
+				"argumentDescription": "The user query to process",
+			},
+			"chat": map[string]interface{}{
+				"maxTokens":        8192,
+				"maxLLMIterations": 100,
+				"requestBudget":    1.0,
+			},
+			"llm": map[string]interface{}{
+				"provider":       "openai",
+				"model":          "gpt-4",
+				"promptTemplate": "You are a helpful assistant. Respond to the following request: {{input}}. Available tools: {{tools}}",
+				"temperature":    0.7,
+				"apiKey":         "",
+				"retry": map[string]interface{}{
+					"maxRetries":        3,
+					"initialBackoff":    1.0,
+					"maxBackoff":        30.0,
+					"backoffMultiplier": 2.0,
+				},
+			},
+			"connections": map[string]interface{}{
+				"retry": map[string]interface{}{
+					"maxRetries":        3,
+					"initialBackoff":    1.0,
+					"maxBackoff":        30.0,
+					"backoffMultiplier": 2.0,
+				},
+				"mcpServers": map[string]interface{}{},
+			},
+		},
+	}
+}
+
+// MarshalConfiguration serializes the current configuration to map[string]interface{} using yaml.Marshal/yaml.Unmarshal
+func (cm *Manager) MarshalConfiguration() (map[string]interface{}, error) {
+	if cm.config == nil {
+		return nil, fmt.Errorf("no configuration loaded")
+	}
+	b, err := goyaml.Marshal(cm.config)
+	if err != nil {
+		return nil, fmt.Errorf("marshal to yaml: %w", err)
+	}
+	var out map[string]interface{}
+	if err := goyaml.Unmarshal(b, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal to map: %w", err)
+	}
+	return out, nil
+}
+
+// UnmarshalConfiguration deserializes map[string]interface{} into types.Configuration struct using koanf.Unmarshal
+func (cm *Manager) UnmarshalConfiguration(data map[string]interface{}) error {
+	if cm.k == nil {
+		cm.k = koanf.New(".")
+	}
+	if err := cm.k.Load(confmap.Provider(data, "."), nil); err != nil {
+		return fmt.Errorf("failed to load confmap: %w", err)
+	}
+	cfg := &types.Configuration{}
+	if err := cm.k.Unmarshal("", cfg); err != nil {
+		return fmt.Errorf("failed to unmarshal: %w", err)
+	}
+	cm.config = cfg
+	return nil
 }

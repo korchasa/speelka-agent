@@ -135,7 +135,7 @@ type MCPServerConnection struct {
 	URL string `json:"url" yaml:"url"`
 
 	// APIKey is the API key for authenticating with the server (for HTTP transport).
-	APIKey string `json:"api_key" yaml:"api_key"`
+	APIKey string `json:"apiKey" yaml:"apiKey"`
 
 	// Command is the command to execute for stdio transport.
 	Command string `json:"command" yaml:"command"`

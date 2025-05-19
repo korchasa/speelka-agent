@@ -107,7 +107,7 @@ func (s *MCPServer) Serve(ctx context.Context, handler server.ToolHandlerFunc) e
 	return nil
 }
 
-// initSSEServer инициализирует и запускает HTTP SSE MCP сервер.
+// initSSEServer initializes and starts the HTTP SSE MCP server.
 func (s *MCPServer) initSSEServer(handler server.ToolHandlerFunc) error {
 	if s.server == nil {
 		return fmt.Errorf("server is not *server.MCPServer")
@@ -122,7 +122,7 @@ func (s *MCPServer) initSSEServer(handler server.ToolHandlerFunc) error {
 	return nil
 }
 
-// initStdioServer инициализирует и запускает stdio MCP сервер с поддержкой внешнего контекста.
+// initStdioServer initializes and starts the stdio MCP server with external context support.
 func (s *MCPServer) initStdioServer(handler server.ToolHandlerFunc, ctx context.Context) error {
 	if s.server == nil {
 		return fmt.Errorf("server is not *server.MCPServer")
@@ -131,7 +131,7 @@ func (s *MCPServer) initStdioServer(handler server.ToolHandlerFunc, ctx context.
 	return server.NewStdioServer(s.server).Listen(ctx, os.Stdin, os.Stdout)
 }
 
-// buildMainTool создаёт основной инструмент сервера.
+// buildMainTool creates the main tool for the server.
 func (s *MCPServer) buildMainTool() mcp.Tool {
 	return mcp.NewTool(s.cfg.Tool.Name,
 		mcp.WithDescription(s.cfg.Tool.Description),
@@ -142,7 +142,7 @@ func (s *MCPServer) buildMainTool() mcp.Tool {
 	)
 }
 
-// buildLoggingTool создаёт инструмент для управления логированием.
+// buildLoggingTool creates a tool for managing logging.
 func (s *MCPServer) buildLoggingTool() mcp.Tool {
 	return mcp.NewTool(setLevelToolName,
 		mcp.WithString("level", mcp.Required(), mcp.Description("Log level to set")),
@@ -224,7 +224,7 @@ func (s *MCPServer) GetServer() *server.MCPServer {
 	return s.server
 }
 
-// buildTools возвращает список всех инструментов для регистрации на сервере.
+// buildTools returns a list of all tools to register on the server.
 func (s *MCPServer) buildTools() []mcp.Tool {
 	tools := []mcp.Tool{s.buildMainTool()}
 	if s.cfg.MCPLogEnabled {

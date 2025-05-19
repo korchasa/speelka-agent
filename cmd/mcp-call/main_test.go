@@ -91,7 +91,7 @@ func TestHandleLoggingNotification(t *testing.T) {
 		t.Errorf("notification not handled or output incorrect: %s", out)
 	}
 
-	// Проверка фильтрации debug
+	// Check debug filtering
 	buf.Reset()
 	notification.Notification.Params.AdditionalFields["level"] = "debug"
 	handled = false
@@ -100,7 +100,7 @@ func TestHandleLoggingNotification(t *testing.T) {
 		t.Errorf("debug log should be ignored")
 	}
 
-	// Проверка вывода объекта
+	// Check object output
 	buf.Reset()
 	notification.Notification.Params.AdditionalFields = map[string]any{
 		"level":  "warning",
@@ -144,7 +144,7 @@ func TestSetLogLevel(t *testing.T) {
 		t.Errorf("incorrect tool call: %+v", mock.lastRequest)
 	}
 
-	// Проверка ошибки
+	// Check error
 	mock.fail = true
 	err = setLogLevelIface(ctx, mock, "info")
 	if err == nil {

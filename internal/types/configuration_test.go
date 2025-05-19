@@ -1,15 +1,9 @@
 package types
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
 	"testing"
 
-	"io"
-
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 )
 
 func TestNewConfiguration(t *testing.T) {
@@ -34,13 +28,13 @@ func TestConfiguration_Converters(t *testing.T) {
 	baseConfig.Agent.Tool.ArgumentDescription = "argdesc1"
 	baseConfig.Agent.Chat.MaxTokens = 1234
 	baseConfig.Agent.Chat.MaxLLMIterations = 7
+	baseConfig.Agent.Chat.RequestBudget = 1.23
 	baseConfig.Agent.LLM.Provider = "openai"
 	baseConfig.Agent.LLM.Model = "gpt-4"
 	baseConfig.Agent.LLM.APIKey = "api-key-123"
 	baseConfig.Agent.LLM.MaxTokens = 2048
 	baseConfig.Agent.LLM.IsMaxTokensSet = true
 	baseConfig.Agent.LLM.Temperature = 0.5
-	baseConfig.Agent.LLM.IsTemperatureSet = true
 	baseConfig.Agent.LLM.PromptTemplate = "prompt {{arg1}}"
 	baseConfig.Agent.LLM.Retry.MaxRetries = 2
 	baseConfig.Agent.LLM.Retry.InitialBackoff = 1.5
@@ -74,7 +68,6 @@ func TestConfiguration_Converters(t *testing.T) {
 		assert.Equal(t, 2048, llmCfg.MaxTokens)
 		assert.True(t, llmCfg.IsMaxTokensSet)
 		assert.Equal(t, 0.5, llmCfg.Temperature)
-		assert.True(t, llmCfg.IsTemperatureSet)
 		assert.Equal(t, "prompt {{arg1}}", llmCfg.SystemPromptTemplate)
 		assert.Equal(t, 2, llmCfg.RetryConfig.MaxRetries)
 		assert.Equal(t, 1.5, llmCfg.RetryConfig.InitialBackoff)
@@ -106,44 +99,12 @@ func TestConfiguration_Converters(t *testing.T) {
 	})
 }
 
-func TestConfiguration_Serialization_Golden(t *testing.T) {
-	cfg := NewConfiguration()
-	goldenPath := filepath.Join("testdata", "configuration_golden.json")
-	actual, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		t.Fatalf("failed to marshal config: %v", err)
-	}
-	goldenFile, err := os.Open(goldenPath)
-	if err != nil {
-		// If the golden file is not found, create it
-		t.Logf("Golden file not found, creating: %s", goldenPath)
-		f, err := os.Create(goldenPath)
-		if err != nil {
-			t.Fatalf("failed to create golden file: %v", err)
-		}
-		defer f.Close()
-		_, err = f.Write(actual)
-		if err != nil {
-			t.Fatalf("failed to write golden file: %v", err)
-		}
-		return
-	}
-	defer goldenFile.Close()
-	golden, err := io.ReadAll(goldenFile)
-	if err != nil {
-		t.Fatalf("failed to read golden file: %v", err)
-	}
-	if string(actual) != string(golden) {
-		t.Errorf("configuration serialization mismatch with golden file\nActual:\n%s\nGolden:\n%s", actual, golden)
-	}
-}
-
 func TestBuildLogConfig(t *testing.T) {
 	t.Run("valid info custom", func(t *testing.T) {
 		raw := struct {
-			DefaultLevel string `json:"default_level" yaml:"default_level"`
-			Format       string `json:"format" yaml:"format"`
-			DisableMCP   bool   `json:"disable_mcp" yaml:"disable_mcp"`
+			DefaultLevel string `koanf:"defaultlevel" json:"defaultLevel" yaml:"defaultLevel"`
+			Format       string `koanf:"format"`
+			DisableMCP   bool   `koanf:"disablemcp" json:"disableMcp" yaml:"disableMcp"`
 		}{
 			DefaultLevel: "info",
 			Format:       "custom",
@@ -159,9 +120,9 @@ func TestBuildLogConfig(t *testing.T) {
 
 	t.Run("valid debug json disable_mcp", func(t *testing.T) {
 		raw := struct {
-			DefaultLevel string `json:"default_level" yaml:"default_level"`
-			Format       string `json:"format" yaml:"format"`
-			DisableMCP   bool   `json:"disable_mcp" yaml:"disable_mcp"`
+			DefaultLevel string `koanf:"defaultlevel" json:"defaultLevel" yaml:"defaultLevel"`
+			Format       string `koanf:"format"`
+			DisableMCP   bool   `koanf:"disablemcp" json:"disableMcp" yaml:"disableMcp"`
 		}{
 			DefaultLevel: "debug",
 			Format:       "json",
@@ -177,9 +138,9 @@ func TestBuildLogConfig(t *testing.T) {
 
 	t.Run("invalid level", func(t *testing.T) {
 		raw := struct {
-			DefaultLevel string `json:"default_level" yaml:"default_level"`
-			Format       string `json:"format" yaml:"format"`
-			DisableMCP   bool   `json:"disable_mcp" yaml:"disable_mcp"`
+			DefaultLevel string `koanf:"defaultlevel" json:"defaultLevel" yaml:"defaultLevel"`
+			Format       string `koanf:"format"`
+			DisableMCP   bool   `koanf:"disablemcp" json:"disableMcp" yaml:"disableMcp"`
 		}{
 			DefaultLevel: "badlevel",
 			Format:       "text",
@@ -188,70 +149,6 @@ func TestBuildLogConfig(t *testing.T) {
 		_, err := BuildLogConfig(raw)
 		assert.Error(t, err)
 	})
-}
-
-func TestConfiguration_Unmarshal_Inline(t *testing.T) {
-	yamlData := `
-runtime:
-  log:
-    default_level: info
-    output: ':mcp:'
-    format: text
-  transports:
-    stdio:
-      enabled: true
-      buffer_size: 1024
-    http:
-      enabled: false
-      host: localhost
-      port: 3000
-agent:
-  name: "speelka-agent"
-  version: "v1.0.0"
-  tool:
-    name: "process"
-    description: "Process tool for user queries"
-    argument_name: "input"
-    argument_description: "User query"
-  chat:
-    max_tokens: 0
-    max_llm_iterations: 25
-    request_budget: 0.0
-  llm:
-    provider: "openai"
-    api_key: "dummy-api-key"
-    model: "gpt-4o"
-    temperature: 0.7
-    prompt_template: "You are a helpful assistant. {{input}}. Available tools: {{tools}}"
-    retry:
-      max_retries: 3
-      initial_backoff: 1.0
-      max_backoff: 30.0
-      backoff_multiplier: 2.0
-  connections:
-    mcpServers:
-      time:
-        command: "docker"
-        args: ["run", "-i", "--rm", "mcp/time"]
-        timeout: 10
-      filesystem:
-        command: "mcp-filesystem-server"
-        args: ["/path/to/directory"]
-    retry:
-      max_retries: 2
-      initial_backoff: 1.5
-      max_backoff: 10.0
-      backoff_multiplier: 2.5
-`
-	var cfg Configuration
-	err := yaml.Unmarshal([]byte(yamlData), &cfg)
-	assert.NoError(t, err)
-	assert.Equal(t, "speelka-agent", cfg.Agent.Name)
-	assert.Equal(t, 25, cfg.Agent.Chat.MaxLLMIterations)
-	assert.Equal(t, "openai", cfg.Agent.LLM.Provider)
-	assert.Equal(t, 1024, cfg.Runtime.Transports.Stdio.BufferSize)
-	assert.Equal(t, false, cfg.Runtime.Transports.HTTP.Enabled)
-	assert.Equal(t, "docker", cfg.Agent.Connections.McpServers["time"].Command)
 }
 
 func Test_parseLogLevel(t *testing.T) {

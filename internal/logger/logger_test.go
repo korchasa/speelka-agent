@@ -227,13 +227,13 @@ func TestLogger_sendNotification(t *testing.T) {
 	if mockSrv.lastData["level"] != "info" {
 		t.Errorf("expected level 'info', got %v", mockSrv.lastData["level"])
 	}
-	// Проверяем, что поля передаются
+	// Check that fields are passed
 	data, ok := mockSrv.lastData["data"].(logrus.Fields)
 	if !ok || data["foo"] != "bar" {
 		t.Errorf("expected data.foo = 'bar', got %v", mockSrv.lastData["data"])
 	}
 
-	// Проверяем, что при disableMCP не вызывается
+	// Check that disableMCP does not call
 	logger.disableMCP = true
 	mockSrv.lastMethod = ""
 	logger.sendNotification(logrus.InfoLevel, "should not send", nil)
@@ -241,7 +241,7 @@ func TestLogger_sendNotification(t *testing.T) {
 		t.Error("expected no notification when disableMCP is true")
 	}
 
-	// Проверяем, что при уровне ниже minLevel не вызывается
+	// Check that if level is below minLevel, does not call
 	logger.disableMCP = false
 	logger.minLevel = logrus.InfoLevel
 	mockSrv.lastMethod = ""
@@ -269,7 +269,7 @@ func TestLogger_Debug_Debugf_Warnf_Error_Errorf(t *testing.T) {
 	logger.Warnf("warnf %s", "message")
 	logger.Error("error message")
 	logger.Errorf("errorf %s", "message")
-	// Проверяем, что не паникует и не вызывает os.Exit
+	// Check that it does not panic and does not call os.Exit
 }
 
 func TestMcpToLogrusLevel(t *testing.T) {

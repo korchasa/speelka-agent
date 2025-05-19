@@ -148,7 +148,7 @@ case $CMD in
         echo -e "${BLUE}Running integration test for --call flag (with child mcps)...${NC}"
         load_env
         go build -o bin/speelka-agent ./cmd/server/main.go
-        ./bin/speelka-agent --config "site/examples/minimal.yaml" --call "What is in the oldest file in the directory, including all nested directories? Show only 10 first lines of the file."
+        ./bin/speelka-agent --config "site/examples/minimal.yaml" --call "What is in the oldest file in the project directory, including all nested directories? Show only 10 first lines of the file."
         # Check exit code is 0 (success)
         if [ $? -ne 0 ]; then
             echo -e "${RED}FAIL: Expected exit code 0, got $?${NC}"
@@ -170,7 +170,7 @@ case $CMD in
             load_env
             go build -o bin/mcp-call ./cmd/mcp-call/main.go
             check_command "mcp"
-            SPL_LLM_TEMPERATURE=0.2 SPL_CHAT_MAX_TOKENS=16000 ./bin/mcp-call --tool process --call-timeout 30 --params '{"input": "What is in the oldest file in the directory, including all nested directories? Show only 10 first lines of the file."}' go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
+            SPL_AGENT_LLM_TEMPERATURE=0.2 SPL_AGENT_CHAT_MAX_TOKENS=16000 ./bin/mcp-call --tool process --call-timeout 30 --params '{"input": "What is in the oldest file in the directory, including all nested directories? Show only 10 first lines of the file."}' go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
         )
         ;;
     inspect)
@@ -199,7 +199,7 @@ case $CMD in
             echo -e "${RED}Error: TODO/FIXME/Println found!${NC}"
             exit 1
         fi
-        # Проверка на русский текст во всех неигнорируемых файлах
+        # Check for Russian text in all non-ignored files
         git ls-files > .files_to_check.txt
         if cat .files_to_check.txt | xargs grep -n -E '[А-Яа-яЁё]' ; then
             echo -e "${RED}Error: Russian text found!${NC}"

@@ -48,11 +48,11 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{..
 |          | SPL_TOOL_ARGUMENT_NAME | Arg name | *req* |
 |          | SPL_TOOL_ARGUMENT_DESCRIPTION | Arg desc | *req* |
 | LLM      | SPL_LLM_PROVIDER | Provider | *req* |
-|          | SPL_LLM_API_KEY | API key | *req* |
+|          | SPL_LLM_APIKEY | API key | *req* |
 |          | SPL_LLM_MODEL | Model | *req* |
 |          | SPL_LLM_MAX_TOKENS | Max tokens | 0 |
 |          | SPL_LLM_TEMPERATURE | Temp | 0.7 |
-|          | SPL_LLM_PROMPT_TEMPLATE | Prompt | *req* |
+|          | SPL_LLM_PROMPTTEMPLATE | Prompt | *req* |
 | Chat     | SPL_CHAT_MAX_TOKENS | Max hist tokens | 0 |
 |          | SPL_CHAT_MAX_ITERATIONS | Max LLM iters | 25 |
 |          | SPL_CHAT_REQUEST_BUDGET | Max cost per request | 0.0 |
@@ -60,7 +60,7 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{..
 |          | SPL_LLM_RETRY_INITIAL_BACKOFF | Init backoff | 1.0 |
 |          | SPL_LLM_RETRY_MAX_BACKOFF | Max backoff | 30.0 |
 |          | SPL_LLM_RETRY_BACKOFF_MULTIPLIER | Multiplier | 2.0 |
-| Runtime  | SPL_LOG_DEFAULT_LEVEL | Log default_level | info |
+| Runtime  | SPL_LOG_DEFAULTLEVEL | Log defaultLevel | info |
 
 # Reference Patterns
 
@@ -110,11 +110,11 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{..
 |          | SPL_TOOL_ARGUMENT_NAME | Arg name | *req* |
 |          | SPL_TOOL_ARGUMENT_DESCRIPTION | Arg desc | *req* |
 | LLM      | SPL_LLM_PROVIDER | Provider | *req* |
-|          | SPL_LLM_API_KEY | API key | *req* |
+|          | SPL_LLM_APIKEY | API key | *req* |
 |          | SPL_LLM_MODEL | Model | *req* |
 |          | SPL_LLM_MAX_TOKENS | Max tokens | 0 |
 |          | SPL_LLM_TEMPERATURE | Temp | 0.7 |
-|          | SPL_LLM_PROMPT_TEMPLATE | Prompt | *req* |
+|          | SPL_LLM_PROMPTTEMPLATE | Prompt | *req* |
 | Chat     | SPL_CHAT_MAX_TOKENS | Max hist tokens | 0 |
 |          | SPL_CHAT_MAX_ITERATIONS | Max LLM iters | 25 |
 |          | SPL_CHAT_REQUEST_BUDGET | Max cost per request | 0.0 |
@@ -122,4 +122,4 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{..
 |          | SPL_LLM_RETRY_INITIAL_BACKOFF | Init backoff | 1.0 |
 |          | SPL_LLM_RETRY_MAX_BACKOFF | Max backoff | 30.0 |
 |          | SPL_LLM_RETRY_BACKOFF_MULTIPLIER | Multiplier | 2.0 |
-| Runtime  | SPL_LOG_DEFAULT_LEVEL | Log default_level | info |
+| Runtime  | SPL_LOG_DEFAULTLEVEL | Log defaultLevel | info |

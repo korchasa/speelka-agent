@@ -12,7 +12,7 @@ func TestTokenEstimator_CountTokens(t *testing.T) {
 	t.Run("empty message returns 0", func(t *testing.T) {
 		msg := llms.MessageContent{}
 		tokens := estimator.CountTokens(msg)
-		if tokens != 6 { // len('{"Parts":null}')/4 = 6/4=1, но min=1, но реально 24/4=6
+		if tokens != 6 { // len('{"Parts":null}')/4 = 6/4=1, but min=1, but actually 24/4=6
 			t.Errorf("expected 6 tokens, got %d", tokens)
 		}
 	})

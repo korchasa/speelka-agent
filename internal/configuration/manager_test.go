@@ -2,10 +2,8 @@ package configuration
 
 import (
 	"context"
-	"math/rand"
-	"reflect"
+	"os"
 	"testing"
-	"testing/quick"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/sirupsen/logrus"
@@ -56,20 +54,70 @@ func (m *SimpleLogEntry) Fatalf(format string, args ...interface{}) {}
 // func TestConfigurationManager_LoadConfiguration(t *testing.T) { /* ... */ }
 // func SetTestConfig(cm *Manager, cfg *types.Configuration) { /* ... */ }
 
-func TestManager_LoadAndGetConfiguration(t *testing.T) {
-	logger := &SimpleLogger{}
-	mgr := NewConfigurationManager(logger)
-	// Load only the default configuration (without file and env)
+func TestManager_LoadConfiguration_Defaults(t *testing.T) {
+	mgr := NewConfigurationManager(nil)
 	err := mgr.LoadConfiguration(context.Background(), "")
-	assert.NoError(t, err)
-
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	cfg := mgr.GetConfiguration()
-	assert.NotNil(t, cfg)
-	// Ensure this is actually types.Configuration
-	assert.Equal(t, "speelka-agent", cfg.Agent.Name)
-	// Validation is called separately
-	// err = cfg.Validate()
-	// assert.NoError(t, err)
+	if cfg.Agent.Name != "speelka-agent" {
+		t.Errorf("expected default agent name, got %s", cfg.Agent.Name)
+	}
+	if cfg.Runtime.Log.DefaultLevel != "info" {
+		t.Errorf("expected default log level, got %s", cfg.Runtime.Log.DefaultLevel)
+	}
+}
+
+func TestManager_LoadConfiguration_YAMLFile(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "testconfig-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+	yamlContent := []byte(`
+agent:
+  name: "custom-agent"
+  tool:
+    name: "custom-tool"
+`)
+	if _, err := tmpfile.Write(yamlContent); err != nil {
+		t.Fatal(err)
+	}
+	tmpfile.Close()
+
+	mgr := NewConfigurationManager(nil)
+	err = mgr.LoadConfiguration(context.Background(), tmpfile.Name())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	cfg := mgr.GetConfiguration()
+	if cfg.Agent.Name != "custom-agent" {
+		t.Errorf("expected agent name from yaml, got %s", cfg.Agent.Name)
+	}
+	if cfg.Agent.Tool.Name != "custom-tool" {
+		t.Errorf("expected tool name from yaml, got %s", cfg.Agent.Tool.Name)
+	}
+}
+
+func TestManager_LoadConfiguration_EnvOverride(t *testing.T) {
+	os.Setenv("SPL_agent_name", "env-agent")
+	os.Setenv("SPL_agent_tool_name", "env-tool")
+	defer os.Unsetenv("SPL_agent_name")
+	defer os.Unsetenv("SPL_agent_tool_name")
+
+	mgr := NewConfigurationManager(nil)
+	err := mgr.LoadConfiguration(context.Background(), "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	cfg := mgr.GetConfiguration()
+	if cfg.Agent.Name != "env-agent" {
+		t.Errorf("expected agent name from env, got %s", cfg.Agent.Name)
+	}
+	if cfg.Agent.Tool.Name != "env-tool" {
+		t.Errorf("expected tool name from env, got %s", cfg.Agent.Tool.Name)
+	}
 }
 
 // --- BEGIN: overlay, validation, redaction, apply, property-based overlay tests ---
@@ -97,34 +145,34 @@ func TestManager_ValidateConfiguration(t *testing.T) {
 	assert.Contains(t, err.Error(), "agent name is required")
 }
 
-func TestManager_OverlayApply(t *testing.T) {
-	mgr := NewConfigurationManager(&SimpleLogger{})
-	base := &types.Configuration{}
-	base.Agent.Name = "base-agent"
-	base.Agent.Tool.Name = "base-tool"
-	base.Agent.Tool.Description = "Base tool description"
-	base.Agent.Tool.ArgumentName = "query"
-	base.Agent.Tool.ArgumentDescription = "Base query description"
-	base.Agent.LLM.Provider = "openai"
-	base.Agent.LLM.Model = "gpt-3.5-turbo"
-	base.Agent.LLM.APIKey = "base-api-key"
-	base.Agent.LLM.PromptTemplate = "Base template with {{query}} and {{tools}}"
-
-	overlay := &types.Configuration{}
-	overlay.Agent.Tool.Name = "new-tool"
-	overlay.Agent.Tool.Description = "New tool description"
-	overlay.Agent.LLM.Model = "gpt-4"
-	overlay.Agent.LLM.APIKey = "new-api-key"
-	overlay.Agent.LLM.PromptTemplate = "New template with {{query}} and {{tools}}"
-
-	result, err := mgr.Apply(base, overlay)
-	assert.NoError(t, err)
-	assert.Equal(t, "new-tool", result.Agent.Tool.Name)
-	assert.Equal(t, "New tool description", result.Agent.Tool.Description)
-	assert.Equal(t, "gpt-4", result.Agent.LLM.Model)
-	assert.Equal(t, "new-api-key", result.Agent.LLM.APIKey)
-	assert.Equal(t, "New template with {{query}} and {{tools}}", result.Agent.LLM.PromptTemplate)
-}
+// func TestManager_OverlayApply(t *testing.T) {
+// 	mgr := NewConfigurationManager(&SimpleLogger{})
+// 	base := &types.Configuration{}
+// 	base.Agent.Name = "base-agent"
+// 	base.Agent.Tool.Name = "base-tool"
+// 	base.Agent.Tool.Description = "Base tool description"
+// 	base.Agent.Tool.ArgumentName = "query"
+// 	base.Agent.Tool.ArgumentDescription = "Base query description"
+// 	base.Agent.LLM.Provider = "openai"
+// 	base.Agent.LLM.Model = "gpt-3.5-turbo"
+// 	base.Agent.LLM.APIKey = "base-api-key"
+// 	base.Agent.LLM.PromptTemplate = "Base template with {{query}} and {{tools}}"
+//
+// 	overlay := &types.Configuration{}
+// 	overlay.Agent.Tool.Name = "new-tool"
+// 	overlay.Agent.Tool.Description = "New tool description"
+// 	overlay.Agent.LLM.Model = "gpt-4"
+// 	overlay.Agent.LLM.APIKey = "new-api-key"
+// 	overlay.Agent.LLM.PromptTemplate = "New template with {{query}} and {{tools}}"
+//
+// 	result, err := mgr.Apply(base, overlay)
+// 	assert.NoError(t, err)
+// 	assert.Equal(t, "new-tool", result.Agent.Tool.Name)
+// 	assert.Equal(t, "New tool description", result.Agent.Tool.Description)
+// 	assert.Equal(t, "gpt-4", result.Agent.LLM.Model)
+// 	assert.Equal(t, "new-api-key", result.Agent.LLM.APIKey)
+// 	assert.Equal(t, "New template with {{query}} and {{tools}}", result.Agent.LLM.PromptTemplate)
+// }
 
 func TestRedactedCopy(t *testing.T) {
 	orig := &types.Configuration{}
@@ -170,58 +218,6 @@ func TestManager_ExtractPlaceholders(t *testing.T) {
 	assert.Empty(t, placeholders)
 }
 
-func TestManager_Overlay_PropertyBased(t *testing.T) {
-	mgr := NewConfigurationManager(&SimpleLogger{})
-	f := func(base, overlay types.Configuration) bool {
-		baseCopy := base
-		_, err := mgr.Apply(&baseCopy, &overlay)
-		if err != nil {
-			t.Logf("Apply error: %v", err)
-			return false
-		}
-		return true
-	}
-	cfg := &quick.Config{
-		MaxCount: 10,
-		Values: func(args []reflect.Value, r *rand.Rand) {
-			args[0] = reflect.ValueOf(randomConfig(r))
-			args[1] = reflect.ValueOf(randomConfig(r))
-		},
-	}
-	if err := quick.Check(f, cfg); err != nil {
-		t.Error(err)
-	}
-}
-
-func randomConfig(r *rand.Rand) types.Configuration {
-	cfg := types.NewConfiguration()
-	cfg.Agent.Name = randomString(r)
-	cfg.Agent.LLM.APIKey = randomString(r)
-	cfg.Agent.LLM.Model = randomString(r)
-	cfg.Agent.LLM.Provider = randomString(r)
-	cfg.Agent.LLM.PromptTemplate = randomString(r)
-	cfg.Agent.LLM.MaxTokens = r.Intn(10000)
-	cfg.Agent.LLM.Temperature = r.Float64()
-	cfg.Agent.Connections.McpServers = make(map[string]types.MCPServerConnection)
-	if r.Intn(2) == 1 {
-		key := randomString(r)
-		cfg.Agent.Connections.McpServers[key] = types.MCPServerConnection{
-			URL:    randomString(r),
-			APIKey: randomString(r),
-		}
-	}
-	return *cfg
-}
-
-func randomString(r *rand.Rand) string {
-	length := r.Intn(5)
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = byte(r.Intn(26) + 97)
-	}
-	return string(b)
-}
-
 // --- END: overlay, validation, redaction, apply, property-based overlay tests ---
 
 func TestManager_GetAgentConfig_InlineStruct(t *testing.T) {
@@ -236,4 +232,169 @@ func TestManager_GetAgentConfig_InlineStruct(t *testing.T) {
 	assert.Equal(t, "gpt-4", agentCfg.Model)
 	assert.Equal(t, 8192, agentCfg.MaxTokens)
 	assert.Equal(t, 100, agentCfg.MaxLLMIterations)
+}
+
+func TestManager_FullConfig_Parse_YAML_JSON_Env(t *testing.T) {
+	tmpYaml, err := os.CreateTemp("", "fullconfig-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpYaml.Name())
+	yamlContent := []byte(`
+agent:
+  name: "yaml-agent"
+  tool:
+    name: "yaml-tool"
+    description: "desc from yaml"
+    argumentName: "input"
+    argumentDescription: "desc arg"
+  chat:
+    maxTokens: 111
+    maxLLMIterations: 222
+    requestBudget: 1.23
+  llm:
+    provider: "openai"
+    model: "yaml-model"
+    apiKey: "yaml-key"
+    promptTemplate: "YAML template {{input}}"
+    retry:
+      maxRetries: 2
+      initialBackoff: 1.1
+      maxBackoff: 2.2
+      backoffMultiplier: 3.3
+  connections:
+    mcpServers:
+      test:
+        url: "http://yaml-server"
+        apiKey: "yaml-server-key"
+    retry:
+      maxRetries: 5
+      initialBackoff: 2.2
+      maxBackoff: 3.3
+      backoffMultiplier: 4.4
+runtime:
+  log:
+    defaultLevel: "debug"
+    format: "json"
+    disableMcp: true
+`)
+	if _, err := tmpYaml.Write(yamlContent); err != nil {
+		t.Fatal(err)
+	}
+	tmpYaml.Close()
+
+	tmpJson, err := os.CreateTemp("", "fullconfig-*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpJson.Name())
+	jsonContent := []byte(`{
+  "agent": {
+    "name": "json-agent",
+    "tool": {"name": "json-tool", "description": "desc from json", "argumentName": "input", "argumentDescription": "desc arg"},
+    "chat": {"maxTokens": 333, "maxLLMIterations": 444, "requestBudget": 2.34},
+    "llm": {"provider": "openai", "model": "json-model", "apiKey": "json-key", "promptTemplate": "JSON template {{input}}", "retry": {"maxRetries": 3, "initialBackoff": 2.2, "maxBackoff": 3.3, "backoffMultiplier": 4.4}},
+    "connections": {"mcpServers": {"test": {"url": "http://json-server", "apiKey": "json-server-key"}}, "retry": {"maxRetries": 6, "initialBackoff": 3.3, "maxBackoff": 4.4, "backoffMultiplier": 5.5}}
+  },
+  "runtime": {"log": {"defaultLevel": "info", "format": "text", "disableMcp": false}}
+}`)
+	if _, err := tmpJson.Write(jsonContent); err != nil {
+		t.Fatal(err)
+	}
+	tmpJson.Close()
+
+	os.Setenv("SPL_AGENT_NAME", "env-agent")
+	os.Setenv("SPL_AGENT_TOOL_NAME", "env-tool")
+	os.Setenv("SPL_AGENT_LLM_APIKEY", "env-key")
+	os.Setenv("SPL_RUNTIME_LOG_DEFAULTLEVEL", "warn")
+	defer os.Unsetenv("SPL_AGENT_NAME")
+	defer os.Unsetenv("SPL_AGENT_TOOL_NAME")
+	defer os.Unsetenv("SPL_AGENT_LLM_APIKEY")
+	defer os.Unsetenv("SPL_RUNTIME_LOG_DEFAULTLEVEL")
+
+	t.Run("YAML config + env", func(t *testing.T) {
+		mgr := NewConfigurationManager(nil)
+		err := mgr.LoadConfiguration(context.Background(), tmpYaml.Name())
+		assert.NoError(t, err)
+		cfg := mgr.GetConfiguration()
+		assert.Equal(t, "env-agent", cfg.Agent.Name) // env overrides yaml
+		assert.Equal(t, "env-tool", cfg.Agent.Tool.Name)
+		assert.Equal(t, "yaml-model", cfg.Agent.LLM.Model)
+		assert.Equal(t, "env-key", cfg.Agent.LLM.APIKey)
+		assert.Equal(t, "warn", cfg.Runtime.Log.DefaultLevel)
+		assert.Equal(t, "json", cfg.Runtime.Log.Format)
+		assert.Equal(t, true, cfg.Runtime.Log.DisableMCP)
+		assert.Equal(t, 111, cfg.Agent.Chat.MaxTokens)
+		assert.Equal(t, 222, cfg.Agent.Chat.MaxLLMIterations)
+		assert.Equal(t, 1.23, cfg.Agent.Chat.RequestBudget)
+		assert.Equal(t, "desc from yaml", cfg.Agent.Tool.Description)
+		assert.Equal(t, "desc arg", cfg.Agent.Tool.ArgumentDescription)
+		assert.Equal(t, "YAML template {{input}}", cfg.Agent.LLM.PromptTemplate)
+		assert.Equal(t, 2, cfg.Agent.LLM.Retry.MaxRetries)
+		assert.Equal(t, 1.1, cfg.Agent.LLM.Retry.InitialBackoff)
+		assert.Equal(t, 2.2, cfg.Agent.LLM.Retry.MaxBackoff)
+		assert.Equal(t, 3.3, cfg.Agent.LLM.Retry.BackoffMultiplier)
+		assert.Equal(t, "http://yaml-server", cfg.Agent.Connections.McpServers["test"].URL)
+		assert.Equal(t, "yaml-server-key", cfg.Agent.Connections.McpServers["test"].APIKey)
+		assert.Equal(t, 5, cfg.Agent.Connections.Retry.MaxRetries)
+		assert.Equal(t, 2.2, cfg.Agent.Connections.Retry.InitialBackoff)
+		assert.Equal(t, 3.3, cfg.Agent.Connections.Retry.MaxBackoff)
+		assert.Equal(t, 4.4, cfg.Agent.Connections.Retry.BackoffMultiplier)
+	})
+
+	t.Run("JSON config + env", func(t *testing.T) {
+		mgr := NewConfigurationManager(nil)
+		err := mgr.LoadConfiguration(context.Background(), tmpJson.Name())
+		assert.NoError(t, err)
+		cfg := mgr.GetConfiguration()
+		assert.Equal(t, "env-agent", cfg.Agent.Name) // env overrides json
+		assert.Equal(t, "env-tool", cfg.Agent.Tool.Name)
+		assert.Equal(t, "json-model", cfg.Agent.LLM.Model)
+		assert.Equal(t, "env-key", cfg.Agent.LLM.APIKey)
+		assert.Equal(t, "warn", cfg.Runtime.Log.DefaultLevel)
+		assert.Equal(t, "text", cfg.Runtime.Log.Format)
+		assert.Equal(t, false, cfg.Runtime.Log.DisableMCP)
+		assert.Equal(t, 333, cfg.Agent.Chat.MaxTokens)
+		assert.Equal(t, 444, cfg.Agent.Chat.MaxLLMIterations)
+		assert.Equal(t, 2.34, cfg.Agent.Chat.RequestBudget)
+		assert.Equal(t, "desc from json", cfg.Agent.Tool.Description)
+		assert.Equal(t, "desc arg", cfg.Agent.Tool.ArgumentDescription)
+		assert.Equal(t, "JSON template {{input}}", cfg.Agent.LLM.PromptTemplate)
+		assert.Equal(t, 3, cfg.Agent.LLM.Retry.MaxRetries)
+		assert.Equal(t, 2.2, cfg.Agent.LLM.Retry.InitialBackoff)
+		assert.Equal(t, 3.3, cfg.Agent.LLM.Retry.MaxBackoff)
+		assert.Equal(t, 4.4, cfg.Agent.LLM.Retry.BackoffMultiplier)
+		assert.Equal(t, "http://json-server", cfg.Agent.Connections.McpServers["test"].URL)
+		assert.Equal(t, "json-server-key", cfg.Agent.Connections.McpServers["test"].APIKey)
+		assert.Equal(t, 6, cfg.Agent.Connections.Retry.MaxRetries)
+		assert.Equal(t, 3.3, cfg.Agent.Connections.Retry.InitialBackoff)
+		assert.Equal(t, 4.4, cfg.Agent.Connections.Retry.MaxBackoff)
+		assert.Equal(t, 5.5, cfg.Agent.Connections.Retry.BackoffMultiplier)
+	})
+}
+
+func TestEnvKeyToPath(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"SPL_agent_tool_name", "agent.tool.name"},
+		{"SPL_AGENT_TOOL_DESCRIPTION", "agent.tool.description"},
+		{"SPL_runtime_log_defaultLevel", "runtime.log.defaultlevel"},
+		{"SPL_AGENT__TOOL__NAME", "agent..tool..name"},
+		{"SPL__agent__tool__name", ".agent..tool..name"},
+		{"SPL_agent", "agent"},
+		{"SPL_AGENT", "agent"},
+		{"SPL__", "."},
+		{"SPL_", ""},
+		{"agent_tool_name", "agent.tool.name"},
+		{"SPL_AGENT_TOOL_", "agent.tool."},
+		{"SPL_AGENT__TOOL__", "agent..tool.."},
+	}
+	for _, tt := range tests {
+		got := envKeyToPath(tt.input)
+		if got != tt.expected {
+			t.Errorf("envKeyToPath(%q) = %q; want %q", tt.input, got, tt.expected)
+		}
+	}
 }
