@@ -67,11 +67,14 @@ flowchart TB
 - `mcp-go`: MCP protocol
 - `langchaingo`: LLM abstraction
 - `logrus`: Logging
+- `koanf` (core + providers/parsers): Configuration management (file, env, confmap, structs, json, yaml, toml, etc.)
 
 ## Configuration
 - Flexible: YAML, JSON, env
 - Type-safe, validated, secure
 - Load order: default → file → env
+- All configuration loading, merging, and env parsing is now handled by koanf (core + providers), following official best practices. No custom loaders remain (DefaultLoader, EnvLoader, YAML/JSONLoader are removed).
+- All config structs use `koanf` tags for field mapping; `json`/`yaml` tags are removed.
 - **LogConfig**: Centralized log configuration with support for output (stdout, stderr, file, MCP), format (custom, json, text, unknown), and dynamic log level.
 - **Log Output Constants**: `LogOutputStdout`, `LogOutputStderr`, `LogOutputMCP` for unified output selection.
 

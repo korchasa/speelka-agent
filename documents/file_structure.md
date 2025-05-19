@@ -11,7 +11,15 @@
 - `cmd/`: Entrypoints (server, mcp-call, test-mcp-logging)
 - `internal/`: Core logic (see below)
 - `site/`: Web UI, config examples, static assets
-- `vendor/`: Vendored Go dependencies
+- `vendor/`: Vendored Go dependencies (see below)
+    - `github.com/knadh/koanf/v2`: Core configuration library
+    - `github.com/knadh/koanf/providers/file`: File provider
+    - `github.com/knadh/koanf/providers/env`: Env provider
+    - `github.com/knadh/koanf/providers/confmap`: Confmap provider
+    - `github.com/knadh/koanf/providers/structs`: Structs provider
+    - `github.com/knadh/koanf/parsers/json`: JSON parser
+    - `github.com/knadh/koanf/parsers/yaml`: YAML parser
+    - `github.com/knadh/koanf/parsers/toml`: TOML parser
 - `documents/`: Project documentation
 - `LICENSE`: License
 
@@ -27,7 +35,7 @@
     - `app.go`: CLI application entrypoint
     - `types.go`: Types for CLI mode
 - `chat/`: Chat/session logic
-- `configuration/`: Config loading and validation
+- `configuration/`: Config loading and validation (koanf-based, no custom loaders; all config structs use koanf tags only)
 - `error_handling/`: Error handling utilities
 - `llm_models/`: LLM model-specific utilities (e.g., cost calculation)
 - `llm_service/`: LLM service abstraction and retry logic

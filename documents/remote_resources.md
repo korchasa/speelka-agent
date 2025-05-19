@@ -5,6 +5,10 @@
 - [MCP-Go](https://github.com/mark3labs/mcp-go)
 - [LangChainGo](https://github.com/tmc/langchaingo)
 - [Logrus](https://github.com/sirupsen/logrus)
+- [Koanf (core)](https://github.com/knadh/koanf)
+  - [Official documentation](https://pkg.go.dev/github.com/knadh/koanf/v2)
+  - [Providers: file, env, confmap, structs, posflag, basicflag, s3, etc.](https://github.com/knadh/koanf#providers)
+  - [Parsers: json, yaml, toml, dotenv, hcl, hjson, nestedtext](https://github.com/knadh/koanf#parsers)
 - [Tiktoken-go](https://github.com/pkoukk/tiktoken-go)
 
 ## LLM Providers

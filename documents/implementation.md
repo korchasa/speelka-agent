@@ -17,7 +17,7 @@
 ```yaml
 runtime:
   log:
-    default_level: info
+    defaultLevel: info
     output: ':mcp:'
     format: json
   transports:
@@ -42,10 +42,10 @@ agent:
     request_budget: 0.0
   llm:
     provider: "openai"
-    api_key: "dummy-api-key"
+    apiKey: "dummy-api-key"
     model: "gpt-4o"
     temperature: 0.7
-    prompt_template: "You are a helpful assistant. {{input}}. Available tools: {{tools}}"
+    promptTemplate: "You are a helpful assistant. {{input}}. Available tools: {{tools}}"
     retry:
       max_retries: 3
       initial_backoff: 1.0
@@ -90,11 +90,17 @@ agent:
 5. Tool exec, capture result
 6. Format/send response
 
+## Config Loading (Koanf-based)
+- All configuration is now loaded, merged, and validated using the koanf library (core + providers: file, env, confmap, structs; parsers: json, yaml, toml).
+- The Manager loads defaults via confmap.Provider, then overlays file (yaml/json/toml) via file.Provider, then overlays env via env.Provider (SPL_ prefix, custom path mapping).
+- All config structs use only `koanf` tags; `json`/`yaml` tags are removed.
+- No custom loaders remain; all merging and env parsing is handled by koanf best practices.
+- See `internal/configuration/manager.go` for implementation.
+
 ## Config Loading Hierarchy
-1. CLI args
-2. Env vars (SPL_ prefix)
-3. Config file
-4. Defaults
+1. Defaults (confmap)
+2. Config file (yaml/json)
+3. Env vars (SPL_ prefix)
 
 ## Error Handling
 - Categories: Validation, Transient, Internal, External
@@ -117,7 +123,7 @@ agent:
 SPL_AGENT_NAME="speelka-agent"
 SPL_TOOL_NAME="process"
 SPL_LLM_PROVIDER="openai"
-SPL_LLM_API_KEY="your_api_key_here"
+SPL_LLM_APIKEY="your_api_key_here"
 SPL_LLM_MODEL="gpt-4o"
 SPL_LLM_MAX_TOKENS=0
 SPL_LLM_TEMPERATURE=0.7
@@ -198,7 +204,6 @@ The logger is always created according to the configuration, and the stub is inj
 
 ### Golden compatibility tests
 - Goal: control serialization compatibility of `types.Configuration` structure.
-- Golden file: `internal/types/testdata/configuration_golden.json`.
 - Test serializes default config and compares with golden file.
 - On structure change, test signals incompatibility.
 - Test: `TestConfiguration_Serialization_Golden` (`internal/types/configuration_test.go`).
