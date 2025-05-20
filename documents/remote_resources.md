@@ -27,4 +27,6 @@
 - Refer to official OpenAI and Anthropic documentation for token counting details.
 - Project uses exact token counts from LLM responses by default, with fallback to a centralized estimation utility if needed.
 
+# No references to deleted files or interfaces remain.
+
 // All links verified as of 2025-04-15.

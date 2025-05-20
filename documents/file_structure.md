@@ -1,5 +1,17 @@
 # File Structure
 
+## Key Directories and Files
+
+- `.github/`, `.junie/`, `.coverage/`, `bin/`, `vendor/`, etc.: Standard project and dependency folders.
+- `cmd/`: Entrypoints for binaries (`server`, `mcp-call`).
+- `internal/`: Main application logic.
+  - `agent/`, `application/`, `chat/`, `configuration/`, `error_handling/`, `llm/`, `mcp_connector/`, `mcp_server/`, `utils/`, etc.
+  - **Removed:** All files in `internal/types/`.
+  - **Removed:** `internal/utils/dump.go` and `internal/utils/dump_test.go`.
+- `site/`: Static site and example configs.
+  - `examples/minimal.yaml`: Updated to use `npx fetcher-mcp` for the `filesystem` tool; removed `disableMcp` from log config.
+- `run`: Project management script. Now improved for test clarity, Russian text check excludes itself, and test prompts updated.
+
 ## Root
 - `README.md`: Project overview and instructions
 - `go.mod`, `go.sum`: Go modules

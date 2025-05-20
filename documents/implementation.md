@@ -1,5 +1,24 @@
 # Implementation
 
+## Analyzer Functionalities
+
+- The analyzer and agent logic now use direct struct and function implementations, with no interface/spec indirection.
+- All utility functions for dumping, time, and JSON have been removed.
+
+## Test Cases
+
+- All tests for removed interfaces and utilities have been deleted.
+- Integration and emulation tests in the `run` script now use updated prompts and improved output.
+
+## Environment Setup
+
+- The `run` script has been updated for better clarity and accuracy in test output and Russian text checks.
+- Example config (`site/examples/minimal.yaml`) now uses `npx fetcher-mcp` for the `filesystem` tool and omits the `disableMcp` log config.
+
+## Summary
+
+The codebase is now simpler, with less indirection and easier-to-follow logic. All documentation and tests have been updated to match the new structure.
+
 ## Core Components
 - **Agent**: Orchestrates LLM loop, tool execution, chat state. No config/server/CLI logic. Exposes interface for app layer.
 - **App MCP**: MCP server/daemon wiring. Instantiates agent, provides CLI/server entrypoints.
