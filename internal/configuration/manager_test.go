@@ -5,57 +5,15 @@ import (
 	"os"
 	"testing"
 
-	"github.com/korchasa/speelka-agent-go/internal/types"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
-
-// SimpleLogger implements the LoggerSpec interface for testing
-type SimpleLogger struct{}
-
-func (m *SimpleLogger) Debug(args ...interface{})                 {}
-func (m *SimpleLogger) Debugf(format string, args ...interface{}) {}
-func (m *SimpleLogger) Info(args ...interface{})                  {}
-func (m *SimpleLogger) Infof(format string, args ...interface{})  {}
-func (m *SimpleLogger) Warn(args ...interface{})                  {}
-func (m *SimpleLogger) Warnf(format string, args ...interface{})  {}
-func (m *SimpleLogger) Error(args ...interface{})                 {}
-func (m *SimpleLogger) Errorf(format string, args ...interface{}) {}
-func (m *SimpleLogger) Fatal(args ...interface{})                 {}
-func (m *SimpleLogger) Fatalf(format string, args ...interface{}) {}
-func (m *SimpleLogger) WithField(key string, value interface{}) types.LogEntrySpec {
-	return &SimpleLogEntry{}
-}
-func (m *SimpleLogger) WithFields(fields logrus.Fields) types.LogEntrySpec {
-	return &SimpleLogEntry{}
-}
-func (m *SimpleLogger) SetLevel(level logrus.Level)                    {}
-func (m *SimpleLogger) SetMCPServer(mcpServer types.MCPServerNotifier) {}
-func (m *SimpleLogger) SetFormatter(formatter logrus.Formatter)        {}
-func (m *SimpleLogger) HandleMCPSetLevel(ctx context.Context, req interface{}) (interface{}, error) {
-	return nil, nil
-}
-
-// SimpleLogEntry implements the LogEntrySpec interface for testing
-type SimpleLogEntry struct{}
-
-func (m *SimpleLogEntry) Debug(args ...interface{})                 {}
-func (m *SimpleLogEntry) Debugf(format string, args ...interface{}) {}
-func (m *SimpleLogEntry) Info(args ...interface{})                  {}
-func (m *SimpleLogEntry) Infof(format string, args ...interface{})  {}
-func (m *SimpleLogEntry) Warn(args ...interface{})                  {}
-func (m *SimpleLogEntry) Warnf(format string, args ...interface{})  {}
-func (m *SimpleLogEntry) Error(args ...interface{})                 {}
-func (m *SimpleLogEntry) Errorf(format string, args ...interface{}) {}
-func (m *SimpleLogEntry) Fatal(args ...interface{})                 {}
-func (m *SimpleLogEntry) Fatalf(format string, args ...interface{}) {}
 
 // Comment out tests that reference NewConfigurationManager or undefined Manager
 // func TestConfigurationManager_LoadConfiguration(t *testing.T) { /* ... */ }
 // func SetTestConfig(cm *Manager, cfg *types.Configuration) { /* ... */ }
 
 func TestManager_LoadConfiguration_Defaults(t *testing.T) {
-	mgr := NewConfigurationManager(nil)
+	mgr := NewConfigurationManager()
 	err := mgr.LoadConfiguration(context.Background(), "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -86,7 +44,7 @@ agent:
 	}
 	tmpfile.Close()
 
-	mgr := NewConfigurationManager(nil)
+	mgr := NewConfigurationManager()
 	err = mgr.LoadConfiguration(context.Background(), tmpfile.Name())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -106,7 +64,7 @@ func TestManager_LoadConfiguration_EnvOverride(t *testing.T) {
 	defer os.Unsetenv("SPL_agent_name")
 	defer os.Unsetenv("SPL_agent_tool_name")
 
-	mgr := NewConfigurationManager(nil)
+	mgr := NewConfigurationManager()
 	err := mgr.LoadConfiguration(context.Background(), "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -123,8 +81,8 @@ func TestManager_LoadConfiguration_EnvOverride(t *testing.T) {
 // --- BEGIN: overlay, validation, redaction, apply, property-based overlay tests ---
 
 func TestManager_ValidateConfiguration(t *testing.T) {
-	mgr := NewConfigurationManager(&SimpleLogger{})
-	validConfig := &types.Configuration{}
+	mgr := NewConfigurationManager()
+	validConfig := &Configuration{}
 	validConfig.Agent.Name = "TestAgent"
 	validConfig.Agent.Tool.Name = "TestTool"
 	validConfig.Agent.Tool.Description = "Test tool description"
@@ -137,7 +95,7 @@ func TestManager_ValidateConfiguration(t *testing.T) {
 	mgr.config = validConfig
 	assert.NoError(t, mgr.Validate())
 
-	invalidConfig := &types.Configuration{}
+	invalidConfig := &Configuration{}
 	mgr.config = invalidConfig
 	// Leave Agent.Name and Tool/LLM empty
 	err := mgr.Validate()
@@ -145,39 +103,10 @@ func TestManager_ValidateConfiguration(t *testing.T) {
 	assert.Contains(t, err.Error(), "agent name is required")
 }
 
-// func TestManager_OverlayApply(t *testing.T) {
-// 	mgr := NewConfigurationManager(&SimpleLogger{})
-// 	base := &types.Configuration{}
-// 	base.Agent.Name = "base-agent"
-// 	base.Agent.Tool.Name = "base-tool"
-// 	base.Agent.Tool.Description = "Base tool description"
-// 	base.Agent.Tool.ArgumentName = "query"
-// 	base.Agent.Tool.ArgumentDescription = "Base query description"
-// 	base.Agent.LLM.Provider = "openai"
-// 	base.Agent.LLM.Model = "gpt-3.5-turbo"
-// 	base.Agent.LLM.APIKey = "base-api-key"
-// 	base.Agent.LLM.PromptTemplate = "Base template with {{query}} and {{tools}}"
-//
-// 	overlay := &types.Configuration{}
-// 	overlay.Agent.Tool.Name = "new-tool"
-// 	overlay.Agent.Tool.Description = "New tool description"
-// 	overlay.Agent.LLM.Model = "gpt-4"
-// 	overlay.Agent.LLM.APIKey = "new-api-key"
-// 	overlay.Agent.LLM.PromptTemplate = "New template with {{query}} and {{tools}}"
-//
-// 	result, err := mgr.Apply(base, overlay)
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, "new-tool", result.Agent.Tool.Name)
-// 	assert.Equal(t, "New tool description", result.Agent.Tool.Description)
-// 	assert.Equal(t, "gpt-4", result.Agent.LLM.Model)
-// 	assert.Equal(t, "new-api-key", result.Agent.LLM.APIKey)
-// 	assert.Equal(t, "New template with {{query}} and {{tools}}", result.Agent.LLM.PromptTemplate)
-// }
-
 func TestRedactedCopy(t *testing.T) {
-	orig := &types.Configuration{}
+	orig := &Configuration{}
 	orig.Agent.LLM.APIKey = "super-secret-llm-key"
-	orig.Agent.Connections.McpServers = map[string]types.MCPServerConnection{
+	orig.Agent.Connections.McpServers = map[string]MCPServerConnection{
 		"server1": {APIKey: "server1-key", URL: "http://server1"},
 		"server2": {APIKey: "server2-key", URL: "http://server2"},
 	}
@@ -189,7 +118,7 @@ func TestRedactedCopy(t *testing.T) {
 }
 
 func TestManager_ValidatePromptTemplate(t *testing.T) {
-	mgr := NewConfigurationManager(&SimpleLogger{})
+	mgr := NewConfigurationManager()
 	err := mgr.validatePromptTemplate("This is a template with {{query}} and {{tools}} placeholders", "query")
 	assert.NoError(t, err)
 	err = mgr.validatePromptTemplate("This is a template with {{input}} and {{tools}} placeholders", "query")
@@ -203,7 +132,7 @@ func TestManager_ValidatePromptTemplate(t *testing.T) {
 }
 
 func TestManager_ExtractPlaceholders(t *testing.T) {
-	mgr := NewConfigurationManager(&SimpleLogger{})
+	mgr := NewConfigurationManager()
 	placeholders, err := mgr.extractPlaceholders("This is a {{test}} template with {{multiple}} placeholders including {{tools}}")
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []string{"test", "multiple", "tools"}, placeholders)
@@ -221,8 +150,7 @@ func TestManager_ExtractPlaceholders(t *testing.T) {
 // --- END: overlay, validation, redaction, apply, property-based overlay tests ---
 
 func TestManager_GetAgentConfig_InlineStruct(t *testing.T) {
-	logger := &SimpleLogger{}
-	mgr := NewConfigurationManager(logger)
+	mgr := NewConfigurationManager()
 	// Load only the default configuration (without file and env)
 	err := mgr.LoadConfiguration(context.Background(), "")
 	assert.NoError(t, err)
@@ -313,7 +241,7 @@ runtime:
 	defer os.Unsetenv("SPL_RUNTIME_LOG_DEFAULTLEVEL")
 
 	t.Run("YAML config + env", func(t *testing.T) {
-		mgr := NewConfigurationManager(nil)
+		mgr := NewConfigurationManager()
 		err := mgr.LoadConfiguration(context.Background(), tmpYaml.Name())
 		assert.NoError(t, err)
 		cfg := mgr.GetConfiguration()
@@ -343,7 +271,7 @@ runtime:
 	})
 
 	t.Run("JSON config + env", func(t *testing.T) {
-		mgr := NewConfigurationManager(nil)
+		mgr := NewConfigurationManager()
 		err := mgr.LoadConfiguration(context.Background(), tmpJson.Name())
 		assert.NoError(t, err)
 		cfg := mgr.GetConfiguration()

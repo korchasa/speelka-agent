@@ -1,7 +1,8 @@
-package types
+package configuration
 
 import (
 	"fmt"
+	"github.com/korchasa/speelka-agent-go/internal/utils/log_formatter"
 
 	"github.com/sirupsen/logrus"
 )
@@ -146,25 +147,21 @@ func (c *Configuration) GetMCPConnectorConfig() MCPConnectorConfig {
 }
 
 // BuildLogConfig creates a business LogConfig structure from the raw Log config
-func BuildLogConfig(raw struct {
-	DefaultLevel string `koanf:"defaultlevel" json:"defaultLevel" yaml:"defaultLevel"`
-	Format       string `koanf:"format"`
-	DisableMCP   bool   `koanf:"disablemcp" json:"disableMcp" yaml:"disableMcp"`
-}) (LogConfig, error) {
-	cfg := LogConfig{
-		DefaultLevel: raw.DefaultLevel,
-		Format:       raw.Format,
-		DisableMCP:   raw.DisableMCP,
-	}
-
+func (c *Configuration) BuildLogConfig() (LogConfig, error) {
 	// Parse log level
-	level, err := parseLogLevel(raw.DefaultLevel)
+	level, err := parseLogLevel(c.Runtime.Log.DefaultLevel)
 	if err != nil {
-		return LogConfig{}, err
+		return LogConfig{}, fmt.Errorf("failed to parse log level `%s`: %w", c.Runtime.Log.DefaultLevel, err)
 	}
-	cfg.Level = level
-
-	return cfg, nil
+	formatter, err := parseFormatter(c.Runtime.Log.Format)
+	if err != nil {
+		return LogConfig{}, fmt.Errorf("failed to parse log format `%s`: %w", c.Runtime.Log.Format, err)
+	}
+	return LogConfig{
+		Level:      level,
+		Formatter:  formatter,
+		DisableMCP: c.Runtime.Log.DisableMCP,
+	}, nil
 }
 
 // parseLogLevel converts log level string to logrus.Level
@@ -186,5 +183,18 @@ func parseLogLevel(level string) (logrus.Level, error) {
 		return logrus.TraceLevel, nil
 	default:
 		return logrus.InfoLevel, fmt.Errorf("invalid log level: %s", level)
+	}
+}
+
+func parseFormatter(format string) (logrus.Formatter, error) {
+	switch format {
+	case "json":
+		return &logrus.JSONFormatter{}, nil
+	case "text":
+		return &logrus.TextFormatter{}, nil
+	case "auto":
+		return &log_formatter.CustomLogFormatter{}, nil
+	default:
+		return nil, fmt.Errorf("unexpected log format: %s", format)
 	}
 }

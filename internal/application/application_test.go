@@ -1,14 +1,19 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
+
+	"github.com/korchasa/speelka-agent-go/internal/configuration"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/sirupsen/logrus"
 )
 
 type mockAgent struct {
@@ -28,6 +33,16 @@ func (m *mockAgent) RegisterTools() {}
 // type testApp struct{ agent directAgent }
 
 // func (a *testApp) DirectAgent() directAgent { return a.agent }
+
+// Helper function to create a test logger
+func newTestLogger() *logrus.Logger {
+	buf := &bytes.Buffer{}
+	log := logrus.New()
+	log.SetOutput(buf)
+	log.SetLevel(logrus.DebugLevel)
+	log.SetFormatter(&logrus.TextFormatter{DisableTimestamp: true})
+	return log
+}
 
 func TestApp_SuccessfulCall(t *testing.T) {
 	app := &MCPApp{}
@@ -125,8 +140,10 @@ func TestApp_JSONOutputWithNewlines(t *testing.T) {
 func TestApp_DispatchMCPCall_Success(t *testing.T) {
 	a := &MCPApp{
 		agent: &mockAgent{callResult: "ok", callMeta: types.MetaInfo{}, callErr: nil},
-		cfg:   (&mockConfigManager{toolName: "answer", argName: "text"}).GetConfiguration(),
+		cfg:   &configuration.Configuration{},
 	}
+	a.cfg.Agent.Tool.Name = "answer"
+	a.cfg.Agent.Tool.ArgumentName = "text"
 	req := mcp.CallToolRequest{
 		Params: struct {
 			Name      string                 `json:"name"`
@@ -146,7 +163,9 @@ func TestApp_DispatchMCPCall_Success(t *testing.T) {
 }
 
 func TestApp_DispatchMCPCall_InvalidTool(t *testing.T) {
-	a := &MCPApp{agent: &mockAgent{}, cfg: (&mockConfigManager{toolName: "answer", argName: "text"}).GetConfiguration()}
+	a := &MCPApp{agent: &mockAgent{}, cfg: &configuration.Configuration{}}
+	a.cfg.Agent.Tool.Name = "answer"
+	a.cfg.Agent.Tool.ArgumentName = "text"
 	req := mcp.CallToolRequest{Params: struct {
 		Name      string                 `json:"name"`
 		Arguments map[string]interface{} `json:"arguments,omitempty"`
@@ -161,7 +180,9 @@ func TestApp_DispatchMCPCall_InvalidTool(t *testing.T) {
 }
 
 func TestApp_DispatchMCPCall_MissingArgument(t *testing.T) {
-	a := &MCPApp{agent: &mockAgent{}, cfg: (&mockConfigManager{toolName: "answer", argName: "text"}).GetConfiguration()}
+	a := &MCPApp{agent: &mockAgent{}, cfg: &configuration.Configuration{}}
+	a.cfg.Agent.Tool.Name = "answer"
+	a.cfg.Agent.Tool.ArgumentName = "text"
 	req := mcp.CallToolRequest{Params: struct {
 		Name      string                 `json:"name"`
 		Arguments map[string]interface{} `json:"arguments,omitempty"`
@@ -176,7 +197,9 @@ func TestApp_DispatchMCPCall_MissingArgument(t *testing.T) {
 }
 
 func TestApp_DispatchMCPCall_EmptyInput(t *testing.T) {
-	a := &MCPApp{agent: &mockAgent{}, cfg: (&mockConfigManager{toolName: "answer", argName: "text"}).GetConfiguration()}
+	a := &MCPApp{agent: &mockAgent{}, cfg: &configuration.Configuration{}}
+	a.cfg.Agent.Tool.Name = "answer"
+	a.cfg.Agent.Tool.ArgumentName = "text"
 	req := mcp.CallToolRequest{Params: struct {
 		Name      string                 `json:"name"`
 		Arguments map[string]interface{} `json:"arguments,omitempty"`
@@ -191,7 +214,9 @@ func TestApp_DispatchMCPCall_EmptyInput(t *testing.T) {
 }
 
 func TestApp_DispatchMCPCall_CoreError(t *testing.T) {
-	a := &MCPApp{agent: &mockAgent{callErr: errors.New("fail")}, cfg: (&mockConfigManager{toolName: "answer", argName: "text"}).GetConfiguration()}
+	a := &MCPApp{agent: &mockAgent{callErr: errors.New("fail")}, cfg: &configuration.Configuration{}}
+	a.cfg.Agent.Tool.Name = "answer"
+	a.cfg.Agent.Tool.ArgumentName = "text"
 	req := mcp.CallToolRequest{Params: struct {
 		Name      string                 `json:"name"`
 		Arguments map[string]interface{} `json:"arguments,omitempty"`
@@ -205,21 +230,10 @@ func TestApp_DispatchMCPCall_CoreError(t *testing.T) {
 	}
 }
 
-type mockConfigManager struct{ toolName, argName string }
-
-func (m *mockConfigManager) GetConfiguration() *types.Configuration {
-	cfg := &types.Configuration{}
-	cfg.Agent.Tool.Name = m.toolName
-	cfg.Agent.Tool.ArgumentName = m.argName
-	return cfg
-}
-
-func (m *mockConfigManager) LoadConfiguration(ctx context.Context, configFilePath string) error {
-	return nil
-}
-
 func Test_validateToolName(t *testing.T) {
-	cfg := (&mockConfigManager{toolName: "answer", argName: "text"}).GetConfiguration()
+	cfg := &configuration.Configuration{}
+	cfg.Agent.Tool.Name = "answer"
+	cfg.Agent.Tool.ArgumentName = "text"
 	t.Run("valid name", func(t *testing.T) {
 		err := validateToolName("answer", cfg)
 		if err != nil {
@@ -311,4 +325,68 @@ func Test_MCPConnector_ToolsInitialization(t *testing.T) {
 			t.Errorf("expected external_tool after init, got %+v", connector.tools)
 		}
 	})
+}
+
+// --- BEGIN: New tests for MCPApp methods ---
+
+// outputErrorAndExit is pure, can be tested directly
+func TestMCPApp_outputErrorAndExit(t *testing.T) {
+	app := &MCPApp{}
+	res, code, err := app.outputErrorAndExit("user", errors.New("fail"))
+	if res.Success || code != 1 || err == nil {
+		t.Errorf("expected user error, got: %+v, %d, %v", res, code, err)
+	}
+	res, code, err = app.outputErrorAndExit("config", errors.New("fail"))
+	if res.Success || code != 1 || err == nil {
+		t.Errorf("expected config error, got: %+v, %d, %v", res, code, err)
+	}
+	res, code, err = app.outputErrorAndExit("internal", errors.New("fail"))
+	if res.Success || code != 2 || err == nil {
+		t.Errorf("expected internal error, got: %+v, %d, %v", res, code, err)
+	}
+}
+
+func TestMCPApp_ExecuteDirectCall_agentNotInit(t *testing.T) {
+	app := &MCPApp{}
+	res, code, err := app.ExecuteDirectCall(context.Background(), "hi")
+	if res.Success || code != 1 || err == nil {
+		t.Errorf("expected config error, got: %+v, %d, %v", res, code, err)
+	}
+}
+
+func TestApp_ExecuteDirectCall_Success(t *testing.T) {
+	app := &MCPApp{}
+	app.agent = &mockAgent{callResult: "ok", callMeta: types.MetaInfo{}, callErr: nil}
+	res, code, err := app.ExecuteDirectCall(context.Background(), "foo")
+	if !res.Success || code != 0 || err != nil || res.Result["answer"] != "ok" {
+		t.Errorf("expected success, code=0, err=nil, got: %+v, %d, %v", res, code, err)
+	}
+}
+
+func TestApp_ExecuteDirectCall_InternalError(t *testing.T) {
+	app := &MCPApp{}
+	app.agent = &mockAgent{callErr: errors.New("oops")}
+	res, code, err := app.ExecuteDirectCall(context.Background(), "foo")
+	if res.Success || code != 2 || err == nil || res.Error.Message != "oops" {
+		t.Errorf("expected internal error, got: %+v, %d, %v", res, code, err)
+	}
+}
+
+func TestApp_Start_InvalidConfig(t *testing.T) {
+	logger := newTestLogger()
+	cfg := &configuration.Configuration{}
+	cfg.Runtime.Transports.HTTP.Enabled = true
+	cfg.Runtime.Transports.Stdio.Enabled = true
+	app, err := NewMCPApp(logger, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error from NewMCPApp: %v", err)
+	}
+	err = app.Start(context.Background())
+	if err == nil || err.Error() == "" || !contains(err.Error(), "failed to create MCP server") {
+		t.Errorf("expected error about failed to create MCP server, got: %v", err)
+	}
+}
+
+func contains(s, substr string) bool {
+	return strings.Contains(s, substr)
 }

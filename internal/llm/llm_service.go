@@ -1,19 +1,21 @@
 // Package llm_service provides functionality for interacting with large language model (LLM) services.
 // Responsibility: Interacting with various LLM providers (OpenAI, Anthropic)
 // Features: Sends requests, processes responses, formats prompts, supports retry strategy
-package llm_service
+package llm
 
 import (
 	"context"
 	"fmt"
+	"github.com/korchasa/speelka-agent-go/internal/configuration"
+	"github.com/korchasa/speelka-agent-go/internal/llm/cost"
+	llmtypes "github.com/korchasa/speelka-agent-go/internal/llm/types"
+	"github.com/korchasa/speelka-agent-go/internal/types"
+	"github.com/korchasa/speelka-agent-go/internal/utils/dump"
+	"github.com/korchasa/speelka-agent-go/internal/utils/tools"
 	"strings"
 	"time"
 
-	"github.com/korchasa/speelka-agent-go/internal/utils"
-
 	"github.com/korchasa/speelka-agent-go/internal/error_handling"
-	"github.com/korchasa/speelka-agent-go/internal/llm_models"
-	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/anthropic"
@@ -24,16 +26,29 @@ import (
 // Responsibility: Providing a unified API for working with different LLM services
 // Features: Encapsulates settings and client for a specific LLM provider
 type LLMService struct {
-	config     types.LLMConfig
+	config     configuration.LLMConfig
 	client     llms.Model
-	logger     types.LoggerSpec
-	calculator types.CalculatorSpec
+	logger     loggerSpec
+	calculator calculatorSpec
+}
+
+type calculatorSpec interface {
+	// CalculateLLMResponse returns the number of tokens, USD cost, and approximation flag for the given model and LLM response.
+	CalculateLLMResponse(modelName string, resp llmtypes.LLMResponse) (tokens int, cost float64, isApprox bool, err error)
+}
+
+type loggerSpec interface {
+	Info(args ...interface{})
+	Debugf(format string, args ...interface{})
+	Infof(format string, args ...interface{})
+	Warnf(format string, args ...interface{})
+	Errorf(format string, args ...interface{})
 }
 
 // NewLLMService creates a new instance of LLMService
 // Responsibility: Factory method for creating an LLM service
 // Features: Returns an uninitialized service that requires Initialize to be called
-func NewLLMService(cfg types.LLMConfig, logger types.LoggerSpec) (*LLMService, error) {
+func NewLLMService(cfg configuration.LLMConfig, logger loggerSpec) (*LLMService, error) {
 	s := &LLMService{
 		config: cfg,
 		logger: logger,
@@ -92,7 +107,7 @@ func NewLLMService(cfg types.LLMConfig, logger types.LoggerSpec) (*LLMService, e
 		)
 	}
 
-	s.calculator = llm_models.NewCalculator()
+	s.calculator = cost.NewCalculator()
 
 	return s, nil
 
@@ -101,17 +116,17 @@ func NewLLMService(cfg types.LLMConfig, logger types.LoggerSpec) (*LLMService, e
 // SendRequest sends a request to the LLM with the given prompt and tools
 // Responsibility: Communication with the LLM API and getting a response
 // Features: Uses a retry strategy to handle transient errors
-func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageContent, tools []mcp.Tool) (types.LLMResponse, error) {
+func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageContent, toolsForLLM []mcp.Tool) (llmtypes.LLMResponse, error) {
 	if s.client == nil {
-		return types.LLMResponse{}, error_handling.NewError(
+		return llmtypes.LLMResponse{}, error_handling.NewError(
 			"LLM service not initialized",
 			error_handling.ErrorCategoryValidation,
 		)
 	}
 
-	llmTools, err := types.ConvertToolsToLLM(tools)
+	llmTools, err := tools.ConvertToolsToLLM(toolsForLLM)
 	if err != nil {
-		return types.LLMResponse{}, error_handling.WrapError(
+		return llmtypes.LLMResponse{}, error_handling.WrapError(
 			err,
 			"failed to convert tools to LLM tools",
 			error_handling.ErrorCategoryInternal,
@@ -173,7 +188,7 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 			)
 		}
 		s.logger.Infof("<< [LLM] GenerateContent success after %v", genDuration)
-		s.logger.Debugf("<< LLM response received with %d choices: %s", len(response.Choices), utils.SDump(response))
+		s.logger.Debugf("<< LLM response received with %d choices: %s", len(response.Choices), dump.SDump(response))
 		if len(response.Choices) == 0 {
 			return error_handling.NewError(
 				"empty response from LLM",
@@ -203,14 +218,14 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 	if err != nil {
 		// Clean confidential information from the error
 		sanitizedErr := error_handling.SanitizeError(err)
-		return types.LLMResponse{}, sanitizedErr
+		return llmtypes.LLMResponse{}, sanitizedErr
 	}
 
 	calls := make([]types.CallToolRequest, len(llmsCalls))
 	for i, call := range llmsCalls {
 		calls[i], err = types.NewCallToolRequest(call)
 		if err != nil {
-			return types.LLMResponse{}, error_handling.WrapError(
+			return llmtypes.LLMResponse{}, error_handling.WrapError(
 				err,
 				"failed to create CallToolRequest",
 				error_handling.ErrorCategoryInternal,
@@ -254,7 +269,7 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 		}
 	}
 
-	tokensMetadata := types.LLMResponseTokensMetadata{
+	tokensMetadata := llmtypes.LLMResponseTokensMetadata{
 		CompletionTokens: completionTokens,
 		PromptTokens:     promptTokens,
 		ReasoningTokens:  reasoningTokens,
@@ -262,27 +277,22 @@ func (s *LLMService) SendRequest(ctx context.Context, messages []llms.MessageCon
 	}
 
 	// Compose and return the response
-	llmResp := types.LLMResponse{
+	llmResp := llmtypes.LLMResponse{
 		RequestMessages: messages,
 		Text:            message,
 		Calls:           calls,
-		Metadata: types.LLMResponseMetadata{
+		Metadata: llmtypes.LLMResponseMetadata{
 			Tokens:     tokensMetadata,
 			DurationMs: durationMs,
 		},
 	}
 	if s.calculator != nil {
-		_, cost, _, err := s.calculator.CalculateLLMResponse(s.config.Model, llmResp)
+		_, amount, _, err := s.calculator.CalculateLLMResponse(s.config.Model, llmResp)
 		if err != nil {
 			s.logger.Warnf("Failed to calculate cost: %v", err)
-			cost = 0
+			amount = 0
 		}
-		llmResp.Metadata.Cost = cost
+		llmResp.Metadata.Cost = amount
 	}
 	return llmResp, nil
-}
-
-// GetCalculator returns the cost calculator for use in other components (e.g., Chat)
-func (s *LLMService) GetCalculator() types.CalculatorSpec {
-	return s.calculator
 }

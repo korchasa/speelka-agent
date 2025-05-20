@@ -1,33 +1,4 @@
-// Package types defines interfaces for MCP server components.
-// Responsibility: Defining interaction contracts between system components
-// Features: Contains only interfaces and data structures, without implementation
-package types
-
-import (
-	"context"
-
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
-)
-
-// MCPServerSpec represents the interface for the MCP server.
-// Responsibility: Defining the contract for the MCP server
-// Features: Defines methods for starting, stopping, and managing tools
-type MCPServerSpec interface {
-	// Serve initializes and starts the MCP server.
-	// It returns an error if the server fails to start.
-	Serve(ctx context.Context, daemonMode bool, handler server.ToolHandlerFunc) error
-
-	// Stop gracefully shuts down the MCP server.
-	// It returns an error if the server fails to stop.
-	Stop(ctx context.Context) error
-
-	// GetAllTools returns all tools registered on the server.
-	GetAllTools() []mcp.Tool
-
-	// GetServer returns the underlying server instance.
-	GetServer() *server.MCPServer
-}
+package configuration
 
 // ParameterSpec represents the specification of a parameter.
 type ParameterSpec struct {
@@ -181,4 +152,21 @@ func (c *MCPServerConnection) IsToolAllowed(name string) bool {
 	}
 	// If neither list is set, allow all
 	return true
+}
+
+// MCPServerConfigForTest returns a sample configuration for MCPServer used in tests.
+func MCPServerConfigForTest() MCPServerConfig {
+	return MCPServerConfig{
+		Name:    "test-server",
+		Version: "0.1.0",
+		Tool: MCPServerToolConfig{
+			Name:                "test-tool",
+			Description:         "desc",
+			ArgumentName:        "arg",
+			ArgumentDescription: "desc",
+		},
+		MCPLogEnabled: true,
+		HTTP:          HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: false},
+		Stdio:         StdioConfig{Enabled: true},
+	}
 }

@@ -1,6 +1,7 @@
 package mcp_server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,8 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/korchasa/speelka-agent-go/internal/logger"
-	"github.com/korchasa/speelka-agent-go/internal/types"
+	"github.com/korchasa/speelka-agent-go/internal/configuration"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/sirupsen/logrus"
@@ -33,37 +33,20 @@ func (m *mockMCPServer) SendNotificationToClient(ctx context.Context, method str
 
 func (m *mockMCPServer) GetServer() *server.MCPServer { return nil }
 
-// Minimal mock LoggerSpec for testing
-// Only methods actually used in tests
-// (others panic)
-// NB: Secret/PII filtering is the responsibility of business logic, not logging infrastructure.
-// Here we only check that the log is sent correctly.
-// Check that logging capability is present
-// Check that logging capability is absent
-
-func newTestLogger() types.LoggerSpec {
-	return &loggerAdapter{logger.NewLogger(types.LogConfig{DefaultLevel: "debug", Format: "text", Level: 1, DisableMCP: true})}
-}
-
-type loggerAdapter struct {
-	*logger.Logger
+// Helper function to create a test logger
+func newTestLogger() *logrus.Logger {
+	buf := &bytes.Buffer{}
+	log := logrus.New()
+	log.SetOutput(buf)
+	log.SetLevel(logrus.DebugLevel)
+	log.SetFormatter(&logrus.TextFormatter{DisableTimestamp: true})
+	return log
 }
 
 func TestMCPServer_SendsNotificationOnLog(t *testing.T) {
 	mockServer := &mockMCPServer{}
 	log := newTestLogger()
-	config := types.MCPServerConfig{
-		Name:    "test-server",
-		Version: "0.1.0",
-		Tool: types.MCPServerToolConfig{
-			Name:                "test-tool",
-			Description:         "desc",
-			ArgumentName:        "arg",
-			ArgumentDescription: "desc",
-		},
-		HTTP:  types.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: false},
-		Stdio: types.StdioConfig{Enabled: true},
-	}
+	config := configuration.MCPServerConfigForTest()
 	mcpSrv, err := NewMCPServer(config, log)
 	if err != nil {
 		t.Fatalf("failed to create MCPServer: %v", err)
@@ -98,18 +81,7 @@ func TestMCPServer_LoggingMessageNotification_Structure(t *testing.T) {
 func TestMCPServer_LogLevelFiltering(t *testing.T) {
 	mockServer := &mockMCPServer{}
 	log := newTestLogger()
-	config := types.MCPServerConfig{
-		Name:    "test-server",
-		Version: "0.1.0",
-		Tool: types.MCPServerToolConfig{
-			Name:                "test-tool",
-			Description:         "desc",
-			ArgumentName:        "arg",
-			ArgumentDescription: "desc",
-		},
-		HTTP:  types.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: false},
-		Stdio: types.StdioConfig{Enabled: true},
-	}
+	config := configuration.MCPServerConfigForTest()
 	mcpSrv, err := NewMCPServer(config, log)
 	if err != nil {
 		t.Fatalf("failed to create MCPServer: %v", err)
@@ -130,18 +102,7 @@ func TestMCPServer_LogLevelFiltering(t *testing.T) {
 func TestMCPServer_NoSecretsOrPIIInLogs(t *testing.T) {
 	mockServer := &mockMCPServer{}
 	log := newTestLogger()
-	config := types.MCPServerConfig{
-		Name:    "test-server",
-		Version: "0.1.0",
-		Tool: types.MCPServerToolConfig{
-			Name:                "test-tool",
-			Description:         "desc",
-			ArgumentName:        "arg",
-			ArgumentDescription: "desc",
-		},
-		HTTP:  types.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: false},
-		Stdio: types.StdioConfig{Enabled: true},
-	}
+	config := configuration.MCPServerConfigForTest()
 	mcpSrv, err := NewMCPServer(config, log)
 	if err != nil {
 		t.Fatalf("failed to create MCPServer: %v", err)
@@ -163,19 +124,7 @@ func TestMCPServer_NoSecretsOrPIIInLogs(t *testing.T) {
 
 func TestMCPServer_LoggingCapability_Enabled(t *testing.T) {
 	log := newTestLogger()
-	config := types.MCPServerConfig{
-		Name:    "test-server",
-		Version: "0.1.0",
-		Tool: types.MCPServerToolConfig{
-			Name:                "test-tool",
-			Description:         "desc",
-			ArgumentName:        "arg",
-			ArgumentDescription: "desc",
-		},
-		MCPLogEnabled: true,
-		HTTP:          types.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: false},
-		Stdio:         types.StdioConfig{Enabled: true},
-	}
+	config := configuration.MCPServerConfigForTest()
 	mcpSrv, err := NewMCPServer(config, log)
 	if err != nil {
 		t.Fatalf("failed to create MCPServer: %v", err)
@@ -187,19 +136,8 @@ func TestMCPServer_LoggingCapability_Enabled(t *testing.T) {
 
 func TestMCPServer_LoggingCapability_Disabled(t *testing.T) {
 	log := newTestLogger()
-	config := types.MCPServerConfig{
-		Name:    "test-server",
-		Version: "0.1.0",
-		Tool: types.MCPServerToolConfig{
-			Name:                "test-tool",
-			Description:         "desc",
-			ArgumentName:        "arg",
-			ArgumentDescription: "desc",
-		},
-		MCPLogEnabled: false,
-		HTTP:          types.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: false},
-		Stdio:         types.StdioConfig{Enabled: true},
-	}
+	config := configuration.MCPServerConfigForTest()
+	config.MCPLogEnabled = false
 	mcpSrv, err := NewMCPServer(config, log)
 	if err != nil {
 		t.Fatalf("failed to create MCPServer: %v", err)
@@ -211,19 +149,7 @@ func TestMCPServer_LoggingCapability_Disabled(t *testing.T) {
 
 func TestMCPServer_ConcurrentStopAndServe(t *testing.T) {
 	log := newTestLogger()
-	config := types.MCPServerConfig{
-		Name:    "test-server",
-		Version: "0.1.0",
-		Tool: types.MCPServerToolConfig{
-			Name:                "test-tool",
-			Description:         "desc",
-			ArgumentName:        "arg",
-			ArgumentDescription: "desc",
-		},
-		MCPLogEnabled: false,
-		HTTP:          types.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: false},
-		Stdio:         types.StdioConfig{Enabled: true},
-	}
+	config := configuration.MCPServerConfigForTest()
 	mcpSrv, err := NewMCPServer(config, log)
 	if err != nil {
 		t.Fatalf("failed to create MCPServer: %v", err)
@@ -251,19 +177,7 @@ func TestMCPServer_ConcurrentStopAndServe(t *testing.T) {
 
 func TestMCPServer_ToolsConsistency(t *testing.T) {
 	log := newTestLogger()
-	config := types.MCPServerConfig{
-		Name:    "test-server",
-		Version: "0.1.0",
-		Tool: types.MCPServerToolConfig{
-			Name:                "test-tool",
-			Description:         "desc",
-			ArgumentName:        "arg",
-			ArgumentDescription: "desc",
-		},
-		MCPLogEnabled: true,
-		HTTP:          types.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: false},
-		Stdio:         types.StdioConfig{Enabled: true},
-	}
+	config := configuration.MCPServerConfigForTest()
 	mcpSrv, err := NewMCPServer(config, log)
 	if err != nil {
 		t.Fatalf("failed to create MCPServer: %v", err)
@@ -309,40 +223,9 @@ func TestMCPServer_ToolsConsistency(t *testing.T) {
 	}
 }
 
-type mockLogger struct{}
-
-func (m *mockLogger) Info(args ...interface{})                                   {}
-func (m *mockLogger) Infof(format string, args ...interface{})                   {}
-func (m *mockLogger) Warn(args ...interface{})                                   {}
-func (m *mockLogger) Warnf(format string, args ...interface{})                   {}
-func (m *mockLogger) Error(args ...interface{})                                  {}
-func (m *mockLogger) Errorf(format string, args ...interface{})                  {}
-func (m *mockLogger) WithFields(fields logrus.Fields) types.LogEntrySpec         { return m }
-func (m *mockLogger) Debug(args ...interface{})                                  {}
-func (m *mockLogger) Debugf(format string, args ...interface{})                  {}
-func (m *mockLogger) Fatal(args ...interface{})                                  {}
-func (m *mockLogger) Fatalf(format string, args ...interface{})                  {}
-func (m *mockLogger) WithField(key string, value interface{}) types.LogEntrySpec { return m }
-func (m *mockLogger) HandleMCPSetLevel(ctx context.Context, req interface{}) (interface{}, error) {
-	return nil, nil
-}
-func (m *mockLogger) SetFormatter(formatter logrus.Formatter) {}
-func (m *mockLogger) SetLevel(level logrus.Level)             {}
-
 func TestMainToolHandler_NotSet_ReturnsError(t *testing.T) {
-	cfg := types.MCPServerConfig{
-		Name:    "test-server",
-		Version: "0.1.0",
-		Tool: types.MCPServerToolConfig{
-			Name:                "process",
-			Description:         "Main tool",
-			ArgumentName:        "input",
-			ArgumentDescription: "Input text",
-		},
-		HTTP:  types.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: false},
-		Stdio: types.StdioConfig{Enabled: true},
-	}
-	log := &mockLogger{}
+	cfg := configuration.MCPServerConfigForTest()
+	log := newTestLogger()
 	srv, err := NewMCPServer(cfg, log)
 	if err != nil {
 		t.Fatalf("failed to create MCPServer: %v", err)
@@ -375,17 +258,8 @@ func TestMainToolHandler_NotSet_ReturnsError(t *testing.T) {
 }
 
 func TestMCPServer_buildTools(t *testing.T) {
-	cfg := types.MCPServerConfig{
-		Name:    "test",
-		Version: "1.0",
-		Tool: types.MCPServerToolConfig{
-			Name: "main-tool", Description: "desc", ArgumentName: "arg", ArgumentDescription: "desc",
-		},
-		MCPLogEnabled: true,
-		HTTP:          types.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: false},
-		Stdio:         types.StdioConfig{Enabled: true},
-	}
-	srv, err := NewMCPServer(cfg, &mockLogger{})
+	cfg := configuration.MCPServerConfigForTest()
+	srv, err := NewMCPServer(cfg, newTestLogger())
 	if err != nil {
 		t.Fatalf("failed to create MCPServer: %v", err)
 	}
@@ -395,7 +269,7 @@ func TestMCPServer_buildTools(t *testing.T) {
 	}
 	found := false
 	for _, tool := range tools {
-		if tool.Name == "main-tool" {
+		if tool.Name == "test-tool" {
 			found = true
 		}
 	}
@@ -405,19 +279,8 @@ func TestMCPServer_buildTools(t *testing.T) {
 }
 
 func Test_initSSEServer_and_initStdioServer(t *testing.T) {
-	cfg := types.MCPServerConfig{
-		Name:    "test-server",
-		Version: "0.1.0",
-		Tool: types.MCPServerToolConfig{
-			Name:                "main-tool",
-			Description:         "desc",
-			ArgumentName:        "arg",
-			ArgumentDescription: "desc",
-		},
-		HTTP:  types.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: false},
-		Stdio: types.StdioConfig{Enabled: true},
-	}
-	log := &mockLogger{}
+	cfg := configuration.MCPServerConfigForTest()
+	log := newTestLogger()
 	srv, err := NewMCPServer(cfg, log)
 	if err != nil {
 		t.Fatalf("failed to create MCPServer: %v", err)
@@ -439,30 +302,88 @@ func Test_initSSEServer_and_initStdioServer(t *testing.T) {
 }
 
 func Test_buildMainTool_and_buildLoggingTool(t *testing.T) {
-	cfg := types.MCPServerConfig{
-		Name:    "test-server",
-		Version: "0.1.0",
-		Tool: types.MCPServerToolConfig{
-			Name:                "main-tool",
-			Description:         "desc",
-			ArgumentName:        "arg",
-			ArgumentDescription: "desc",
-		},
-		MCPLogEnabled: true,
-		HTTP:          types.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: false},
-		Stdio:         types.StdioConfig{Enabled: true},
-	}
-	log := &mockLogger{}
+	cfg := configuration.MCPServerConfigForTest()
+	log := newTestLogger()
 	srv, err := NewMCPServer(cfg, log)
 	if err != nil {
 		t.Fatalf("failed to create MCPServer: %v", err)
 	}
 	mainTool := srv.buildMainTool()
-	if mainTool.Name != "main-tool" {
-		t.Errorf("expected main-tool, got %s", mainTool.Name)
+	if mainTool.Name != "test-tool" {
+		t.Errorf("expected test-tool, got %s", mainTool.Name)
 	}
 	logTool := srv.buildLoggingTool()
 	if logTool.Name != "logging/setLevel" {
 		t.Errorf("expected logging/setLevel, got %s", logTool.Name)
 	}
+}
+
+func Test_getIsHttpMode(t *testing.T) {
+	cfg := configuration.MCPServerConfigForTest()
+	cfg.HTTP.Enabled = true
+	cfg.Stdio.Enabled = true
+	_, err := getIsHttpMode(cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "both HTTP and Stdio modes cannot be enabled")
+
+	cfg.HTTP.Enabled = false
+	cfg.Stdio.Enabled = false
+	_, err = getIsHttpMode(cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "either HTTP or Stdio mode must be enabled")
+
+	cfg.HTTP.Enabled = true
+	cfg.Stdio.Enabled = false
+	ok, err := getIsHttpMode(cfg)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+
+	cfg.HTTP.Enabled = false
+	cfg.Stdio.Enabled = true
+	ok, err = getIsHttpMode(cfg)
+	assert.NoError(t, err)
+	assert.False(t, ok)
+}
+
+func Test_initSSEServer_and_initStdioServer_nilServer(t *testing.T) {
+	cfg := configuration.MCPServerConfig{HTTP: configuration.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: true}, Stdio: configuration.StdioConfig{Enabled: false}}
+	log := newTestLogger()
+	srv, _ := NewMCPServer(cfg, log)
+	srv.server = nil
+	err := srv.initSSEServer(nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "server is not *server.MCPServer")
+
+	srv, _ = NewMCPServer(cfg, log)
+	srv.server = nil
+	err = srv.initStdioServer(nil, context.Background())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "server is not *server.MCPServer")
+}
+
+func TestSendNotificationToClient_ServerNil(t *testing.T) {
+	cfg := configuration.MCPServerConfig{HTTP: configuration.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: true}, Stdio: configuration.StdioConfig{Enabled: false}}
+	log := newTestLogger()
+	srv, _ := NewMCPServer(cfg, log)
+	srv.server = nil
+	err := srv.SendNotificationToClient(context.Background(), "method", nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "underlying server is not initialized")
+}
+
+func TestStop_onCleanServer(t *testing.T) {
+	cfg := configuration.MCPServerConfig{HTTP: configuration.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: true}, Stdio: configuration.StdioConfig{Enabled: false}}
+	log := newTestLogger()
+	srv, _ := NewMCPServer(cfg, log)
+	srv.sseServer = nil
+	err := srv.Stop(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestBuildHooks_HooksCount(t *testing.T) {
+	cfg := configuration.MCPServerConfig{HTTP: configuration.HTTPConfig{Host: "127.0.0.1", Port: 12345, Enabled: true}, Stdio: configuration.StdioConfig{Enabled: false}}
+	log := newTestLogger()
+	srv, _ := NewMCPServer(cfg, log)
+	hooks := srv.BuildHooks()
+	assert.NotNil(t, hooks)
 }

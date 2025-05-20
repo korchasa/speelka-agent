@@ -4,20 +4,20 @@ package mcp_connector
 import (
 	"bufio"
 	"encoding/json"
+	"github.com/korchasa/speelka-agent-go/internal/configuration"
 	"strings"
 
-	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // setupLoggingRoute configures logging routing for a server depending on capabilities and transport.
-func (mc *MCPConnector) setupLoggingRoute(serverID string, mcpClient client.MCPClient, capabilities mcp.ServerCapabilities, serverConfig types.MCPServerConnection) {
+func (mc *MCPConnector) setupLoggingRoute(serverID string, mcpClient client.MCPClient, capabilities mcp.ServerCapabilities, serverConfig configuration.MCPServerConnection) {
 	if capabilities.Logging != nil {
 		// MCP logging via notifications/message
 		if stdioClient, ok := mcpClient.(*client.Client); ok {
 			stdioClient.OnNotification(func(notification mcp.JSONRPCNotification) {
-				mc.logger.Debugf("[MCP-LOG] notification: %s", notification.Method)
+				mc.log.Debugf("[MCP-LOG] notification: %s", notification.Method)
 				if notification.Method != "notifications/message" {
 					return
 				}
@@ -39,15 +39,15 @@ func (mc *MCPConnector) setupLoggingRoute(serverID string, mcpClient client.MCPC
 				}
 				switch level {
 				case "debug":
-					mc.logger.Debugf("[MCP %s] %s", level, msg)
+					mc.log.Debugf("[MCP %s] %s", level, msg)
 				case "info", "notice":
-					mc.logger.Infof("[MCP %s] %s", level, msg)
+					mc.log.Infof("[MCP %s] %s", level, msg)
 				case "warning":
-					mc.logger.Warnf("[MCP %s] %s", level, msg)
+					mc.log.Warnf("[MCP %s] %s", level, msg)
 				case "error", "critical", "alert", "emergency":
-					mc.logger.Errorf("[MCP %s] %s", level, msg)
+					mc.log.Errorf("[MCP %s] %s", level, msg)
 				default:
-					mc.logger.Infof("[MCP %s] %s", level, msg)
+					mc.log.Infof("[MCP %s] %s", level, msg)
 				}
 			})
 		}
@@ -61,7 +61,7 @@ func (mc *MCPConnector) setupLoggingRoute(serverID string, mcpClient client.MCPC
 						line := scanner.Text()
 						trimmed := strings.TrimRight(line, "\r\n \t")
 						if trimmed != "" {
-							mc.logger.Infof("`%s` stderr: %s", serverID, trimmed)
+							mc.log.Infof("`%s` stderr: %s", serverID, trimmed)
 						}
 					}
 				}()
@@ -69,6 +69,6 @@ func (mc *MCPConnector) setupLoggingRoute(serverID string, mcpClient client.MCPC
 		}
 	} else if serverConfig.URL != "" {
 		// For HTTP fallback is not possible
-		mc.logger.Infof("[MCP-CONNECT] Fallback to stderr is not possible for HTTP transport (server '%s')", serverID)
+		mc.log.Infof("[MCP-CONNECT] Fallback to stderr is not possible for HTTP transport (server '%s')", serverID)
 	}
 }

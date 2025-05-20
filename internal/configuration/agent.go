@@ -1,11 +1,7 @@
-// Package types defines interfaces for MCP server components.
+// Package configuration defines interfaces for MCP server components.
 // Responsibility: Defining interaction contracts between system components
 // Features: Contains only interfaces and data structures, without implementation
-package types
-
-import (
-	"context"
-)
+package configuration
 
 // AgentConfig represents the configuration for the Agent.
 // Responsibility: Storing all settings needed by the Agent
@@ -23,11 +19,4 @@ type AgentConfig struct {
 
 	// Agent behavior configuration
 	MaxLLMIterations int
-}
-
-// AgentSpec represents the interface for the Agent component.
-// Responsibility: Defining the contract for the Agent component
-// Features: Defines methods for direct call mode
-type AgentSpec interface {
-	RunSession(ctx context.Context, input string) (string, MetaInfo, error)
 }

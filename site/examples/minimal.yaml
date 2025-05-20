@@ -6,10 +6,8 @@
 runtime:
   log:
     defaultLevel: "info"
-    disableMcp: false
 agent:
   name: "minimal-speelka-agent"
-
   # Tool configuration
   tool:
     name: "process"
@@ -31,8 +29,8 @@ agent:
         command: "docker"
         args: ["run", "-i", "--rm", "mcp/time"]
       filesystem:
-        command: "mcp-filesystem-server"
-        args: ["./"]
+        command: "npx"
+        args: ["-y", "fetcher-mcp"]
 
   # Chat configuration
   chat:

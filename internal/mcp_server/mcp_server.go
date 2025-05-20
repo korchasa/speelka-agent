@@ -9,7 +9,11 @@ import (
 	"os"
 	"sync"
 
-	"github.com/korchasa/speelka-agent-go/internal/types"
+	"github.com/korchasa/speelka-agent-go/internal/utils/log_levels"
+
+	"github.com/korchasa/speelka-agent-go/internal/configuration"
+	"github.com/sirupsen/logrus"
+
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -21,24 +25,24 @@ const (
 // MCPServer implements an MCP server for handling client requests and managing the lifecycle of tools.
 // Thread-safe for public methods. All external dependencies are injected via the constructor (DI).
 type MCPServer struct {
-	server     *server.MCPServer     // Internal MCP server
-	cfg        types.MCPServerConfig // Server configuration
-	logger     types.LoggerSpec      // Logger (DI)
-	sseServer  *server.SSEServer     // HTTP SSE server (optional)
-	isHttpMode bool                  // true if HTTP is enabled, false if Stdio is enabled)
-	mu         sync.Mutex            // Protects the state of server/sseServer
+	server     *server.MCPServer             // Internal MCP server
+	cfg        configuration.MCPServerConfig // Server configuration
+	log        *logrus.Logger                // Logger (DI)
+	sseServer  *server.SSEServer             // HTTP SSE server (optional)
+	isHttpMode bool                          // true if HTTP is enabled, false if Stdio is enabled)
+	mu         sync.Mutex                    // Protects the state of server/sseServer
 }
 
 // NewMCPServer creates a new instance of MCPServer with the given configuration and logger.
 // All dependencies are injected via parameters (Dependency Injection).
-func NewMCPServer(cfg types.MCPServerConfig, logger types.LoggerSpec) (*MCPServer, error) {
+func NewMCPServer(cfg configuration.MCPServerConfig, log *logrus.Logger) (*MCPServer, error) {
 	var err error
 	var opts []server.ServerOption
 	if cfg.MCPLogEnabled {
 		opts = append(opts, server.WithLogging())
 	}
 	if cfg.Debug {
-		opts = append(opts, server.WithHooks((&MCPServer{cfg: cfg, logger: logger}).BuildHooks()))
+		opts = append(opts, server.WithHooks((&MCPServer{cfg: cfg, log: log}).BuildHooks()))
 	}
 
 	mcpSrv := server.NewMCPServer(
@@ -50,10 +54,10 @@ func NewMCPServer(cfg types.MCPServerConfig, logger types.LoggerSpec) (*MCPServe
 	mcps := &MCPServer{
 		server: mcpSrv,
 		cfg:    cfg,
-		logger: logger,
+		log:    log,
 	}
 
-	logger.Infof("MCPServer: server created with config: %+v", cfg)
+	log.Infof("MCPServer: server created with config: %+v", cfg)
 	mcps.isHttpMode, err = getIsHttpMode(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate config: %w", err)
@@ -78,14 +82,16 @@ func (s *MCPServer) Serve(ctx context.Context, handler server.ToolHandlerFunc) e
 			}
 		} else if tool.Name == setLevelToolName {
 			h = func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-				res, err := s.logger.HandleMCPSetLevel(ctx, req)
-				if err != nil {
-					return nil, err
-				}
-				result, ok := res.(*mcp.CallToolResult)
+				mcpLevel, ok := req.Params.Arguments["level"].(string)
 				if !ok {
-					return nil, fmt.Errorf("unexpected result type from HandleMCPSetLevel")
+					return nil, fmt.Errorf("can't find level argument in %s request", setLevelToolName)
 				}
+				logrusLevel, err := log_levels.MCPToLogrusLevel(mcpLevel)
+				if err != nil {
+					return nil, fmt.Errorf("failed to convert MCP log level '%s' to logrus level: %w", mcpLevel, err)
+				}
+				s.log.SetLevel(logrusLevel)
+				result := &mcp.CallToolResult{}
 				return result, nil
 			}
 		}
@@ -93,17 +99,17 @@ func (s *MCPServer) Serve(ctx context.Context, handler server.ToolHandlerFunc) e
 	}
 
 	if s.isHttpMode {
-		s.logger.Info("Running in daemon mode with HTTP SSE MCP server")
+		s.log.Info("Running in daemon mode with HTTP SSE MCP server")
 		if err := s.initSSEServer(handler); err != nil {
 			return fmt.Errorf("failed to start HTTP MCP server: %w", err)
 		}
 	} else {
-		s.logger.Info("Running in script mode with stdio MCP server")
+		s.log.Info("Running in script mode with stdio MCP server")
 		if err := s.initStdioServer(handler, ctx); err != nil {
 			return fmt.Errorf("failed to start Stdio MCP Server: %w", err)
 		}
 	}
-	s.logger.Infof("MSP Server: finished")
+	s.log.Infof("MSP Server: finished")
 	return nil
 }
 
@@ -112,10 +118,11 @@ func (s *MCPServer) initSSEServer(handler server.ToolHandlerFunc) error {
 	if s.server == nil {
 		return fmt.Errorf("server is not *server.MCPServer")
 	}
-	s.logger.Info("MCP SSE server initialized successfully")
+	s.log.Info("MCP SSE server initialized successfully")
 	addr := fmt.Sprintf("%s:%d", s.cfg.HTTP.Host, s.cfg.HTTP.Port)
 	baseUrl := fmt.Sprintf("http://%s:%d", s.cfg.HTTP.Host, s.cfg.HTTP.Port)
 	s.sseServer = server.NewSSEServer(s.server, server.WithBaseURL(baseUrl))
+	s.log.AddHook(&LogHook{server: s})
 	if err := s.sseServer.Start(addr); err != nil {
 		return fmt.Errorf("failed to serve SSE MCP server: %w", err)
 	}
@@ -127,7 +134,8 @@ func (s *MCPServer) initStdioServer(handler server.ToolHandlerFunc, ctx context.
 	if s.server == nil {
 		return fmt.Errorf("server is not *server.MCPServer")
 	}
-	s.logger.Info("MCP Stdio server initialized successfully")
+	s.log.Info("MCP Stdio server initialized successfully")
+	s.log.AddHook(&LogHook{server: s})
 	return server.NewStdioServer(s.server).Listen(ctx, os.Stdin, os.Stdout)
 }
 
@@ -156,7 +164,7 @@ func (s *MCPServer) Stop(ctx context.Context) error {
 	defer s.mu.Unlock()
 	if s.sseServer != nil {
 		if err := s.sseServer.Shutdown(ctx); err != nil {
-			s.logger.Warnf("Error stopping SSE server: %v", err)
+			s.log.Warnf("Error stopping SSE server: %v", err)
 		}
 		s.sseServer = nil
 	}
@@ -170,15 +178,15 @@ func (s *MCPServer) BuildHooks() *server.Hooks {
 	hooks := &server.Hooks{}
 
 	hooks.AddBeforeCallTool(func(ctx context.Context, id any, message *mcp.CallToolRequest) {
-		s.logger.Infof("[MCP] Before call %s: %+v", message.Params.Name, message)
+		s.log.Infof("[MCP] Before call %s: %+v", message.Params.Name, message)
 	})
 
 	hooks.AddAfterCallTool(func(ctx context.Context, id any, message *mcp.CallToolRequest, result *mcp.CallToolResult) {
-		s.logger.Infof("[MCP] After call %s result: %+v", message.Params.Name, result)
+		s.log.Infof("[MCP] After call %s result: %+v", message.Params.Name, result)
 	})
 
 	hooks.AddOnError(func(ctx context.Context, id any, method mcp.MCPMethod, message any, err error) {
-		s.logger.Errorf("[MCP] Error with method %s: %v | message: %+v", method, err, message)
+		s.log.Errorf("[MCP] Error with method %s: %v | message: %+v", method, err, message)
 	})
 
 	return hooks
@@ -233,7 +241,7 @@ func (s *MCPServer) buildTools() []mcp.Tool {
 	return tools
 }
 
-func getIsHttpMode(cfg types.MCPServerConfig) (bool, error) {
+func getIsHttpMode(cfg configuration.MCPServerConfig) (bool, error) {
 
 	isHttpEnabled := cfg.HTTP.Enabled
 	isStdioEnabled := cfg.Stdio.Enabled

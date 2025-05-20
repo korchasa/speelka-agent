@@ -1,9 +1,8 @@
-package llm_models
+package cost
 
 import (
 	"fmt"
-
-	"github.com/korchasa/speelka-agent-go/internal/types"
+	"github.com/korchasa/speelka-agent-go/internal/llm/types"
 )
 
 // Calculator is a concrete implementation of Calculator.
@@ -12,7 +11,7 @@ type Calculator struct {
 }
 
 // NewCalculator creates a new Calculator using the provided Catalog.
-func NewCalculator() types.CalculatorSpec {
+func NewCalculator() *Calculator {
 	return &Calculator{catalog: NewDefaultCatalog()}
 }
 

@@ -3,12 +3,15 @@ package agent
 import (
 	"context"
 	"fmt"
+	"github.com/korchasa/speelka-agent-go/internal/configuration"
+	types2 "github.com/korchasa/speelka-agent-go/internal/llm/types"
+	"github.com/korchasa/speelka-agent-go/internal/utils/dump"
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/tmc/langchaingo/llms"
 	"strings"
 	"time"
 
 	"github.com/korchasa/speelka-agent-go/internal/chat"
-
-	"github.com/korchasa/speelka-agent-go/internal/utils"
 
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -16,10 +19,10 @@ import (
 )
 
 type Agent struct {
-	config        types.AgentConfig
-	llmService    types.LLMServiceSpec
-	toolConnector types.ToolConnectorSpec
-	logger        types.LoggerSpec
+	config        configuration.AgentConfig
+	llmService    llmServiceSpec
+	toolConnector toolConnectorSpec
+	log           *logrus.Logger
 	chat          *chat.Chat // Injected chat instance
 }
 
@@ -33,19 +36,55 @@ var finishTool = mcp.NewTool(
 	),
 )
 
+// calculatorSpec computes monetary cost for LLM usage.
+type calculatorSpec interface {
+	// CalculateLLMResponse returns the number of tokens, USD cost, and approximation flag for the given model and LLM response.
+	CalculateLLMResponse(modelName string, resp types2.LLMResponse) (tokens int, cost float64, isApprox bool, err error)
+}
+
+// ToolConnectorSpec represents the interface for the tool connector component.
+// Responsibility: Defining the contract for the tool connector
+// Features: Defines methods for connecting to tool servers and executing tools
+type toolConnectorSpec interface {
+	// InitAndConnectToMCPs initializes connections to all configured tool servers.
+	// It returns an error if any connection fails.
+	InitAndConnectToMCPs(ctx context.Context) error
+	// ConnectServer connects to a specific tool server.
+	// It returns the client for the server and an error if the connection fails.
+	ConnectServer(ctx context.Context, serverID string, serverConfig configuration.MCPServerConnection) (client.MCPClient, error)
+	// GetAllTools returns a list of all tools available on all connected tool servers.
+	// It returns an error if the tool discovery fails.
+	GetAllTools(ctx context.Context) ([]mcp.Tool, error)
+	// ExecuteTool executes a tool on the appropriate tool server.
+	// It returns the result of the tool execution and an error if the execution fails.
+	ExecuteTool(ctx context.Context, call types.CallToolRequest) (*mcp.CallToolResult, error)
+	// Close closes all connections to tool servers.
+	// It returns an error if any connection fails to close.
+	Close() error
+}
+
+// llmServiceSpec represents the interface for the LLM service.
+// Responsibility: Defining the contract for the LLM service
+// Features: Defines methods for sending requests to the LLM
+type llmServiceSpec interface {
+	// SendRequest sends a request to the LLM with the given prompt and tools.
+	// It returns the response struct and an error if the request fails.
+	SendRequest(ctx context.Context, messages []llms.MessageContent, tools []mcp.Tool) (types2.LLMResponse, error)
+}
+
 // NewAgent creates a new instance of Agent with the given dependencies
 func NewAgent(
-	config types.AgentConfig,
-	llmService types.LLMServiceSpec,
-	toolConnector types.ToolConnectorSpec,
-	logger types.LoggerSpec,
+	config configuration.AgentConfig,
+	llmService llmServiceSpec,
+	toolConnector toolConnectorSpec,
+	log *logrus.Logger,
 	chat *chat.Chat,
 ) *Agent {
 	return &Agent{
 		config:        config,
 		llmService:    llmService,
 		toolConnector: toolConnector,
-		logger:        logger,
+		log:           log,
 		chat:          chat,
 	}
 }
@@ -61,7 +100,7 @@ func (a *Agent) GetAllTools(ctx context.Context) ([]mcp.Tool, error) {
 	for _, t := range mcpTools {
 		toolNames = append(toolNames, t.Name)
 	}
-	a.logger.Infof("Tools for LLM: %v", toolNames)
+	a.log.Infof("Tools for LLM: %v", toolNames)
 	return mcpTools, nil
 }
 
@@ -129,21 +168,21 @@ func (a *Agent) RunSession(ctx context.Context, input string) (string, types.Met
 
 func (a *Agent) beginSession(userRequest string, tools []mcp.Tool) (*chat.Chat, error) {
 	// Create a new Chat instance for each session, passing request budget
-	var calculator types.CalculatorSpec = nil
-	if svc, ok := a.llmService.(interface{ GetCalculator() types.CalculatorSpec }); ok {
+	var calculator calculatorSpec = nil
+	if svc, ok := a.llmService.(interface{ GetCalculator() calculatorSpec }); ok {
 		calculator = svc.GetCalculator()
 	}
 	session := chat.NewChat(
 		a.config.Model,
 		a.config.SystemPromptTemplate,
 		a.config.Tool.ArgumentName,
-		a.logger,
+		a.log,
 		calculator,
 		a.config.MaxTokens,
 		0.0, // No request budget in AgentConfig, use 0.0 (unlimited)
 	)
 	info := session.GetInfo()
-	a.logger.Infof("Chat configured with max tokens: %d, request budget: %.4f", info.MaxTokens, info.RequestBudget)
+	a.log.Infof("Chat configured with max tokens: %d, request budget: %.4f", info.MaxTokens, info.RequestBudget)
 
 	err := session.Begin(userRequest, tools)
 	if err != nil {
@@ -152,12 +191,12 @@ func (a *Agent) beginSession(userRequest string, tools []mcp.Tool) (*chat.Chat, 
 	return session, nil
 }
 
-func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResponse, session *chat.Chat, _ int) {
+func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types2.LLMResponse, session *chat.Chat, _ int) {
 	var toolCalls []string
 	for _, call := range resp.Calls {
 		toolCalls = append(toolCalls, call.String())
 	}
-	a.logger.WithFields(logrus.Fields{
+	a.log.WithFields(logrus.Fields{
 		"request_cost":     resp.Metadata.Cost,
 		"request_duration": resp.Metadata.DurationMs,
 	}).Infof("<< LLM asked to call tools:\n%s", strings.Join(toolCalls, "\n"))
@@ -165,7 +204,7 @@ func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResp
 		session.AddToolCall(call)
 		result, err := a.toolConnector.ExecuteTool(ctx, call)
 		if err != nil {
-			a.logger.Errorf("failed to execute tool %s: %v", call.ToolName(), err)
+			a.log.Errorf("failed to execute tool %s: %v", call.ToolName(), err)
 			errorResult := mcp.NewToolResultError(fmt.Sprintf("Error: %v", err))
 			session.AddToolResult(call, errorResult)
 			continue
@@ -173,10 +212,10 @@ func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types.LLMResp
 		session.AddToolResult(call, result)
 	}
 
-	a.logger.Infof("Iteration complete: %s", utils.SDump(session.GetInfo()))
+	a.log.Infof("Iteration complete: %s", dump.SDump(session.GetInfo()))
 }
 
-func (a *Agent) HandleLLMFinishToolRequest(call types.CallToolRequest, resp types.LLMResponse, session *chat.Chat) *mcp.CallToolResult {
+func (a *Agent) HandleLLMFinishToolRequest(call types.CallToolRequest, resp types2.LLMResponse, session *chat.Chat) *mcp.CallToolResult {
 	// Robust nil and type checking for 'text' argument
 	argValue, exists := call.Params.Arguments["text"]
 	if !exists || argValue == nil {
@@ -189,7 +228,7 @@ func (a *Agent) HandleLLMFinishToolRequest(call types.CallToolRequest, resp type
 	if finalMessage == "" {
 		return mcp.NewToolResultError("empty 'text' argument in finish tool call")
 	}
-	a.logger.WithFields(logrus.Fields{
+	a.log.WithFields(logrus.Fields{
 		"request_cost":     resp.Metadata.Cost,
 		"request_duration": resp.Metadata.DurationMs,
 	}).Infof("<< LLM asked to answer the user with: %s", finalMessage)

@@ -1,17 +1,29 @@
 package mcp_connector
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/korchasa/speelka-agent-go/internal/configuration"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
+
+// Helper function to create a test logger
+func newTestLogger() (*logrus.Logger, *bytes.Buffer) {
+	buf := &bytes.Buffer{}
+	log := logrus.New()
+	log.SetOutput(buf)
+	log.SetLevel(logrus.DebugLevel)
+	log.SetFormatter(&logrus.TextFormatter{DisableTimestamp: true})
+	return log, buf
+}
 
 func Test_testableTimeoutSelect_result(t *testing.T) {
 	resultCh := make(chan *mcp.CallToolResult, 1)
@@ -60,55 +72,18 @@ func Test_testableTimeoutSelect_timeout(t *testing.T) {
 	}
 }
 
-// mockLogger implements types.LoggerSpec for testing
-// Only Infof and required methods are implemented for this test
-
-type mockLogger struct {
-	lastMsg string
-}
-
-func (m *mockLogger) Infof(format string, args ...interface{}) {
-	m.lastMsg = fmt.Sprintf(format, args...)
-}
-func (m *mockLogger) SetLevel(_ logrus.Level)                            {}
-func (m *mockLogger) SetFormatter(_ logrus.Formatter)                    {}
-func (m *mockLogger) Debug(...interface{})                               {}
-func (m *mockLogger) Debugf(string, ...interface{})                      {}
-func (m *mockLogger) Info(...interface{})                                {}
-func (m *mockLogger) Warn(...interface{})                                {}
-func (m *mockLogger) Warnf(string, ...interface{})                       {}
-func (m *mockLogger) Error(...interface{})                               {}
-func (m *mockLogger) Errorf(string, ...interface{})                      {}
-func (m *mockLogger) Fatal(...interface{})                               {}
-func (m *mockLogger) Fatalf(string, ...interface{})                      {}
-func (m *mockLogger) WithField(string, interface{}) types.LogEntrySpec   { return m }
-func (m *mockLogger) WithFields(fields logrus.Fields) types.LogEntrySpec { return m }
-func (m *mockLogger) SetMCPServer(types.MCPServerNotifier)               {}
-func (m *mockLogger) HandleMCPSetLevel(ctx context.Context, req interface{}) (interface{}, error) {
-	return nil, nil
-}
-
-// Manually call the logic for saving capabilities
-// assert.False(t, called, "Initialize should not be called explicitly in this test")
-// assert.True(t, ok, "capabilities should be saved")
-// assert.NotNil(t, cap.Logging, "capabilities.Logging should be set")
-// Scenario 1: logging is supported (MCP logging)
-// Simulate MCP log (info level)
-// Scenario 2: logging is not supported (fallback to stderr)
-
 func Test_StderrLoggingTrimsNewlines(t *testing.T) {
-	// Simulate the goroutine logic directly
-	logger := &mockLogger{}
+	log, buf := newTestLogger()
 	serverID := "test-server"
 	line := "error message with newline\n\r  "
 	trimmed := strings.TrimRight(line, "\r\n \t")
-	logger.Infof("`%s` stderr: %s", serverID, trimmed)
-	assert.Equal(t, "`test-server` stderr: error message with newline", logger.lastMsg)
+	log.Infof("`%s` stderr: %s", serverID, trimmed)
+	assert.Contains(t, buf.String(), "`test-server` stderr: error message with newline")
 }
 
 func Test_LoggingRouting_MCPAndStderr(t *testing.T) {
-	logger := &mockLogger{}
-	mc := NewMCPConnector(types.MCPConnectorConfig{}, logger)
+	log, buf := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{}, log)
 	serverID := "test-server"
 
 	// Scenario 1: logging is supported (MCP logging)
@@ -119,9 +94,9 @@ func Test_LoggingRouting_MCPAndStderr(t *testing.T) {
 	// Simulate MCP log (info level)
 	msg := "mcp log message"
 	level := "info"
-	logger.Infof("[MCP %s] %s", level, msg)
-	assert.Contains(t, logger.lastMsg, msg)
-	assert.Contains(t, logger.lastMsg, "[MCP info]")
+	log.Infof("[MCP %s] %s", level, msg)
+	assert.Contains(t, buf.String(), msg)
+	assert.Contains(t, buf.String(), "[MCP info]")
 
 	// Scenario 2: logging is not supported (fallback to stderr)
 	capWithoutLogging := mcp.ServerCapabilities{}
@@ -130,18 +105,20 @@ func Test_LoggingRouting_MCPAndStderr(t *testing.T) {
 	mc.dataLock.Unlock()
 	stderrMsg := "stderr fallback message\n"
 	trimmed := strings.TrimRight(stderrMsg, "\r\n \t")
-	logger.Infof("`%s` stderr: %s", serverID, trimmed)
-	assert.Contains(t, logger.lastMsg, "stderr: stderr fallback message")
+	log.Infof("`%s` stderr: %s", serverID, trimmed)
+	assert.Contains(t, buf.String(), "stderr: stderr fallback message")
 }
 
 func Test_InitAndConnectToMCPs_emptyConfig(t *testing.T) {
-	mc := NewMCPConnector(types.MCPConnectorConfig{McpServers: map[string]types.MCPServerConnection{}}, &mockLogger{})
+	log, _ := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{McpServers: map[string]configuration.MCPServerConnection{}}, log)
 	err := mc.InitAndConnectToMCPs(context.Background())
 	assert.NoError(t, err)
 }
 
 func Test_ExecuteTool_toolNotFound(t *testing.T) {
-	mc := NewMCPConnector(types.MCPConnectorConfig{McpServers: map[string]types.MCPServerConnection{}}, &mockLogger{})
+	log, _ := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{McpServers: map[string]configuration.MCPServerConnection{}}, log)
 	_, err := mc.ExecuteTool(context.Background(), types.CallToolRequest{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "tool `")
@@ -203,7 +180,8 @@ func (m *mockMCPClient) Complete(ctx context.Context, req mcp.CompleteRequest) (
 func (m *mockMCPClient) OnNotification(handler func(mcp.JSONRPCNotification)) {}
 
 func Test_ExecuteTool_success(t *testing.T) {
-	mc := NewMCPConnector(types.MCPConnectorConfig{McpServers: map[string]types.MCPServerConnection{"srv": {}}}, &mockLogger{})
+	log, _ := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{McpServers: map[string]configuration.MCPServerConnection{"srv": {}}}, log)
 	mc.clients["srv"] = &mockMCPClient{callResult: &mcp.CallToolResult{Result: mcp.Result{Meta: map[string]any{"ok": true}}}}
 	mc.tools["srv"] = []mcp.Tool{{Name: "foo"}}
 	call := types.CallToolRequest{}
@@ -225,7 +203,8 @@ func (s *slowClient) CallTool(ctx context.Context, req mcp.CallToolRequest) (*mc
 }
 
 func Test_ExecuteTool_timeout(t *testing.T) {
-	mc := NewMCPConnector(types.MCPConnectorConfig{McpServers: map[string]types.MCPServerConnection{"srv": {Timeout: 0.01}}}, &mockLogger{})
+	log, _ := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{McpServers: map[string]configuration.MCPServerConnection{"srv": {Timeout: 0.01}}}, log)
 	mc.clients["srv"] = &slowClient{}
 	mc.tools["srv"] = []mcp.Tool{{Name: "foo"}}
 	call := types.CallToolRequest{}
@@ -237,7 +216,8 @@ func Test_ExecuteTool_timeout(t *testing.T) {
 }
 
 func Test_ExecuteTool_error(t *testing.T) {
-	mc := NewMCPConnector(types.MCPConnectorConfig{McpServers: map[string]types.MCPServerConnection{"srv": {}}}, &mockLogger{})
+	log, _ := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{McpServers: map[string]configuration.MCPServerConnection{"srv": {}}}, log)
 	mc.clients["srv"] = &mockMCPClient{callErr: fmt.Errorf("fail call")}
 	mc.tools["srv"] = []mcp.Tool{{Name: "foo"}}
 	call := types.CallToolRequest{}
@@ -249,7 +229,8 @@ func Test_ExecuteTool_error(t *testing.T) {
 }
 
 func Test_Close_clients(t *testing.T) {
-	mc := NewMCPConnector(types.MCPConnectorConfig{}, &mockLogger{})
+	log, _ := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{}, log)
 	mc.clients["ok"] = &mockMCPClient{}
 	mc.clients["fail"] = &mockMCPClient{closeErr: fmt.Errorf("fail close")}
 	// Should not panic, errors are logged
@@ -257,7 +238,8 @@ func Test_Close_clients(t *testing.T) {
 }
 
 func Test_GetAllTools_emptyAndFilled(t *testing.T) {
-	mc := NewMCPConnector(types.MCPConnectorConfig{}, &mockLogger{})
+	log, _ := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{}, log)
 	tools, err := mc.GetAllTools(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -274,8 +256,9 @@ func Test_GetAllTools_emptyAndFilled(t *testing.T) {
 }
 
 func Test_filterAllowedTools(t *testing.T) {
-	mc := NewMCPConnector(types.MCPConnectorConfig{}, &mockLogger{})
-	srvCfg := types.MCPServerConnection{
+	log, _ := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{}, log)
+	srvCfg := configuration.MCPServerConnection{
 		IncludeTools: []string{"foo"},
 		ExcludeTools: []string{"bar"},
 	}
@@ -287,12 +270,13 @@ func Test_filterAllowedTools(t *testing.T) {
 }
 
 func Test_getServerTimeout(t *testing.T) {
-	cfg := types.MCPConnectorConfig{
-		McpServers: map[string]types.MCPServerConnection{
+	log, _ := newTestLogger()
+	cfg := configuration.MCPConnectorConfig{
+		McpServers: map[string]configuration.MCPServerConnection{
 			"srv": {Timeout: 42},
 		},
 	}
-	mc := NewMCPConnector(cfg, &mockLogger{})
+	mc := NewMCPConnector(cfg, log)
 	if mc.getCallTimeout("srv") != 42*time.Second {
 		t.Error("getCallTimeout should return configured timeout as duration")
 	}
@@ -302,7 +286,8 @@ func Test_getServerTimeout(t *testing.T) {
 }
 
 func Test_findServerAndClient(t *testing.T) {
-	mc := NewMCPConnector(types.MCPConnectorConfig{}, &mockLogger{})
+	log, _ := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{}, log)
 	mc.clients["srv"] = &mockMCPClient{}
 	mc.tools["srv"] = []mcp.Tool{{Name: "foo"}}
 	t.Run("found", func(t *testing.T) {
@@ -327,12 +312,13 @@ func Test_findServerAndClient(t *testing.T) {
 }
 
 func Test_getCallTimeout(t *testing.T) {
-	cfg := types.MCPConnectorConfig{
-		McpServers: map[string]types.MCPServerConnection{
+	log, _ := newTestLogger()
+	cfg := configuration.MCPConnectorConfig{
+		McpServers: map[string]configuration.MCPServerConnection{
 			"srv": {Timeout: 42},
 		},
 	}
-	mc := NewMCPConnector(cfg, &mockLogger{})
+	mc := NewMCPConnector(cfg, log)
 	if mc.getCallTimeout("srv") != 42*time.Second {
 		t.Error("getCallTimeout should return configured timeout as duration")
 	}
@@ -342,7 +328,8 @@ func Test_getCallTimeout(t *testing.T) {
 }
 
 func Test_handleToolExecutionResult(t *testing.T) {
-	mc := NewMCPConnector(types.MCPConnectorConfig{}, &mockLogger{})
+	log, _ := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{}, log)
 	call := types.CallToolRequest{}
 	call.Params.Name = "foo"
 	res := &mcp.CallToolResult{Result: mcp.Result{Meta: map[string]any{"ok": true}}}
@@ -365,4 +352,27 @@ func Test_handleToolExecutionResult(t *testing.T) {
 			t.Errorf("expected exec error, got %v, %v", result, err)
 		}
 	})
+}
+
+func TestConnectServer_NoCommandNoURL(t *testing.T) {
+	log, _ := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{}, log)
+	_, err := mc.ConnectServer(context.Background(), "srv", configuration.MCPServerConnection{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "neither command nor URL is specified")
+}
+
+func Test_getCallTimeout_CustomAndDefault(t *testing.T) {
+	log, _ := newTestLogger()
+	mc := NewMCPConnector(configuration.MCPConnectorConfig{
+		McpServers: map[string]configuration.MCPServerConnection{
+			"srv": {Timeout: 42.0},
+		},
+	}, log)
+	timeout := mc.getCallTimeout("srv")
+	assert.Equal(t, 42*time.Second, timeout)
+	// default
+	mc = NewMCPConnector(configuration.MCPConnectorConfig{}, log)
+	timeout = mc.getCallTimeout("unknown")
+	assert.Equal(t, 30*time.Second, timeout)
 }

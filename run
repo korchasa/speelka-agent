@@ -134,7 +134,7 @@ case $CMD in
         go run -race ./cmd/server/main.go "$@"
         ;;
     test-direct-call-single)
-        echo -e "${BLUE}Running integration test for --call flag (without child mcps)...${NC}"
+        echo -e "${BLUE}Running integration test for --call flag without child MCP servers...${NC}"
         load_env
         go build -o bin/speelka-agent ./cmd/server/main.go
         ./bin/speelka-agent --config "site/examples/minimal.yaml" --call "What is 2+2?"
@@ -145,10 +145,10 @@ case $CMD in
         fi
         ;;
     test-direct-call-with-mcps)
-        echo -e "${BLUE}Running integration test for --call flag (with child mcps)...${NC}"
+        echo -e "${BLUE}Running integration test for --call flag with child MCP servers...${NC}"
         load_env
         go build -o bin/speelka-agent ./cmd/server/main.go
-        ./bin/speelka-agent --config "site/examples/minimal.yaml" --call "What is in the oldest file in the project directory, including all nested directories? Show only 10 first lines of the file."
+        ./bin/speelka-agent --config "site/examples/minimal.yaml" --call "What time has passed since the last commit in the project https://github.com/korchasa/speelka-agent?"
         # Check exit code is 0 (success)
         if [ $? -ne 0 ]; then
             echo -e "${RED}FAIL: Expected exit code 0, got $?${NC}"
@@ -156,7 +156,7 @@ case $CMD in
         fi
         ;;
     test-emulation-single)
-        echo -e "${BLUE}Test agent with 'What time is it now?' request${NC}"
+        echo -e "${BLUE}Test agent without child MCP servers{NC}"
         (
             load_env
             go build -o bin/mcp-call ./cmd/mcp-call/main.go
@@ -165,12 +165,12 @@ case $CMD in
         )
         ;;
     test-emulation-with-mcps)
-        echo -e "${BLUE}Test agent with 'What is in the oldest file in the directory, including all nested directories?' request${NC}"
+        echo -e "${BLUE}Test agent with child MCP servers{NC}"
         (
             load_env
             go build -o bin/mcp-call ./cmd/mcp-call/main.go
             check_command "mcp"
-            SPL_AGENT_LLM_TEMPERATURE=0.2 SPL_AGENT_CHAT_MAX_TOKENS=16000 ./bin/mcp-call --tool process --call-timeout 30 --params '{"input": "What is in the oldest file in the directory, including all nested directories? Show only 10 first lines of the file."}' go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
+            SPL_AGENT_LLM_TEMPERATURE=0.2 SPL_AGENT_CHAT_MAX_TOKENS=16000 ./bin/mcp-call --tool process --call-timeout 30 --params '{"input": "What time has passed since the last commit in the project https://github.com/korchasa/speelka-agent?"}' go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
         )
         ;;
     inspect)
@@ -199,8 +199,8 @@ case $CMD in
             echo -e "${RED}Error: TODO/FIXME/Println found!${NC}"
             exit 1
         fi
-        # Check for Russian text in all non-ignored files
-        git ls-files > .files_to_check.txt
+        # Check for Russian text in all non-ignored files, but exclude this script itself
+        git ls-files | grep -v '^run$' > .files_to_check.txt
         if cat .files_to_check.txt | xargs grep -n -E '[А-Яа-яЁё]' ; then
             echo -e "${RED}Error: Russian text found!${NC}"
             rm .files_to_check.txt

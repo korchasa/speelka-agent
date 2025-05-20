@@ -1,9 +1,9 @@
-package llm_models
+package cost
 
 import (
+	"github.com/korchasa/speelka-agent-go/internal/llm/types"
 	"testing"
 
-	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/tmc/langchaingo/llms"
 )
 
@@ -132,7 +132,7 @@ func TestCalculator_CalculateCost(t *testing.T) {
 	calc := NewCalculator()
 
 	t.Run("known model", func(t *testing.T) {
-		cost, err := calc.(*Calculator).CalculateCost("gpt-4o", 1000, 500)
+		cost, err := calc.CalculateCost("gpt-4o", 1000, 500)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -142,7 +142,7 @@ func TestCalculator_CalculateCost(t *testing.T) {
 	})
 
 	t.Run("unknown model", func(t *testing.T) {
-		_, err := calc.(*Calculator).CalculateCost("nonexistent-model", 100, 100)
+		_, err := calc.CalculateCost("nonexistent-model", 100, 100)
 		if err == nil {
 			t.Error("expected error for unknown model, got nil")
 		}

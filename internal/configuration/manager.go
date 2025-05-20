@@ -14,24 +14,21 @@ import (
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
 
-	"github.com/korchasa/speelka-agent-go/internal/types"
 	goyaml "gopkg.in/yaml.v3"
 )
 
 // Manager implements the types.ConfigurationManagerSpec interface.
 // Responsibility: Managing application configuration by coordinating multiple loaders
 type Manager struct {
-	logger types.LoggerSpec
-	config *types.Configuration
+	config *Configuration
 	k      *koanf.Koanf
 }
 
 // NewConfigurationManager creates a new instance of ConfigurationManagerSpec.
 // Responsibility: Factory method for creating a configuration manager
-func NewConfigurationManager(logger types.LoggerSpec) *Manager {
+func NewConfigurationManager() *Manager {
 	return &Manager{
-		logger: logger,
-		k:      koanf.New("."),
+		k: koanf.New("."),
 	}
 }
 
@@ -59,7 +56,7 @@ func (cm *Manager) LoadConfiguration(ctx context.Context, configFilePath string)
 	if err := cm.k.Load(env.Provider("SPL_", ".", envKeyToPath), nil); err != nil {
 		return fmt.Errorf("failed to load env: %w", err)
 	}
-	cfg := &types.Configuration{}
+	cfg := &Configuration{}
 	unmarshalConf := koanf.UnmarshalConf{Tag: "koanf", FlatPaths: false}
 	if err := cm.k.UnmarshalWithConf("", cfg, unmarshalConf); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
@@ -83,7 +80,7 @@ func envKeyToPath(s string) string {
 }
 
 // GetConfiguration returns the loaded configuration
-func (cm *Manager) GetConfiguration() *types.Configuration {
+func (cm *Manager) GetConfiguration() *Configuration {
 	return cm.config
 }
 
@@ -109,14 +106,14 @@ func (cm *Manager) Validate() error {
 	return nil
 }
 
-func (cm *Manager) validateAgent(config *types.Configuration) error {
+func (cm *Manager) validateAgent(config *Configuration) error {
 	if config.Agent.Name == "" {
 		return fmt.Errorf("agent name is required")
 	}
 	return nil
 }
 
-func (cm *Manager) validateTool(config *types.Configuration) error {
+func (cm *Manager) validateTool(config *Configuration) error {
 	var errs []string
 	if config.Agent.Tool.Name == "" {
 		errs = append(errs, "Tool name is required")
@@ -136,7 +133,7 @@ func (cm *Manager) validateTool(config *types.Configuration) error {
 	return nil
 }
 
-func (cm *Manager) validateLLM(config *types.Configuration) error {
+func (cm *Manager) validateLLM(config *Configuration) error {
 	var errs []string
 	if config.Agent.LLM.APIKey == "" {
 		errs = append(errs, "LLM API key is required")
@@ -156,7 +153,7 @@ func (cm *Manager) validateLLM(config *types.Configuration) error {
 	return nil
 }
 
-func (cm *Manager) validatePrompt(config *types.Configuration) error {
+func (cm *Manager) validatePrompt(config *Configuration) error {
 	if config.Agent.LLM.PromptTemplate != "" {
 		err := cm.validatePromptTemplate(config.Agent.LLM.PromptTemplate, config.Agent.Tool.ArgumentName)
 		if err != nil {
@@ -205,11 +202,11 @@ func contains(slice []string, str string) bool {
 }
 
 // RedactedCopy returns a copy of the configuration with private data masked for safe logging.
-func RedactedCopy(config *types.Configuration) *types.Configuration {
+func RedactedCopy(config *Configuration) *Configuration {
 	cpy := *config // shallow copy
 	cpy.Agent.LLM.APIKey = "***REDACTED***"
 	if cpy.Agent.Connections.McpServers != nil {
-		redactedServers := make(map[string]types.MCPServerConnection, len(cpy.Agent.Connections.McpServers))
+		redactedServers := make(map[string]MCPServerConnection, len(cpy.Agent.Connections.McpServers))
 		for k, v := range cpy.Agent.Connections.McpServers {
 			redacted := v
 			redacted.APIKey = "***REDACTED***"
@@ -222,13 +219,13 @@ func RedactedCopy(config *types.Configuration) *types.Configuration {
 
 // GetAgentConfig returns the business AgentConfig structure based on rawConfig
 // While rawConfig is not filled by loaders, use cm.config for backward compatibility
-func (cm *Manager) GetAgentConfig() types.AgentConfig {
+func (cm *Manager) GetAgentConfig() AgentConfig {
 	// While rawConfig is not filled by loaders, use cm.config for backward compatibility
 	if cm.config == nil {
-		return types.AgentConfig{}
+		return AgentConfig{}
 	}
-	return types.AgentConfig{
-		Tool: types.MCPServerToolConfig{
+	return AgentConfig{
+		Tool: MCPServerToolConfig{
 			Name:                cm.config.Agent.Tool.Name,
 			Description:         cm.config.Agent.Tool.Description,
 			ArgumentName:        cm.config.Agent.Tool.ArgumentName,
@@ -318,7 +315,7 @@ func (cm *Manager) MarshalConfiguration() (map[string]interface{}, error) {
 	return out, nil
 }
 
-// UnmarshalConfiguration deserializes map[string]interface{} into types.Configuration struct using koanf.Unmarshal
+// UnmarshalConfiguration deserializes map[string]interface{} into Configuration struct using koanf.Unmarshal
 func (cm *Manager) UnmarshalConfiguration(data map[string]interface{}) error {
 	if cm.k == nil {
 		cm.k = koanf.New(".")
@@ -326,7 +323,7 @@ func (cm *Manager) UnmarshalConfiguration(data map[string]interface{}) error {
 	if err := cm.k.Load(confmap.Provider(data, "."), nil); err != nil {
 		return fmt.Errorf("failed to load confmap: %w", err)
 	}
-	cfg := &types.Configuration{}
+	cfg := &Configuration{}
 	if err := cm.k.Unmarshal("", cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal: %w", err)
 	}

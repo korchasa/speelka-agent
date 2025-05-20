@@ -1,6 +1,6 @@
 // Package llm_models provides a catalog of LLM models and their pricing.
 // Based on project https://github.com/AgentOps-AI/tokencost
-package llm_models
+package cost
 
 import (
 	"strings"

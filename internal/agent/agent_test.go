@@ -1,10 +1,14 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/korchasa/speelka-agent-go/internal/configuration"
+	types2 "github.com/korchasa/speelka-agent-go/internal/llm/types"
 
 	"github.com/korchasa/speelka-agent-go/internal/chat"
 	"github.com/korchasa/speelka-agent-go/internal/types"
@@ -14,46 +18,20 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
-type dummyLogger struct{}
-
-func (d *dummyLogger) SetLevel(level logrus.Level)               {}
-func (d *dummyLogger) Debug(args ...interface{})                 {}
-func (d *dummyLogger) Debugf(format string, args ...interface{}) {}
-func (d *dummyLogger) Info(args ...interface{})                  {}
-func (d *dummyLogger) Infof(format string, args ...interface{})  {}
-func (d *dummyLogger) Warn(args ...interface{})                  {}
-func (d *dummyLogger) Warnf(format string, args ...interface{})  {}
-func (d *dummyLogger) Error(args ...interface{})                 {}
-func (d *dummyLogger) Errorf(format string, args ...interface{}) {}
-func (d *dummyLogger) Fatal(args ...interface{})                 {}
-func (d *dummyLogger) Fatalf(format string, args ...interface{}) {}
-func (d *dummyLogger) WithField(key string, value interface{}) types.LogEntrySpec {
-	return &dummyLogEntry{}
+// Helper function to create a test logger
+func newTestLogger() *logrus.Logger {
+	buf := &bytes.Buffer{}
+	log := logrus.New()
+	log.SetOutput(buf)
+	log.SetLevel(logrus.DebugLevel)
+	log.SetFormatter(&logrus.TextFormatter{DisableTimestamp: true})
+	return log
 }
-func (d *dummyLogger) WithFields(fields logrus.Fields) types.LogEntrySpec { return &dummyLogEntry{} }
-func (d *dummyLogger) SetMCPServer(mcpServer types.MCPServerNotifier)     {}
-func (d *dummyLogger) SetFormatter(formatter logrus.Formatter)            {}
-func (d *dummyLogger) HandleMCPSetLevel(ctx context.Context, req interface{}) (interface{}, error) {
-	return nil, nil
-}
-
-type dummyLogEntry struct{}
-
-func (d *dummyLogEntry) Debug(args ...interface{})                 {}
-func (d *dummyLogEntry) Debugf(format string, args ...interface{}) {}
-func (d *dummyLogEntry) Info(args ...interface{})                  {}
-func (d *dummyLogEntry) Infof(format string, args ...interface{})  {}
-func (d *dummyLogEntry) Warn(args ...interface{})                  {}
-func (d *dummyLogEntry) Warnf(format string, args ...interface{})  {}
-func (d *dummyLogEntry) Error(args ...interface{})                 {}
-func (d *dummyLogEntry) Errorf(format string, args ...interface{}) {}
-func (d *dummyLogEntry) Fatal(args ...interface{})                 {}
-func (d *dummyLogEntry) Fatalf(format string, args ...interface{}) {}
 
 func TestHandleLLMAnswerToolRequest(t *testing.T) {
-	a := &Agent{logger: &dummyLogger{}}
+	a := NewAgent(configuration.AgentConfig{}, nil, nil, newTestLogger(), nil)
 	sess := &chat.Chat{} // Not used in this test
-	resp := types.LLMResponse{}
+	resp := types2.LLMResponse{}
 
 	t.Run("missing text argument", func(t *testing.T) {
 		call := types.CallToolRequest{}
@@ -121,7 +99,7 @@ type mockToolConnector struct {
 }
 
 func (m *mockToolConnector) InitAndConnectToMCPs(ctx context.Context) error { return nil }
-func (m *mockToolConnector) ConnectServer(ctx context.Context, serverID string, serverConfig types.MCPServerConnection) (client.MCPClient, error) {
+func (m *mockToolConnector) ConnectServer(ctx context.Context, serverID string, serverConfig configuration.MCPServerConnection) (client.MCPClient, error) {
 	return nil, nil
 }
 func (m *mockToolConnector) GetAllTools(ctx context.Context) ([]mcp.Tool, error) {
@@ -136,54 +114,54 @@ func (m *mockToolConnector) ExecuteTool(ctx context.Context, call types.CallTool
 func (m *mockToolConnector) Close() error { return nil }
 
 type mockLLMService struct {
-	responses []types.LLMResponse
+	responses []types2.LLMResponse
 	err       error
 	callIdx   int
 }
 
-func (m *mockLLMService) SendRequest(ctx context.Context, messages []llms.MessageContent, tools []mcp.Tool) (types.LLMResponse, error) {
+func (m *mockLLMService) SendRequest(ctx context.Context, messages []llms.MessageContent, tools []mcp.Tool) (types2.LLMResponse, error) {
 	if m.err != nil {
-		return types.LLMResponse{}, m.err
+		return types2.LLMResponse{}, m.err
 	}
 	if m.callIdx < len(m.responses) {
 		resp := m.responses[m.callIdx]
 		m.callIdx++
 		return resp, nil
 	}
-	return types.LLMResponse{}, nil
+	return types2.LLMResponse{}, nil
 }
 
 func TestAgent_RunSession(t *testing.T) {
 	t.Run("error on GetAllTools", func(t *testing.T) {
-		chatInstance := chat.NewChat("model", "prompt", "arg", &dummyLogger{}, nil, 10, 0.0)
-		agent := &Agent{
-			config:        types.AgentConfig{MaxLLMIterations: 1},
-			llmService:    &mockLLMService{},
-			toolConnector: &mockToolConnector{getAllToolsErr: fmt.Errorf("fail")},
-			logger:        &dummyLogger{},
-			chat:          chatInstance,
-		}
+		chatInstance := chat.NewChat("model", "prompt", "arg", newTestLogger(), nil, 10, 0.0)
+		agent := NewAgent(
+			configuration.AgentConfig{MaxLLMIterations: 1},
+			&mockLLMService{},
+			&mockToolConnector{getAllToolsErr: fmt.Errorf("fail")},
+			newTestLogger(),
+			chatInstance,
+		)
 		_, _, err := agent.RunSession(context.Background(), "input")
 		if err == nil || err.Error() != "fail" && !strings.Contains(err.Error(), "fail") {
 			t.Errorf("expected error from GetAllTools, got %v", err)
 		}
 	})
 	t.Run("error on LLMService", func(t *testing.T) {
-		chatInstance := chat.NewChat("model", "prompt", "arg", &dummyLogger{}, nil, 10, 0.0)
-		agent := &Agent{
-			config:        types.AgentConfig{MaxLLMIterations: 1},
-			llmService:    &mockLLMService{err: fmt.Errorf("llm fail")},
-			toolConnector: &mockToolConnector{tools: []mcp.Tool{finishTool}},
-			logger:        &dummyLogger{},
-			chat:          chatInstance,
-		}
+		chatInstance := chat.NewChat("model", "prompt", "arg", newTestLogger(), nil, 10, 0.0)
+		agent := NewAgent(
+			configuration.AgentConfig{MaxLLMIterations: 1},
+			&mockLLMService{err: fmt.Errorf("llm fail")},
+			&mockToolConnector{tools: []mcp.Tool{finishTool}},
+			newTestLogger(),
+			chatInstance,
+		)
 		_, _, err := agent.RunSession(context.Background(), "input")
 		if err == nil || !strings.Contains(err.Error(), "llm fail") {
 			t.Errorf("expected error from LLMService, got %v", err)
 		}
 	})
 	t.Run("exceed max iterations", func(t *testing.T) {
-		chatInstance := chat.NewChat("model", "prompt", "arg", &dummyLogger{}, nil, 10, 0.0)
+		chatInstance := chat.NewChat("model", "prompt", "arg", newTestLogger(), nil, 10, 0.0)
 		llmCall := llms.ToolCall{
 			ID:   "call-id-1",
 			Type: "function",
@@ -196,20 +174,20 @@ func TestAgent_RunSession(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create CallToolRequest: %v", err)
 		}
-		agent := &Agent{
-			config:        types.AgentConfig{MaxLLMIterations: 1},
-			llmService:    &mockLLMService{responses: []types.LLMResponse{{Calls: []types.CallToolRequest{call}}}},
-			toolConnector: &mockToolConnector{tools: []mcp.Tool{finishTool}},
-			logger:        &dummyLogger{},
-			chat:          chatInstance,
-		}
+		agent := NewAgent(
+			configuration.AgentConfig{MaxLLMIterations: 1},
+			&mockLLMService{responses: []types2.LLMResponse{{Calls: []types.CallToolRequest{call}}}},
+			&mockToolConnector{tools: []mcp.Tool{finishTool}},
+			newTestLogger(),
+			chatInstance,
+		)
 		_, _, err = agent.RunSession(context.Background(), "input")
 		if err == nil || !strings.Contains(err.Error(), "exceeded maximum number of LLM iterations") {
 			t.Errorf("expected max iterations error, got %v", err)
 		}
 	})
 	t.Run("success exitTool", func(t *testing.T) {
-		chatInstance := chat.NewChat("model", "prompt", "arg", &dummyLogger{}, nil, 10, 0.0)
+		chatInstance := chat.NewChat("model", "prompt", "arg", newTestLogger(), nil, 10, 0.0)
 		llmCall := llms.ToolCall{
 			ID:   "call-id-1",
 			Type: "function",
@@ -223,20 +201,20 @@ func TestAgent_RunSession(t *testing.T) {
 			t.Fatalf("failed to create CallToolRequest: %v", err)
 		}
 		calls := []types.CallToolRequest{call}
-		llmResp := types.LLMResponse{
+		llmResp := types2.LLMResponse{
 			Text:  "irrelevant",
 			Calls: calls,
-			Metadata: types.LLMResponseMetadata{
-				Tokens: types.LLMResponseTokensMetadata{TotalTokens: 1},
+			Metadata: types2.LLMResponseMetadata{
+				Tokens: types2.LLMResponseTokensMetadata{TotalTokens: 1},
 			},
 		}
-		agent := &Agent{
-			config:        types.AgentConfig{MaxLLMIterations: 2},
-			llmService:    &mockLLMService{responses: []types.LLMResponse{llmResp}},
-			toolConnector: &mockToolConnector{tools: []mcp.Tool{finishTool}},
-			logger:        &dummyLogger{},
-			chat:          chatInstance,
-		}
+		agent := NewAgent(
+			configuration.AgentConfig{MaxLLMIterations: 2},
+			&mockLLMService{responses: []types2.LLMResponse{llmResp}},
+			&mockToolConnector{tools: []mcp.Tool{finishTool}},
+			newTestLogger(),
+			chatInstance,
+		)
 		msg, meta, err := agent.RunSession(context.Background(), "input")
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)

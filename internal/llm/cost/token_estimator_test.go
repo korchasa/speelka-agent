@@ -1,4 +1,4 @@
-package llm_models
+package cost
 
 import (
 	"testing"

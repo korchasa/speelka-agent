@@ -4,28 +4,30 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/korchasa/speelka-agent-go/internal/agent"
 	"github.com/korchasa/speelka-agent-go/internal/chat"
-	"github.com/korchasa/speelka-agent-go/internal/llm_models"
-	"github.com/korchasa/speelka-agent-go/internal/llm_service"
+	"github.com/korchasa/speelka-agent-go/internal/configuration"
+	"github.com/korchasa/speelka-agent-go/internal/llm"
+	"github.com/korchasa/speelka-agent-go/internal/llm/cost"
 	"github.com/korchasa/speelka-agent-go/internal/mcp_connector"
 	"github.com/korchasa/speelka-agent-go/internal/mcp_server"
 	"github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/sirupsen/logrus"
 )
 
 // MCPApp is responsible for instantiating and managing the Agent and its dependencies
 // (for server/daemon mode)
 type MCPApp struct {
-	cfg       *types.Configuration
+	cfg       *configuration.Configuration
 	agent     agentSpec
 	mcpServer *mcp_server.MCPServer
-	logger    types.LoggerSpec
+	logger    *logrus.Logger
 }
 
-// NewMCPApp creates a new instance of MCPApp with the given logger and configuration manager
-func NewMCPApp(logger types.LoggerSpec, cfg *types.Configuration) (*MCPApp, error) {
+// NewMCPApp creates a new instance of MCPApp with the given logger and configuration
+func NewMCPApp(logger *logrus.Logger, cfg *configuration.Configuration) (*MCPApp, error) {
+	logger.Infof("MCPApp: creating new instance with config: %+v", cfg)
 	return &MCPApp{
 		logger: logger,
 		cfg:    cfg,
@@ -134,7 +136,7 @@ func (a *MCPApp) outputErrorAndExit(errType string, err error) (types.DirectCall
 	return result, code, err
 }
 
-func validateToolName(toolName string, cfg *types.Configuration) error {
+func validateToolName(toolName string, cfg *configuration.Configuration) error {
 	expected := cfg.GetAgentConfig().Tool.Name
 	if toolName != expected {
 		return fmt.Errorf("invalid tool name: %s", toolName)
@@ -175,16 +177,16 @@ func buildDirectCallResult(answer string, meta types.MetaInfo, err error) types.
 }
 
 // buildAgent creates an agent and MCPServer for server/daemon mode.
-func buildAgent(ctx context.Context, cfg *types.Configuration, logger types.LoggerSpec) (types.AgentSpec, error) {
-	llmService, err := llm_service.NewLLMService(cfg.GetLLMConfig(), logger)
+func buildAgent(ctx context.Context, cfg *configuration.Configuration, log *logrus.Logger) (agentSpec, error) {
+	llmService, err := llm.NewLLMService(cfg.GetLLMConfig(), log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create LLM service: %w", err)
 	}
-	logger.Info("LLM service instance created (server mode)")
+	log.Info("LLM service instance created (server mode)")
 
 	// MCP ToolConnector for server mode
-	toolConnector := mcp_connector.NewMCPConnector(cfg.GetMCPConnectorConfig(), logger)
-	logger.Info("ToolConnector instance created (server mode)")
+	toolConnector := mcp_connector.NewMCPConnector(cfg.GetMCPConnectorConfig(), log)
+	log.Info("ToolConnector instance created (server mode)")
 
 	// initialization of MCP connections and loading tools
 	if err := toolConnector.InitAndConnectToMCPs(ctx); err != nil {
@@ -192,12 +194,12 @@ func buildAgent(ctx context.Context, cfg *types.Configuration, logger types.Logg
 	}
 
 	agentConfig := cfg.GetAgentConfig()
-	calculator := llm_models.NewCalculator()
+	calculator := cost.NewCalculator()
 	chatInstance := chat.NewChat(
 		agentConfig.Model,
 		agentConfig.SystemPromptTemplate,
 		agentConfig.Tool.ArgumentName,
-		logger,
+		log,
 		calculator,
 		agentConfig.MaxTokens,
 		0.0,
@@ -206,10 +208,10 @@ func buildAgent(ctx context.Context, cfg *types.Configuration, logger types.Logg
 		agentConfig,
 		llmService,
 		toolConnector,
-		logger,
+		log,
 		chatInstance,
 	)
-	logger.Info("Agent instance created (server mode)")
+	log.Info("Agent instance created (server mode)")
 
 	return ag, nil
 }
