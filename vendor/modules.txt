@@ -64,7 +64,7 @@ github.com/knadh/koanf/providers/file
 # github.com/knadh/koanf/v2 v2.2.0
 ## explicit; go 1.23.0
 github.com/knadh/koanf/v2
-# github.com/mark3labs/mcp-go v0.27.1
+# github.com/mark3labs/mcp-go v0.29.0
 ## explicit; go 1.23
 github.com/mark3labs/mcp-go/client
 github.com/mark3labs/mcp-go/client/transport

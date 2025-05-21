@@ -19,6 +19,15 @@ type ClientSession interface {
 	SessionID() string
 }
 
+// SessionWithLogging is an extension of ClientSession that can receive log message notifications and set log level
+type SessionWithLogging interface {
+	ClientSession
+	// SetLogLevel sets the minimum log level
+	SetLogLevel(level mcp.LoggingLevel)
+	// GetLogLevel retrieves the minimum log level
+	GetLogLevel() mcp.LoggingLevel
+}
+
 // SessionWithTools is an extension of ClientSession that can store session-specific tool data
 type SessionWithTools interface {
 	ClientSession
@@ -224,6 +233,8 @@ func (s *MCPServer) AddSessionTools(sessionID string, tools ...ServerTool) error
 		return ErrSessionDoesNotSupportTools
 	}
 
+	s.implicitlyRegisterToolCapabilities()
+
 	// Get existing tools (this should return a thread-safe copy)
 	sessionTools := session.GetSessionTools()
 
@@ -245,8 +256,12 @@ func (s *MCPServer) AddSessionTools(sessionID string, tools ...ServerTool) error
 
 	// It only makes sense to send tool notifications to initialized sessions --
 	// if we're not initialized yet the client can't possibly have sent their
-	// initial tools/list message
-	if session.Initialized() {
+	// initial tools/list message.
+	//
+	// For initialized sessions, honor tools.listChanged, which is specifically
+	// about whether notifications will be sent or not.
+	// see <https://modelcontextprotocol.io/specification/2025-03-26/server/tools#capabilities>
+	if session.Initialized() && s.capabilities.tools != nil && s.capabilities.tools.listChanged {
 		// Send notification only to this session
 		if err := s.SendNotificationToSpecificClient(sessionID, "notifications/tools/list_changed", nil); err != nil {
 			// Log the error but don't fail the operation
@@ -303,8 +318,12 @@ func (s *MCPServer) DeleteSessionTools(sessionID string, names ...string) error 
 
 	// It only makes sense to send tool notifications to initialized sessions --
 	// if we're not initialized yet the client can't possibly have sent their
-	// initial tools/list message
-	if session.Initialized() {
+	// initial tools/list message.
+	//
+	// For initialized sessions, honor tools.listChanged, which is specifically
+	// about whether notifications will be sent or not.
+	// see <https://modelcontextprotocol.io/specification/2025-03-26/server/tools#capabilities>
+	if session.Initialized() && s.capabilities.tools != nil && s.capabilities.tools.listChanged {
 		// Send notification only to this session
 		if err := s.SendNotificationToSpecificClient(sessionID, "notifications/tools/list_changed", nil); err != nil {
 			// Log the error but don't fail the operation
