@@ -14,14 +14,13 @@ func TestCallToolRequest_String(t *testing.T) {
 			ID: "123",
 			CallToolRequest: mcp.CallToolRequest{
 				Params: struct {
-					Name      string                 `json:"name"`
-					Arguments map[string]interface{} `json:"arguments,omitempty"`
-					Meta      *struct {
-						ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-					} `json:"_meta,omitempty"`
+					Name      string    `json:"name"`
+					Arguments any       `json:"arguments,omitempty"`
+					Meta      *mcp.Meta `json:"_meta,omitempty"`
 				}{
 					Name:      "testTool",
 					Arguments: nil,
+					Meta:      nil,
 				},
 			},
 		}
@@ -33,14 +32,13 @@ func TestCallToolRequest_String(t *testing.T) {
 			ID: "456",
 			CallToolRequest: mcp.CallToolRequest{
 				Params: struct {
-					Name      string                 `json:"name"`
-					Arguments map[string]interface{} `json:"arguments,omitempty"`
-					Meta      *struct {
-						ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-					} `json:"_meta,omitempty"`
+					Name      string    `json:"name"`
+					Arguments any       `json:"arguments,omitempty"`
+					Meta      *mcp.Meta `json:"_meta,omitempty"`
 				}{
 					Name:      "testTool",
 					Arguments: map[string]interface{}{"foo": "bar"},
+					Meta:      nil,
 				},
 			},
 		}
@@ -52,14 +50,13 @@ func TestCallToolRequest_String(t *testing.T) {
 			ID: "789",
 			CallToolRequest: mcp.CallToolRequest{
 				Params: struct {
-					Name      string                 `json:"name"`
-					Arguments map[string]interface{} `json:"arguments,omitempty"`
-					Meta      *struct {
-						ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-					} `json:"_meta,omitempty"`
+					Name      string    `json:"name"`
+					Arguments any       `json:"arguments,omitempty"`
+					Meta      *mcp.Meta `json:"_meta,omitempty"`
 				}{
 					Name:      "testTool",
 					Arguments: map[string]interface{}{"foo": "bar", "num": 42},
+					Meta:      nil,
 				},
 			},
 		}

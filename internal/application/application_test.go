@@ -146,17 +146,16 @@ func TestApp_DispatchMCPCall_Success(t *testing.T) {
 	a.cfg.Agent.Tool.ArgumentName = "text"
 	req := mcp.CallToolRequest{
 		Params: struct {
-			Name      string                 `json:"name"`
-			Arguments map[string]interface{} `json:"arguments,omitempty"`
-			Meta      *struct {
-				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-			} `json:"_meta,omitempty"`
+			Name      string    `json:"name"`
+			Arguments any       `json:"arguments,omitempty"`
+			Meta      *mcp.Meta `json:"_meta,omitempty"`
 		}{
 			Name:      "answer",
 			Arguments: map[string]interface{}{"text": "hello"},
+			Meta:      nil,
 		},
 	}
-	res, err := a.DispatchMCPCall(context.Background(), req)
+	res, err := a.dispatchMCPCall(context.Background(), req)
 	if err != nil || res.IsError {
 		t.Errorf("expected success, got error: %v, %v", err, res)
 	}
@@ -167,13 +166,11 @@ func TestApp_DispatchMCPCall_InvalidTool(t *testing.T) {
 	a.cfg.Agent.Tool.Name = "answer"
 	a.cfg.Agent.Tool.ArgumentName = "text"
 	req := mcp.CallToolRequest{Params: struct {
-		Name      string                 `json:"name"`
-		Arguments map[string]interface{} `json:"arguments,omitempty"`
-		Meta      *struct {
-			ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-		} `json:"_meta,omitempty"`
+		Name      string    `json:"name"`
+		Arguments any       `json:"arguments,omitempty"`
+		Meta      *mcp.Meta `json:"_meta,omitempty"`
 	}{Name: "notanswer", Arguments: map[string]interface{}{"text": "hi"}}}
-	res, _ := a.DispatchMCPCall(context.Background(), req)
+	res, _ := a.dispatchMCPCall(context.Background(), req)
 	if !res.IsError {
 		t.Errorf("expected error for invalid tool name")
 	}
@@ -184,13 +181,11 @@ func TestApp_DispatchMCPCall_MissingArgument(t *testing.T) {
 	a.cfg.Agent.Tool.Name = "answer"
 	a.cfg.Agent.Tool.ArgumentName = "text"
 	req := mcp.CallToolRequest{Params: struct {
-		Name      string                 `json:"name"`
-		Arguments map[string]interface{} `json:"arguments,omitempty"`
-		Meta      *struct {
-			ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-		} `json:"_meta,omitempty"`
+		Name      string    `json:"name"`
+		Arguments any       `json:"arguments,omitempty"`
+		Meta      *mcp.Meta `json:"_meta,omitempty"`
 	}{Name: "answer", Arguments: map[string]interface{}{}}}
-	res, _ := a.DispatchMCPCall(context.Background(), req)
+	res, _ := a.dispatchMCPCall(context.Background(), req)
 	if !res.IsError {
 		t.Errorf("expected error for missing argument")
 	}
@@ -201,13 +196,11 @@ func TestApp_DispatchMCPCall_EmptyInput(t *testing.T) {
 	a.cfg.Agent.Tool.Name = "answer"
 	a.cfg.Agent.Tool.ArgumentName = "text"
 	req := mcp.CallToolRequest{Params: struct {
-		Name      string                 `json:"name"`
-		Arguments map[string]interface{} `json:"arguments,omitempty"`
-		Meta      *struct {
-			ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-		} `json:"_meta,omitempty"`
+		Name      string    `json:"name"`
+		Arguments any       `json:"arguments,omitempty"`
+		Meta      *mcp.Meta `json:"_meta,omitempty"`
 	}{Name: "answer", Arguments: map[string]interface{}{"text": ""}}}
-	res, _ := a.DispatchMCPCall(context.Background(), req)
+	res, _ := a.dispatchMCPCall(context.Background(), req)
 	if !res.IsError {
 		t.Errorf("expected error for empty input")
 	}
@@ -218,13 +211,11 @@ func TestApp_DispatchMCPCall_CoreError(t *testing.T) {
 	a.cfg.Agent.Tool.Name = "answer"
 	a.cfg.Agent.Tool.ArgumentName = "text"
 	req := mcp.CallToolRequest{Params: struct {
-		Name      string                 `json:"name"`
-		Arguments map[string]interface{} `json:"arguments,omitempty"`
-		Meta      *struct {
-			ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-		} `json:"_meta,omitempty"`
+		Name      string    `json:"name"`
+		Arguments any       `json:"arguments,omitempty"`
+		Meta      *mcp.Meta `json:"_meta,omitempty"`
 	}{Name: "answer", Arguments: map[string]interface{}{"text": "hi"}}}
-	res, _ := a.DispatchMCPCall(context.Background(), req)
+	res, _ := a.dispatchMCPCall(context.Background(), req)
 	if !res.IsError {
 		t.Errorf("expected error for core failure")
 	}

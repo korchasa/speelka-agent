@@ -3,13 +3,14 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/korchasa/speelka-agent-go/internal/configuration"
 	types2 "github.com/korchasa/speelka-agent-go/internal/llm/types"
 	"github.com/korchasa/speelka-agent-go/internal/utils/dump"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/tmc/langchaingo/llms"
-	"strings"
-	"time"
 
 	"github.com/korchasa/speelka-agent-go/internal/chat"
 
@@ -143,7 +144,10 @@ func (a *Agent) RunSession(ctx context.Context, input string) (string, types.Met
 		}
 		for _, call := range resp.Calls {
 			if a.isFinishCommand(call) {
-				finalMessage, _ := call.Params.Arguments["text"].(string)
+				var finalMessage string
+				if args, ok := call.Params.Arguments.(map[string]interface{}); ok {
+					finalMessage, _ = args["text"].(string)
+				}
 				info := session.GetInfo()
 				meta = types.MetaInfo{
 					Tokens:           info.TotalTokens,
@@ -217,7 +221,11 @@ func (a *Agent) handleLLMToolCallRequest(ctx context.Context, resp types2.LLMRes
 
 func (a *Agent) HandleLLMFinishToolRequest(call types.CallToolRequest, resp types2.LLMResponse, session *chat.Chat) *mcp.CallToolResult {
 	// Robust nil and type checking for 'text' argument
-	argValue, exists := call.Params.Arguments["text"]
+	args, ok := call.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return mcp.NewToolResultError("arguments is not a map in finish tool call")
+	}
+	argValue, exists := args["text"]
 	if !exists || argValue == nil {
 		return mcp.NewToolResultError("missing or nil 'text' argument in finish tool call")
 	}

@@ -164,7 +164,8 @@ case $CMD in
             check_command "mcp"
             ./bin/mcp-call \
               --tool process \
-              --params '{"input": "What time is it now?"}'
+              --params '{"input": "What time is it now?"}' \
+              --set-log-level debug \
               go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
         )
         ;;

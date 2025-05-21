@@ -21,8 +21,10 @@ type mockMCPClient struct {
 func (m *mockMCPClient) CallTool(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	m.lastRequest = req
 	if req.Params.Name == "logging/setLevel" {
-		if level, ok := req.Params.Arguments["level"].(string); ok {
-			m.lastLevel = level
+		if args, ok := req.Params.Arguments.(map[string]any); ok {
+			if level, ok := args["level"].(string); ok {
+				m.lastLevel = level
+			}
 		}
 	}
 	if m.fail {
@@ -120,14 +122,13 @@ func setLogLevelIface(ctx context.Context, c callTooler, level string) error {
 	req.Params.Level = mcp.LoggingLevel(level)
 	_, err := c.CallTool(ctx, mcp.CallToolRequest{
 		Params: struct {
-			Name      string         `json:"name"`
-			Arguments map[string]any `json:"arguments,omitempty"`
-			Meta      *struct {
-				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-			} `json:"_meta,omitempty"`
+			Name      string    `json:"name"`
+			Arguments any       `json:"arguments,omitempty"`
+			Meta      *mcp.Meta `json:"_meta,omitempty"`
 		}{
 			Name:      "logging/setLevel",
 			Arguments: map[string]any{"level": level},
+			Meta:      nil,
 		},
 	})
 	return err

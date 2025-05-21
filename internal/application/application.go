@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/korchasa/speelka-agent-go/internal/agent"
 	"github.com/korchasa/speelka-agent-go/internal/chat"
 	"github.com/korchasa/speelka-agent-go/internal/configuration"
@@ -55,7 +56,7 @@ func (a *MCPApp) Start(ctx context.Context) (err error) {
 		return fmt.Errorf("failed to create MCP server: %w", err)
 	}
 	a.logger.Info("MCPServer instance created (server mode)")
-	if err = a.mcpServer.Serve(ctx, a.DispatchMCPCall); err != nil {
+	if err = a.mcpServer.Serve(ctx, a.dispatchMCPCall); err != nil {
 		return fmt.Errorf("failed to serve mcp server: %w", err)
 	}
 	return nil
@@ -104,13 +105,17 @@ func (a *MCPApp) handleDirectCall(ctx context.Context, input string) types.Direc
 	return res
 }
 
-func (a *MCPApp) DispatchMCPCall(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (a *MCPApp) dispatchMCPCall(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	toolName := req.Params.Name
 	argName := a.cfg.GetAgentConfig().Tool.ArgumentName
 	if err := validateToolName(toolName, a.cfg); err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	userInput, err := extractUserInput(req.Params.Arguments, argName)
+	args, ok := req.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return mcp.NewToolResultError("arguments is not a map"), nil
+	}
+	userInput, err := extractUserInput(args, argName)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
