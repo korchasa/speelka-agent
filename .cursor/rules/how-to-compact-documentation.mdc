@@ -1,12 +1,12 @@
 ---
 description: How to write documentation
-globs: 
+globs:
 alwaysApply: false
 ---
 Following the rules:
 - Remove history: Remove history, updates, and changelog.
 - Use only english in all files.
-- Use combined extractive & abstractive summarization: First, extract ALL facts, then compress them into concise, coherent content WITHOUT LOSING ANY FACTS.
+- Use combined extractive & abstractive summarization: First, extract ALL, then compress them into concise, coherent content WITHOUT LOSING ANY FACTS.
 - Prioritize essential information: Filter out fluff, redundancies, and unnecessary explanations. Use high-information words.
 - Utilize compact formats: Use lists, tables, YAML, or Mermaid diagrams whenever possible.
 - Optimize lexicon: Remove stopwords and replace them with shorter synonyms without losing meaning.

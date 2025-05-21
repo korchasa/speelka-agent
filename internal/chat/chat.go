@@ -2,11 +2,12 @@ package chat
 
 import (
 	"fmt"
+	"github.com/korchasa/speelka-agent-go/internal/llm/cost"
+	types2 "github.com/korchasa/speelka-agent-go/internal/llm/types"
+	"github.com/korchasa/speelka-agent-go/internal/utils/dump"
 	"strings"
 
-	"github.com/korchasa/speelka-agent-go/internal/llm_models"
 	"github.com/korchasa/speelka-agent-go/internal/types"
-	"github.com/korchasa/speelka-agent-go/internal/utils"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/prompts"
@@ -34,27 +35,39 @@ const (
 // Features: Stores message history, adds tool calls and responses to it
 type Chat struct {
 	promptTemplate string
-	argName        string // TODO: move to Begin() arguments and remove from constructor
+	argumentName   string
 	messagesStack  []llms.MessageContent
-	logger         types.LoggerSpec
+	logger         loggerSpec
 
 	// Unified chat info struct
 	info types.ChatInfo
 
 	// Store LLMResponse objects for assistant messages
-	llmMessagesHistory []types.LLMResponse
+	llmMessagesHistory []types2.LLMResponse
 
 	// Cost calculator (should be set from llm_models)
-	calculator types.CalculatorSpec
+	calculator calculatorSpec
 
 	// Request budget (USD or token-equivalent)
 	requestBudget float64
 }
 
-// NewChat creates a new Chat with the given prompt template, argument name, calculator, max tokens, and request budget
-func NewChat(model string, promptTemplate, argName string, logger types.LoggerSpec, calculator types.CalculatorSpec, maxTokens int, requestBudget float64) *Chat {
+type calculatorSpec interface {
+	// CalculateLLMResponse returns the number of tokens, USD cost, and approximation flag for the given model and LLM response.
+	CalculateLLMResponse(modelName string, resp types2.LLMResponse) (tokens int, cost float64, isApprox bool, err error)
+}
+
+type loggerSpec interface {
+	Info(args ...interface{})
+	Debugf(format string, args ...interface{})
+	Infof(format string, args ...interface{})
+	Warnf(format string, args ...interface{})
+}
+
+// NewChat creates a new Chat with the given prompt template, calculator, max tokens, and request budget
+func NewChat(model string, promptTemplate string, argumentName string, logger loggerSpec, calculator calculatorSpec, maxTokens int, requestBudget float64) *Chat {
 	if calculator == nil {
-		calculator = llm_models.NewCalculator()
+		calculator = cost.NewCalculator()
 	}
 	if maxTokens < 0 {
 		logger.Warnf("Invalid max tokens value %d, using default %d", maxTokens, DefaultMaxTokens)
@@ -62,7 +75,7 @@ func NewChat(model string, promptTemplate, argName string, logger types.LoggerSp
 	}
 	return &Chat{
 		promptTemplate: promptTemplate,
-		argName:        argName,
+		argumentName:   argumentName,
 		messagesStack:  make([]llms.MessageContent, 0),
 		logger:         logger,
 		info: types.ChatInfo{
@@ -87,31 +100,26 @@ func (c *Chat) Begin(input string, tools []mcp.Tool) error {
 	}
 	prompt := prompts.PromptTemplate{
 		Template:       c.promptTemplate,
-		InputVariables: []string{c.argName, "tools"},
+		InputVariables: []string{c.argumentName, "input", "tools"},
 		TemplateFormat: prompts.TemplateFormatJinja2,
 	}
-
 	values := map[string]any{
-		c.argName: input,
-		"tools":   toolsDescription,
+		c.argumentName: input,
+		"input":        input,
+		"tools":        toolsDescription,
 	}
-
 	result, err := prompt.Format(values)
 	if err != nil {
 		return fmt.Errorf("failed to format prompt: %v", err)
 	}
-
 	systemMessage := llms.TextParts(llms.ChatMessageTypeSystem, result)
 	c.messagesStack = append(c.messagesStack, systemMessage)
-
-	tokenEstimator := llm_models.TokenEstimator{}
+	tokenEstimator := cost.TokenEstimator{}
 	// Count tokens for the system message
 	messageTokens := tokenEstimator.CountTokens(systemMessage)
 	c.info.TotalTokens += messageTokens
 	c.info.MessageStackLen = len(c.messagesStack)
-
 	c.logger.Debugf("Added system message with %d tokens, total now %d", messageTokens, c.info.TotalTokens)
-
 	return nil
 }
 
@@ -120,7 +128,7 @@ func (c *Chat) GetLLMMessages() []llms.MessageContent {
 }
 
 // AddAssistantMessage adds a message from the assistant (LLM) to the chat history.
-func (c *Chat) AddAssistantMessage(response types.LLMResponse) {
+func (c *Chat) AddAssistantMessage(response types2.LLMResponse) {
 	message := llms.TextParts(llms.ChatMessageTypeAI, response.Text)
 
 	tokens := response.Metadata.Tokens.TotalTokens
@@ -148,21 +156,26 @@ func (c *Chat) AddAssistantMessage(response types.LLMResponse) {
 
 // AddToolCall adds a tool call to the chat history.
 func (c *Chat) AddToolCall(toolCall types.CallToolRequest) {
+	llmCall := toolCall.ToLLM()
+	if llmCall.FunctionCall == nil || llmCall.ID == "" {
+		c.logger.Warnf("AddToolCall: toolCall has nil FunctionCall or empty ID: %+v", toolCall)
+		return
+	}
 	message := llms.MessageContent{
 		Role: llms.ChatMessageTypeAI,
 		Parts: []llms.ContentPart{
 			llms.ToolCall{
-				ID:   toolCall.ID,
-				Type: toolCall.ToLLM().Type,
+				ID:   llmCall.ID,
+				Type: llmCall.Type,
 				FunctionCall: &llms.FunctionCall{
-					Name:      toolCall.ToLLM().FunctionCall.Name,
-					Arguments: toolCall.ToLLM().FunctionCall.Arguments,
+					Name:      llmCall.FunctionCall.Name,
+					Arguments: llmCall.FunctionCall.Arguments,
 				},
 			},
 		},
 	}
 
-	tokenEstimator := llm_models.TokenEstimator{}
+	tokenEstimator := cost.TokenEstimator{}
 	messageTokens := tokenEstimator.CountTokens(message)
 
 	c.messagesStack = append(c.messagesStack, message)
@@ -177,7 +190,7 @@ func (c *Chat) AddToolCall(toolCall types.CallToolRequest) {
 func (c *Chat) AddToolResult(toolCall types.CallToolRequest, result *mcp.CallToolResult) {
 	resultStr := "Result: "
 	if result.IsError {
-		resultStr += fmt.Sprintf("Error: %s", utils.SDump(map[string]any{"error": result.Content}))
+		resultStr += fmt.Sprintf("Error: %s", dump.SDump(map[string]any{"error": result.Content}))
 	} else {
 		resultStr += fmt.Sprintf("%v", result.Content)
 	}
@@ -194,7 +207,7 @@ func (c *Chat) AddToolResult(toolCall types.CallToolRequest, result *mcp.CallToo
 		},
 	}
 
-	tokenEstimator := llm_models.TokenEstimator{}
+	tokenEstimator := cost.TokenEstimator{}
 	messageTokens := tokenEstimator.CountTokens(message)
 
 	c.messagesStack = append(c.messagesStack, message)

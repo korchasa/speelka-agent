@@ -20,14 +20,13 @@ import (
 
 // sseSession represents an active SSE connection.
 type sseSession struct {
-	writer              http.ResponseWriter
-	flusher             http.Flusher
 	done                chan struct{}
 	eventQueue          chan string // Channel for queuing events
 	sessionID           string
 	requestID           atomic.Int64
 	notificationChannel chan mcp.JSONRPCNotification
 	initialized         atomic.Bool
+	loggingLevel        atomic.Value
 	tools               sync.Map // stores session-specific tools
 }
 
@@ -45,11 +44,25 @@ func (s *sseSession) NotificationChannel() chan<- mcp.JSONRPCNotification {
 }
 
 func (s *sseSession) Initialize() {
+	// set default logging level
+	s.loggingLevel.Store(mcp.LoggingLevelError)
 	s.initialized.Store(true)
 }
 
 func (s *sseSession) Initialized() bool {
 	return s.initialized.Load()
+}
+
+func (s *sseSession) SetLogLevel(level mcp.LoggingLevel) {
+	s.loggingLevel.Store(level)
+}
+
+func (s *sseSession) GetLogLevel() mcp.LoggingLevel {
+	level := s.loggingLevel.Load()
+	if level == nil {
+		return mcp.LoggingLevelError
+	}
+	return level.(mcp.LoggingLevel)
 }
 
 func (s *sseSession) GetSessionTools() map[string]ServerTool {
@@ -65,10 +78,7 @@ func (s *sseSession) GetSessionTools() map[string]ServerTool {
 
 func (s *sseSession) SetSessionTools(tools map[string]ServerTool) {
 	// Clear existing tools
-	s.tools.Range(func(key, _ any) bool {
-		s.tools.Delete(key)
-		return true
-	})
+	s.tools.Clear()
 
 	// Set new tools
 	for name, tool := range tools {
@@ -77,8 +87,9 @@ func (s *sseSession) SetSessionTools(tools map[string]ServerTool) {
 }
 
 var (
-	_ ClientSession    = (*sseSession)(nil)
-	_ SessionWithTools = (*sseSession)(nil)
+	_ ClientSession      = (*sseSession)(nil)
+	_ SessionWithTools   = (*sseSession)(nil)
+	_ SessionWithLogging = (*sseSession)(nil)
 )
 
 // SSEServer implements a Server-Sent Events (SSE) based MCP server.
@@ -185,7 +196,7 @@ func WithSSEEndpoint(endpoint string) SSEOption {
 // WithSSEContextFunc sets a function that will be called to customise the context
 // to the server using the incoming request.
 //
-// Deprecated: Use WithContextFunc instead. This will be removed in a future version.
+// Deprecated: Use WithHTTPContextFunc instead. This will be removed in a future version.
 //
 //go:deprecated
 func WithSSEContextFunc(fn SSEContextFunc) SSEOption {
@@ -285,8 +296,6 @@ func (s *SSEServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 
 	sessionID := uuid.New().String()
 	session := &sseSession{
-		writer:              w,
-		flusher:             flusher,
 		done:                make(chan struct{}),
 		eventQueue:          make(chan string, 100), // Buffer for events
 		sessionID:           sessionID,
@@ -297,7 +306,11 @@ func (s *SSEServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 	defer s.sessions.Delete(sessionID)
 
 	if err := s.server.RegisterSession(r.Context(), session); err != nil {
-		http.Error(w, fmt.Sprintf("Session registration failed: %v", err), http.StatusInternalServerError)
+		http.Error(
+			w,
+			fmt.Sprintf("Session registration failed: %v", err),
+			http.StatusInternalServerError,
+		)
 		return
 	}
 	defer s.server.UnregisterSession(r.Context(), sessionID)
@@ -334,7 +347,7 @@ func (s *SSEServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 				case <-ticker.C:
 					message := mcp.JSONRPCRequest{
 						JSONRPC: "2.0",
-						ID:      session.requestID.Add(1),
+						ID:      mcp.NewRequestId(session.requestID.Add(1)),
 						Request: mcp.Request{
 							Method: "ping",
 						},
@@ -480,7 +493,14 @@ func (s *SSEServer) writeJSONRPCError(
 	response := createErrorResponse(id, code, message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("Failed to encode response: %v", err),
+			http.StatusInternalServerError,
+		)
+		return
+	}
 }
 
 // SendEventToSession sends an event to a specific SSE session identified by sessionID.
@@ -621,7 +641,11 @@ func (s *SSEServer) MessageHandler() http.Handler {
 // ServeHTTP implements the http.Handler interface.
 func (s *SSEServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.dynamicBasePathFunc != nil {
-		http.Error(w, (&ErrDynamicPathConfig{Method: "ServeHTTP"}).Error(), http.StatusInternalServerError)
+		http.Error(
+			w,
+			(&ErrDynamicPathConfig{Method: "ServeHTTP"}).Error(),
+			http.StatusInternalServerError,
+		)
 		return
 	}
 	path := r.URL.Path

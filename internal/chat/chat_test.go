@@ -1,21 +1,33 @@
 package chat_test
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
 	"github.com/korchasa/speelka-agent-go/internal/chat"
-	"github.com/korchasa/speelka-agent-go/internal/llm_models"
-	"github.com/korchasa/speelka-agent-go/internal/logger"
-	"github.com/korchasa/speelka-agent-go/internal/types"
+	cost "github.com/korchasa/speelka-agent-go/internal/llm/cost"
+	typesllm "github.com/korchasa/speelka-agent-go/internal/llm/types"
+	types "github.com/korchasa/speelka-agent-go/internal/types"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/tmc/langchaingo/llms"
 )
 
+// Helper function to create a test logger
+func newTestLogger() *logrus.Logger {
+	buf := &bytes.Buffer{}
+	log := logrus.New()
+	log.SetOutput(buf)
+	log.SetLevel(logrus.DebugLevel)
+	log.SetFormatter(&logrus.TextFormatter{DisableTimestamp: true})
+	return log
+}
+
 func TestChat_InitializationAndGetInfo(t *testing.T) {
-	log := logger.NewLogger()
-	calculator := llm_models.NewCalculator()
+	log := newTestLogger()
+	calculator := cost.NewCalculator()
 	maxTokens := 2048
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, maxTokens, 0.0)
 
@@ -30,8 +42,8 @@ func TestChat_InitializationAndGetInfo(t *testing.T) {
 }
 
 func TestChat_Begin_SystemPromptAndToolDescription(t *testing.T) {
-	log := logger.NewLogger()
-	calculator := llm_models.NewCalculator()
+	log := newTestLogger()
+	calculator := cost.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}. Tools: {{tools}}", "query", log, calculator, 2048, 0.0)
 
 	tools := []mcp.Tool{
@@ -45,7 +57,6 @@ func TestChat_Begin_SystemPromptAndToolDescription(t *testing.T) {
 	assert.Equal(t, llms.ChatMessageTypeSystem, msgs[0].Role)
 	if len(msgs[0].Parts) > 0 {
 		if text, ok := msgs[0].Parts[0].(llms.TextContent); ok {
-			assert.Contains(t, text.Text, "Hello")
 			assert.Contains(t, text.Text, "echo")
 		} else {
 			t.Errorf("Expected TextContent in system message part")
@@ -60,15 +71,15 @@ func TestChat_Begin_SystemPromptAndToolDescription(t *testing.T) {
 }
 
 func TestChat_AddAssistantMessage_TokenCostApproximation(t *testing.T) {
-	log := logger.NewLogger()
-	calculator := llm_models.NewCalculator()
+	log := newTestLogger()
+	calculator := cost.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
 
-	resp := types.LLMResponse{
+	resp := typesllm.LLMResponse{
 		Text: "This is a test response.",
-		Metadata: types.LLMResponseMetadata{
-			Tokens: types.LLMResponseTokensMetadata{
+		Metadata: typesllm.LLMResponseMetadata{
+			Tokens: typesllm.LLMResponseTokensMetadata{
 				TotalTokens:      10,
 				PromptTokens:     5,
 				CompletionTokens: 5,
@@ -86,12 +97,12 @@ func TestChat_AddAssistantMessage_TokenCostApproximation(t *testing.T) {
 }
 
 func TestChat_AddAssistantMessage_FallbackEstimation(t *testing.T) {
-	log := logger.NewLogger()
-	calculator := llm_models.NewCalculator()
+	log := newTestLogger()
+	calculator := cost.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
 
-	resp := types.LLMResponse{
+	resp := typesllm.LLMResponse{
 		Text: "Fallback estimation test message.",
 		// No token metadata provided
 	}
@@ -106,8 +117,8 @@ func TestChat_AddAssistantMessage_FallbackEstimation(t *testing.T) {
 }
 
 func TestChat_AddToolCall_And_AddToolResult(t *testing.T) {
-	log := logger.NewLogger()
-	calculator := llm_models.NewCalculator()
+	log := newTestLogger()
+	calculator := cost.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
 
@@ -142,8 +153,8 @@ func TestChat_AddToolCall_And_AddToolResult(t *testing.T) {
 }
 
 func TestChat_AddToolResult_ErrorHandling(t *testing.T) {
-	log := logger.NewLogger()
-	calculator := llm_models.NewCalculator()
+	log := newTestLogger()
+	calculator := cost.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
 
@@ -188,8 +199,8 @@ func TestChat_AddToolResult_ErrorHandling(t *testing.T) {
 }
 
 func TestChat_BuildPromptPartForToolsDescription(t *testing.T) {
-	log := logger.NewLogger()
-	calculator := llm_models.NewCalculator()
+	log := newTestLogger()
+	calculator := cost.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 
 	tools := []mcp.Tool{
@@ -202,15 +213,15 @@ func TestChat_BuildPromptPartForToolsDescription(t *testing.T) {
 }
 
 func TestChat_GetLLMMessages_StackCorrectness(t *testing.T) {
-	log := logger.NewLogger()
-	calculator := llm_models.NewCalculator()
+	log := newTestLogger()
+	calculator := cost.NewCalculator()
 	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
 	_ = ch.Begin("Hi", nil)
 
-	resp := types.LLMResponse{
+	resp := typesllm.LLMResponse{
 		Text: "Test response.",
-		Metadata: types.LLMResponseMetadata{
-			Tokens: types.LLMResponseTokensMetadata{
+		Metadata: typesllm.LLMResponseMetadata{
+			Tokens: typesllm.LLMResponseTokensMetadata{
 				TotalTokens: 7,
 			},
 		},
@@ -224,16 +235,16 @@ func TestChat_GetLLMMessages_StackCorrectness(t *testing.T) {
 }
 
 func TestChat_RequestBudgetEnforcement(t *testing.T) {
-	log := logger.NewLogger()
-	calculator := llm_models.NewCalculator()
+	log := newTestLogger()
+	calculator := cost.NewCalculator()
 	budget := 0.0015 // Budget for two messages (each 0.001)
 	ch := chat.NewChat("gpt-4", "System: {{query}}", "query", log, calculator, 2048, budget)
 	_ = ch.Begin("Hi", nil)
 
-	resp := types.LLMResponse{
+	resp := typesllm.LLMResponse{
 		Text: "This is a test response.",
-		Metadata: types.LLMResponseMetadata{
-			Tokens: types.LLMResponseTokensMetadata{
+		Metadata: typesllm.LLMResponseMetadata{
+			Tokens: typesllm.LLMResponseTokensMetadata{
 				PromptTokens:     10,
 				CompletionTokens: 10,
 				TotalTokens:      20,
@@ -247,4 +258,31 @@ func TestChat_RequestBudgetEnforcement(t *testing.T) {
 	// Add another message to exceed the budget
 	ch.AddAssistantMessage(resp)
 	assert.True(t, ch.ExceededRequestBudget(), "Should exceed budget after second message")
+}
+
+func TestChat_InputSubstitutionInPrompt(t *testing.T) {
+	log := newTestLogger()
+	calculator := cost.NewCalculator()
+	ch := chat.NewChat("gpt-4o", "System: {{input}} | {{query}} | {{tools}}", "query", log, calculator, 2048, 0.0)
+
+	tools := []mcp.Tool{
+		mcp.NewTool("echo", mcp.WithString("msg", mcp.Required(), mcp.Description("Message to echo"))),
+	}
+	userInput := "Hello world!"
+	err := ch.Begin(userInput, tools)
+	assert.NoError(t, err)
+
+	msgs := ch.GetLLMMessages()
+	assert.Len(t, msgs, 1)
+	assert.Equal(t, llms.ChatMessageTypeSystem, msgs[0].Role)
+	if len(msgs[0].Parts) > 0 {
+		if text, ok := msgs[0].Parts[0].(llms.TextContent); ok {
+			assert.Contains(t, text.Text, userInput)
+			assert.Contains(t, text.Text, "echo")
+		} else {
+			t.Errorf("Expected TextContent in system message part")
+		}
+	} else {
+		t.Errorf("No parts in system message")
+	}
 }

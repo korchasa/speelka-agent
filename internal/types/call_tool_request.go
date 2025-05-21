@@ -30,14 +30,13 @@ func NewCallToolRequest(call llms.ToolCall) (CallToolRequest, error) {
 			Method: "tools/call",
 		},
 		Params: struct {
-			Name      string                 `json:"name"`
-			Arguments map[string]interface{} `json:"arguments,omitempty"`
-			Meta      *struct {
-				ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
-			} `json:"_meta,omitempty"`
+			Name      string    `json:"name"`
+			Arguments any       `json:"arguments,omitempty"`
+			Meta      *mcp.Meta `json:"_meta,omitempty"`
 		}{
 			Name:      call.FunctionCall.Name,
 			Arguments: args,
+			Meta:      nil,
 		},
 	}
 
@@ -51,10 +50,22 @@ func NewCallToolRequest(call llms.ToolCall) (CallToolRequest, error) {
 func (c *CallToolRequest) String() string {
 	args := c.Params.Arguments
 	var argsStr string
-	if len(args) == 0 {
+	switch v := args.(type) {
+	case map[string]interface{}:
+		if len(v) == 0 {
+			argsStr = "{}"
+		} else {
+			b, err := json.Marshal(v)
+			if err != nil {
+				argsStr = "{error}"
+			} else {
+				argsStr = string(b)
+			}
+		}
+	case nil:
 		argsStr = "{}"
-	} else {
-		b, err := json.Marshal(args)
+	default:
+		b, err := json.Marshal(v)
 		if err != nil {
 			argsStr = "{error}"
 		} else {

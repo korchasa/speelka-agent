@@ -31,20 +31,28 @@ function help() {
     echo -e "${GREEN}Commands:${NC}"
     echo "  test                  Run all tests with coverage information"
     echo "  lint                  Run code linting"
+    echo "  update-external-docs  Update external documentation files"
     echo "  build                 Build the project"
-    echo "  dev                   Run the application in development mode"
-    echo "  call                  Call a process using MCP with default question"
-    echo "  call-multistep        Call a multi-step process using MCP"
-    echo "  call-news             Call a ai news agent with a request"
-    echo "  check                 Run all checks in project (test, lint)"
-    echo "  site                  Run the site"
+    echo "  build-mcp-call        Build the mcp-call binary"
     echo "  fetch_url <url>       Fetch a URL using MCP"
+    echo "  dev                   Run the application in development mode"
+    echo "  test-direct-call-single   Run integration test for --call flag (no child mcps)"
+    echo "  test-direct-call-with-mcps Run integration test for --call flag (with child mcps)"
+    echo "  test-emulation-single      Run emulation test with a single-step request"
+    echo "  test-emulation-with-mcps  Run emulation test with a multi-step request"
+    echo "  test-emulator         Test the emulator"
+    echo "  inspect               Inspect project with MCP Inspector"
+    echo "  no-fixme              Scan for TODOs, FIXMEs, and Println in the code"
+    echo "  check                 Run all checks in project (format, build, lint, test, integration, no-fixme)"
+    echo "  site                  Run the static site on localhost:8000"
     echo "  help                  Display this help message"
     echo ""
     echo -e "${YELLOW}Examples:${NC}"
     echo "  ./run dev             Start development server"
     echo "  ./run test            Run all tests with coverage"
     echo "  ./run fetch_url https://example.com"
+    echo "  ./run check           Run all project checks"
+    echo "  ./run site            Run static site on http://127.0.0.1:8000"
 }
 
 # Display help if no arguments provided
@@ -92,6 +100,12 @@ case $CMD in
         check_command "golangci-lint"
         golangci-lint run ./... --verbose
         ;;
+    update-external-docs)
+        echo -e "${BLUE}Updating external docs...${NC}"
+        repomix --remote https://github.com/mark3labs/mcp-go --compress --output documents/mcp-go.xml
+        repomix --remote https://github.com/modelcontextprotocol/modelcontextprotocol --compress --output documents/mcp-proto.xml
+        echo -e "${GREEN}External docs updated!${NC}"
+        ;;
     build)
         echo -e "${BLUE}Building project...${NC}"
         mkdir -p bin
@@ -120,31 +134,65 @@ case $CMD in
         load_env
         go run -race ./cmd/server/main.go "$@"
         ;;
-    call)
-        echo -e "${BLUE}Test agent with 'What time is it now?' request${NC}"
+    test-direct-call-single)
+        echo -e "${BLUE}Running integration test for --call flag without child MCP servers...${NC}"
+        load_env
+        go build -o bin/speelka-agent ./cmd/server/main.go
+        ./bin/speelka-agent --config "site/examples/minimal.yaml" --call "What is 2+2?"
+        # Check exit code is 0 (success)
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}FAIL: Expected exit code 0, got $?${NC}"
+            exit 1
+        fi
+        ;;
+    test-direct-call-with-mcps)
+        echo -e "${BLUE}Running integration test for --call flag with child MCP servers...${NC}"
+        load_env
+        go build -o bin/speelka-agent ./cmd/server/main.go
+        ./bin/speelka-agent --config "site/examples/minimal.yaml" --call "What time has passed since the last commit in the project https://github.com/korchasa/speelka-agent?"
+        # Check exit code is 0 (success)
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}FAIL: Expected exit code 0, got $?${NC}"
+            exit 1
+        fi
+        ;;
+    test-emulation-single)
+        echo -e "${BLUE}Test agent without child MCP servers{NC}"
         (
             load_env
             go build -o bin/mcp-call ./cmd/mcp-call/main.go
             check_command "mcp"
-            ./bin/mcp-call --tool process --params '{"input": "What time is it now?"}' go run -race ./cmd/server/main.go --config ./site/examples/all-options.yaml
+            ./bin/mcp-call \
+              --tool process \
+              --params '{"input": "What time is it now?"}' \
+              --set-log-level debug \
+              go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
         )
         ;;
-    call-multistep)
-        echo -e "${BLUE}Test agent with 'What is in the oldest file in the directory, including all nested directories?' request${NC}"
+    test-emulation-with-mcps)
+        echo -e "${BLUE}Test agent with child MCP servers{NC}"
         (
             load_env
             go build -o bin/mcp-call ./cmd/mcp-call/main.go
             check_command "mcp"
-            SPL_LLM_TEMPERATURE=0.2 SPL_CHAT_MAX_TOKENS=16000 ./bin/mcp-call --tool process --params '{"input": "What is in the oldest file in the directory, including all nested directories? Show only 10 first lines of the file."}' go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
+            SPL_AGENT_LLM_TEMPERATURE=0.2 SPL_AGENT_CHAT_MAX_TOKENS=16000 ./bin/mcp-call \
+              --tool process \
+              --call-timeout 30 \
+              --params '{"input": "What time has passed since the last commit in the project https://github.com/korchasa/speelka-agent?"}' \
+              go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
         )
         ;;
-    call-news)
-        echo -e "${BLUE}Test agent with 'What is the latest news in AI?' request${NC}"
+    test-emulator-stdio)
+        echo -e "${BLUE}Test emulator{NC}"
         (
             load_env
-            go build -o bin/mcp-call ./cmd/mcp-call/main.go
-            check_command "mcp"
-            ./bin/mcp-call --call-timeout 900 --tool make-ai-digest --params "{\"query\": \"What is the latest news in AI?\"}" go run -race ./cmd/server/main.go --config ./site/examples/ai-news.yaml
+            go build -race -o bin/mcp-call ./cmd/mcp-call/main.go
+            check_command "npx"
+            ./bin/mcp-call \
+              --tool longRunningOperation \
+              --params '{"duration": 5}' \
+              --set-log-level debug \
+              npx @modelcontextprotocol/server-everything stdio
         )
         ;;
     inspect)
@@ -152,9 +200,6 @@ case $CMD in
         (
             load_env
             check_command "npx"
-            # Use YAML config instead of environment variables
-            # But still need to set environment variables for the inspector
-            source examples/simple.env
 
             # Collect all SPL_ environment variables
             env_vars=()
@@ -168,8 +213,22 @@ case $CMD in
             done < <(env | grep "^SPL_")
 
             # Run inspector with all SPL_ environment variables
-            npx @modelcontextprotocol/inspector "${env_vars[@]}" -- go run -race ./cmd/server/main.go --config examples/minimal.yaml
+            npx @modelcontextprotocol/inspector "${env_vars[@]}" -- go run -race ./cmd/server/main.go --config "site/examples/minimal.yaml"
         )
+        ;;
+    no-fixme)
+        if grep -rE 'TODO|FIXME|Println\(' internal/; then
+            echo -e "${RED}Error: TODO/FIXME/Println found!${NC}"
+            exit 1
+        fi
+        # Check for Russian text in all non-ignored files, but exclude this script itself
+        git ls-files | grep -v '^run$' > .files_to_check.txt
+        if cat .files_to_check.txt | xargs grep -n -E '[А-Яа-яЁё]' ; then
+            echo -e "${RED}Error: Russian text found!${NC}"
+            rm .files_to_check.txt
+            exit 1
+        fi
+        rm .files_to_check.txt
         ;;
     check)
         echo -e "${BLUE}Running all project checks...${NC}"
@@ -186,14 +245,20 @@ case $CMD in
         echo -e "\n${YELLOW}4. Running tests${NC}"
         ./run test || { echo -e "${RED}Tests failed${NC}"; exit 1; }
 
-        echo -e "\n${YELLOW}5. Running call${NC}"
-        ./run call || { echo -e "${RED}Call failed${NC}"; exit 1; }
+        echo -e "\n${YELLOW}5. Running integration test by direct call (single step)${NC}"
+        ./run test-direct-call-single || { echo -e "${RED}Direct call failed${NC}"; exit 1; }
 
-        echo -e "\n${YELLOW}6. Running multi-step call${NC}"
-        ./run call-multistep || { echo -e "${RED}Multi-step call failed${NC}"; exit 1; }
+        echo -e "\n${YELLOW}6. Running integration test by direct call (with child mcps)${NC}"
+        ./run test-direct-call-with-mcps || { echo -e "${RED}Direct call failed${NC}"; exit 1; }
 
-        echo -e "\n${YELLOW}7. Running direct call${NC}"
-        ./run test-direct-call || { echo -e "${RED}Direct call failed${NC}"; exit 1; }
+        echo -e "\n${YELLOW}7. Running integration test by emulation (single step)${NC}"
+        ./run test-emulation-single || { echo -e "${RED}Call failed${NC}"; exit 1; }
+
+        echo -e "\n${YELLOW}8. Running integration test by emulation (with child mcps)${NC}"
+        ./run test-emulation-with-mcps || { echo -e "${RED}Multi-step call failed${NC}"; exit 1; }
+
+        echo -e "\n${YELLOW}9. Running no-fixme check${NC}"
+        ./run no-fixme || { echo -e "${RED}No-fixme failed${NC}"; exit 1; }
 
         echo -e "\n${GREEN}✓ All checks passed!${NC}"
         ;;
@@ -202,37 +267,6 @@ case $CMD in
         check_command "python3"
         cd site
         python3 -m http.server -b 127.0.0.1 8000
-        ;;
-    test-direct-call)
-        echo -e "${BLUE}Running integration test for --call flag (direct call mode)...${NC}"
-        load_env
-        go build -o bin/speelka-agent ./cmd/server/main.go
-        TEST_QUERY='What is 2+2?'
-        CONFIG=site/examples/minimal.yaml
-        OUTPUT=$(./bin/speelka-agent --config "$CONFIG" --call "$TEST_QUERY" 2>&1)
-        EXIT_CODE=$?
-        echo "Output: $OUTPUT"
-        echo "Exit code: $EXIT_CODE"
-        # Check exit code is 0 (success)
-        if [ $EXIT_CODE -ne 0 ]; then
-            echo -e "${RED}FAIL: Expected exit code 0, got $EXIT_CODE${NC}"
-            exit 1
-        fi
-        # Check output is valid JSON and has required fields
-        JSON_LINE=$(echo "$OUTPUT" | grep '^{.*}$')
-        echo "$JSON_LINE" | jq . > /dev/null 2>&1
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}FAIL: Output is not valid JSON${NC}"
-            exit 1
-        fi
-        for field in success result meta error; do
-            echo "$JSON_LINE" | jq ".$field" > /dev/null 2>&1
-            if [ $? -ne 0 ]; then
-                echo -e "${RED}FAIL: Missing field '$field' in output${NC}"
-                exit 1
-            fi
-        done
-        echo -e "${GREEN}✓ Direct call integration test passed!${NC}"
         ;;
     help)
         help

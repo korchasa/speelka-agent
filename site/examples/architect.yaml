@@ -6,8 +6,8 @@
 # Runtime configuration
 runtime:
   log:
-    level: info
-    output: stdout
+    defaultLevel: info
+    output: ':stdout:' # Log output: file path or :stderr:/:stdout:/:mcp:
 
   # Transport configuration
   transports:
@@ -33,16 +33,16 @@ agent:
   # Chat configuration
   chat:
     max_llm_iterations: 0
-    request_budget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
+    requestBudget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
 
   # LLM configuration
   llm:
     provider: openai
-    api_key: ''
+    apiKey: ''
     model: gpt-4o
     max_tokens: 0
     temperature: 0.2
-    prompt_template: >-
+    promptTemplate: >-
       You are an experienced Software Architect with extensive expertise in system design and planning. Your task is to address the following user query by making optimal, autonomous decisions based on the information provided and the tools available to you.
 
 
@@ -118,4 +118,6 @@ agent:
       initial_backoff: 1
       max_backoff: 30
       backoff_multiplier: 2
+
+defaultLevel: info
 

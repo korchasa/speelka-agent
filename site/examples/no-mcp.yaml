@@ -1,0 +1,30 @@
+# Minimal Assistant
+# A general-purpose agent that can answer questions and perform basic tasks.
+# Perfect for beginners or when you need a straightforward assistant.
+# Features: General Purpose, Easy Setup, Question Answering
+
+runtime:
+  log:
+    output: ":stderr:"
+    defaultLevel: "debug"
+
+agent:
+  name: "no-mcp-speelka-agent"
+
+  # Tool configuration
+  tool:
+    name: "process"
+    description: "Process tool for handling user queries with LLM"
+    argumentName: "input"
+    argumentDescription: "The user query to process"
+
+  # LLM configuration
+  llm:
+    provider: "openai"
+    apiKey: ""  # Set via environment variable SPL_LLM_API_KEY for security
+    model: "gpt-4.1-mini"
+    promptTemplate: "You are a helpful AI assistant. Respond to the following request: {{input}}. Provide a detailed and helpful response. Available tools: {{tools}}"
+
+  # Chat configuration
+  chat:
+    requestBudget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)

@@ -34,6 +34,7 @@ type Flags struct {
 	initTimeout  int
 	toolsTimeout int
 	callTimeout  int
+	setLogLevel  string
 }
 
 func main() {
@@ -41,21 +42,27 @@ func main() {
 	flags, args, params, err := prepare()
 	if err != nil {
 		logErrorf("Error: %v", err)
-		logInfof("Usage: mcp-call --tool toolName [--params '{...}'] [--init-timeout seconds] [--tools-timeout seconds] [--call-timeout seconds] command [args...]")
+		logInfof("Usage: mcp-call --tool toolName [--params '{...}'] [--init-timeout seconds] [--tools-timeout seconds] [--call-timeout seconds] [--set-log-level level] command [args...]")
 		os.Exit(1)
 	}
 
 	// Create a context with timeout
 	ctx := context.Background()
 
+	// === MCP LOGGING: notifications/message handler ===
+	receivedNotification := make([]mcp.JSONRPCNotification, 0)
+
 	// Initialize the MCP server
 	command := args[0]
 	commandArgs := args[1:]
-	mcpClient, _, err := initServer(ctx, command, commandArgs, time.Duration(flags.initTimeout)*time.Second)
+	mcpClient, initResult, err := initStdioServer(ctx, command, commandArgs, time.Duration(flags.initTimeout)*time.Second, &receivedNotification)
 	if err != nil {
 		logErrorf("Error initializing server: %v", err)
 		os.Exit(1)
 	}
+
+	// Output initialization result
+	logSuccessf("Initialization result:\n%s", jsonify(initResult))
 	defer func(mcpClient *client.Client) {
 		err := mcpClient.Close()
 		if err != nil {
@@ -71,11 +78,27 @@ func main() {
 		os.Exit(1)
 	}
 
+	// If the --set-log-level flag is set, send MCP logging/setLevel
+	if flags.setLogLevel != "" {
+		err := setLogLevel(ctx, mcpClient, flags.setLogLevel)
+		if err != nil {
+			logErrorf("Failed to set log level: %v", err)
+			os.Exit(1)
+		}
+		logSuccessf("Log level set to '%s' on server", flags.setLogLevel)
+	}
+
 	// Call the tool and display results
 	err = callTool(ctx, mcpClient, flags.toolName, params, time.Duration(flags.callTimeout)*time.Second)
 	if err != nil {
 		logErrorf("%v", err)
 		os.Exit(1)
+	}
+
+	if len(receivedNotification) == 0 {
+		logWarnf("Notifications received: 0")
+	} else {
+		logInfof("Notifications received: %d", len(receivedNotification))
 	}
 
 	os.Exit(0)
@@ -90,7 +113,8 @@ func prepare() (Flags, []string, map[string]interface{}, error) {
 	flag.StringVar(&flags.paramsJSON, "params", "", "JSON string of parameters to pass to the tool")
 	flag.IntVar(&flags.initTimeout, "init-timeout", 5, "Timeout in seconds for server initialization")
 	flag.IntVar(&flags.toolsTimeout, "tools-timeout", 5, "Timeout in seconds for listing tools")
-	flag.IntVar(&flags.callTimeout, "call-timeout", 300, "Timeout in seconds for tool call execution")
+	flag.IntVar(&flags.callTimeout, "call-timeout", 10, "Timeout in seconds for tool call execution")
+	flag.StringVar(&flags.setLogLevel, "set-log-level", "", "Set log level on the server (debug, info, warning, error, critical, alert, emergency)")
 
 	// Parse flags but keep the remaining arguments for the command to execute
 	flag.Parse()
@@ -113,9 +137,9 @@ func prepare() (Flags, []string, map[string]interface{}, error) {
 	return flags, args, params, nil
 }
 
-// initServer creates and initializes the MCP client
+// initStdioServer creates and initializes the MCP client
 // It sets up stderr handling and connects to the MCP server
-func initServer(ctx context.Context, command string, commandArgs []string, timeout time.Duration) (*client.Client, *mcp.InitializeResult, error) {
+func initStdioServer(ctx context.Context, command string, commandArgs []string, timeout time.Duration, receivedNotification *[]mcp.JSONRPCNotification) (*client.Client, *mcp.InitializeResult, error) {
 	// Create the MCP client
 	logInfof("Run MCP-server : %s %v", command, commandArgs)
 	mcpClient, err := client.NewStdioMCPClient(command, os.Environ(), commandArgs...)
@@ -142,21 +166,42 @@ func initServer(ctx context.Context, command string, commandArgs []string, timeo
 		}()
 	}
 
+	// === MCP LOGGING: notifications/message handler ===
+	// MCP logs are now explicitly marked as [MCP-LOG] in the output for clarity.
+	mcpClient.OnNotification(func(notification mcp.JSONRPCNotification) {
+		*receivedNotification = append(*receivedNotification, notification)
+		fmt.Printf("Received notification: %s\n", notification.Method)
+		var logMsg mcp.LoggingMessageNotification
+		params, err := json.Marshal(notification.Params)
+		if err != nil {
+			logErrorf("Failed to marshal notification params: %v", err)
+			return
+		}
+		if err := json.Unmarshal(params, &logMsg.Params); err != nil {
+			logErrorf("Failed to unmarshal LoggingMessageNotification.Params: %v", err)
+			return
+		}
+		level := string(logMsg.Params.Level)
+		color := colorBlue
+		msg := ""
+		if s, ok := logMsg.Params.Data.(string); ok {
+			msg = s
+		} else {
+			b, _ := json.Marshal(logMsg.Params.Data)
+			msg = string(b)
+		}
+		log.Printf(color+"[MCP-LOG %s] %s: %s"+colorReset, strings.ToUpper(level), logMsg.Params.Logger, msg)
+	})
+
 	// Initialize the client with a specific timeout
-	initRequest := mcp.InitializeRequest{
-		Params: struct {
-			ProtocolVersion string                 `json:"protocolVersion"`
-			Capabilities    mcp.ClientCapabilities `json:"capabilities"`
-			ClientInfo      mcp.Implementation     `json:"clientInfo"`
-		}{
-			ProtocolVersion: "0.1.0",
-			Capabilities:    mcp.ClientCapabilities{},
-			ClientInfo: mcp.Implementation{
-				Name:    "mcp-call",
-				Version: "0.1.0",
-			},
-		},
+	fmt.Println("Initializing stdio client...")
+	initRequest := mcp.InitializeRequest{}
+	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
+	initRequest.Params.ClientInfo = mcp.Implementation{
+		Name:    "mcp-call Simple Client",
+		Version: "1.0.0",
 	}
+	initRequest.Params.Capabilities = mcp.ClientCapabilities{}
 
 	logInfof("Initializing MCP client with params: %s", jsonify(initRequest))
 	initResult, err := mustRunWithTimeout(ctx, timeout, "Initialization", func(ctx context.Context) (*mcp.InitializeResult, error) {
@@ -294,13 +339,19 @@ func logSuccessf(format string, args ...interface{}) {
 }
 
 // logErrorf logs a message in red color (for errors)
+func logWarnf(format string, args ...interface{}) {
+	log.Printf(colorYellow+"mcp-call error: "+format+colorReset, args...)
+}
+
+// logErrorf logs a message in red color (for errors)
 func logErrorf(format string, args ...interface{}) {
 	log.Printf(colorRed+"mcp-call error: "+format+colorReset, args...)
 }
 
 // logStderr logs a message in magenta color (for stderr output)
+// Stderr logs are now explicitly marked as [STDERR] in the output for clarity.
 func logStderr(line string) {
-	log.Printf("%s<<<< stderr:%s %s", colorYellow, colorReset, line)
+	log.Printf("%s[STDERR]%s %s", colorYellow, colorReset, line)
 }
 
 func jsonify(v interface{}) string {
@@ -310,4 +361,17 @@ func jsonify(v interface{}) string {
 		os.Exit(1)
 	}
 	return string(b)
+}
+
+// setLogLevel sends MCP logging/setLevel to the server
+// Send as a tool call
+func setLogLevel(ctx context.Context, mcpClient *client.Client, level string) error {
+	err := mcpClient.SetLevel(ctx, mcp.SetLevelRequest{
+		Params: struct {
+			Level mcp.LoggingLevel `json:"level"`
+		}{
+			Level: mcp.LoggingLevel(level),
+		},
+	})
+	return err
 }

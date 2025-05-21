@@ -1,65 +1,105 @@
 # Implementation
 
-## Core Components
-- **Agent (internal/agent)**: Core agent logic only. Orchestrates request lifecycle, tool exec, state, logs tool calls as `>> Execute tool toolName(args)`. No config loading, server, CLI, or direct call JSON types. Exposes a clean interface for use by the app layer.
-- **App MCP (internal/app_mcp)**: Application wiring for MCP server/daemon mode. Instantiates and manages the agent, provides CLI entry points. Implements the shared `Application` interface.
-- **App Direct (internal/app_direct)**: Application wiring for direct CLI call mode. Instantiates and manages the agent for direct call mode. Implements the shared `Application` interface.
-- **Chat**: Manages history, token/cost; config immutable (constructor only); all state in `chatInfo` struct; token/cost tracked via LLMResponse, fallback estimation if needed. **TotalTokens** and **TotalCost** are cumulative (monotonically increasing) and never decrease. Chat history is not compacted or compressed.
-- **TokenCounter**: Approximates tokens (4 chars ≈ 1 token), type-specific, fallback for unknowns
-- **Config Manager**: Loads/validates config (YAML, JSON, env), type-safe, strict validation, only `Apply` parses log/output
-- **LLM Service**: Integrates OpenAI/Anthropic, returns `LLMResponse` (text, tool calls, token/cost, duration), retry/backoff logic
-- **MCP Server**: HTTP/stdio, routes requests, SSE for real-time
-- **MCP Connector**: Manages external MCP servers, tool discovery, retry
-- **Logger**: Wraps logrus, MCP protocol, level mapping, client notifications
+## Analyzer Functionalities
 
-## Config Structure (YAML)
+- The analyzer and agent logic now use direct struct and function implementations, with no interface/spec indirection.
+- All utility functions for dumping, time, and JSON have been removed.
+
+## Test Cases
+
+- All tests for removed interfaces and utilities have been deleted.
+- Integration and emulation tests in the `run` script now use updated prompts and improved output.
+
+## Environment Setup
+
+- The `run` script has been updated for better clarity and accuracy in test output and Russian text checks.
+- Example config (`site/examples/minimal.yaml`) now uses `npx fetcher-mcp` for the `filesystem` tool and omits the `disableMcp` log config.
+
+## Summary
+
+The codebase is now simpler, with less indirection and easier-to-follow logic. All documentation and tests have been updated to match the new structure.
+
+## Core Components
+- **Agent**: Orchestrates LLM loop, tool execution, chat state. No config/server/CLI logic. Exposes interface for app layer.
+- **App MCP**: MCP server/daemon wiring. Instantiates agent, provides CLI/server entrypoints.
+- **App Direct**: Direct CLI call wiring. Instantiates agent for single-shot mode. Implements NewAgentCLI and dummyToolConnector, does not depend on app_mcp.
+    - `app.go`: CLI application, contains NewAgentCLI and dummyToolConnector
+    - `types.go`: Types for CLI mode
+- **Chat**: Manages history, token/cost tracking, enforces request budget. All state in `chatInfo` struct.
+- **Config Manager**: Loads/validates config (YAML, JSON, env), type-safe, strict validation.
+- **LLM Service**: Integrates LLM providers, returns structured responses, retry/backoff logic.
+- **MCP Server**: HTTP/stdio, routes requests, real-time SSE.
+- **MCP Connector**: Manages external MCP servers, tool discovery, per-server timeouts.
+- **Logger**: Centralized logging (logrus/MCP), level mapping, client notifications, flexible output and format.
+
+## Example Configuration (YAML)
 ```yaml
 runtime:
   log:
-    level: debug
-    output: ./simple.log
+    defaultLevel: info
+    output: ':mcp:'
+    format: json
   transports:
     stdio:
       enabled: true
-      buffer_size: 8192
+      buffer_size: 1024
     http:
       enabled: false
       host: localhost
       port: 3000
 agent:
-  name: "simple-speelka-agent"
+  name: "speelka-agent"
+  version: "v1.0.0"
   tool:
     name: "process"
-    description: "Process tool for handling user queries with LLM"
+    description: "Process tool for user queries"
     argument_name: "input"
-    argument_description: "The user query to process"
+    argument_description: "User query"
   chat:
     max_tokens: 0
     max_llm_iterations: 25
     request_budget: 0.0
   llm:
     provider: "openai"
-    api_key: "dummy-api-key"
+    apiKey: "dummy-api-key"
     model: "gpt-4o"
     temperature: 0.7
-    prompt_template: "You are a helpful assistant. {{input}}. Available tools: {{tools}}"
+    promptTemplate: "You are a helpful assistant. {{input}}. Available tools: {{tools}}"
+    retry:
+      max_retries: 3
+      initial_backoff: 1.0
+      max_backoff: 30.0
+      backoff_multiplier: 2.0
   connections:
     mcpServers:
       time:
         command: "docker"
         args: ["run", "-i", "--rm", "mcp/time"]
-        timeout: 10   # Tool call timeout in seconds (optional, default 30s if not set)
+        timeout: 10
       filesystem:
         command: "mcp-filesystem-server"
         args: ["/path/to/directory"]
-        # timeout: 60
+    retry:
+      max_retries: 2
+      initial_backoff: 1.5
+      max_backoff: 10.0
+      backoff_multiplier: 2.5
 ```
+
+## Log Configuration
+- **LogConfig**: Centralized structure for log management.
+    - `DefaultLevel`: log level string (info, debug, warn, error, etc.)
+    - `Output`: output destination (`:stdout:`, `:stderr:`, `:mcp:`, file path)
+    - `Format`: log format (`custom`, `json`, `text`, `unknown`)
+    - `UseMCPLogs`: flag for MCP logging
+    - Constants: `LogOutputStdout`, `LogOutputStderr`, `LogOutputMCP`
+- **LoggerSpec**: Extended logger interface with SetFormatter, SetMCPServer (via MCPServerNotifier)
+- **MCPServerNotifier**: Interface for sending MCP notifications from the logger
 
 ## Token Counting
 - 4 chars ≈ 1 token (fallback)
 - Type-specific for text/tool calls
-- Overhead for message format
-- **TotalTokens** and **TotalCost** are cumulative for the session and never decrease.
+- Cumulative for session, never decreases
 
 ## Request Processing
 1. Receive (HTTP/stdio)
@@ -69,34 +109,43 @@ agent:
 5. Tool exec, capture result
 6. Format/send response
 
+## Config Loading (Koanf-based)
+- All configuration is now loaded, merged, and validated using the koanf library (core + providers: file, env, confmap, structs; parsers: json, yaml, toml).
+- The Manager loads defaults via confmap.Provider, then overlays file (yaml/json/toml) via file.Provider, then overlays env via env.Provider (SPL_ prefix, custom path mapping).
+- All config structs use only `koanf` tags; `json`/`yaml` tags are removed.
+- No custom loaders remain; all merging and env parsing is handled by koanf best practices.
+- See `internal/configuration/manager.go` for implementation.
+
 ## Config Loading Hierarchy
-1. CLI args
-2. Env vars (SPL_ prefix)
-3. Config file
-4. Defaults
+1. Defaults (confmap)
+2. Config file (yaml/json)
+3. Env vars (SPL_ prefix)
 
 ## Error Handling
 - Categories: Validation, Transient, Internal, External
-- Retry: Backoff config
-- Safe assertions, descriptive errors, no panics
-- **Orphaned tool_call auto-cleanup:** If a tool_call is found in the message stack without a matching tool result (e.g., due to error or interruption), it is now automatically removed from the stack and a warning is logged. This prevents protocol errors and improves robustness.
+- Retry/backoff per config
+- No panics, safe assertions, descriptive errors
+- Orphaned tool calls auto-removed and logged
 
 ## Test Coverage
-- Chat: All `chatInfo` fields, token/cost/approximation, edge cases
-- LLM Service: All `LLMResponse` fields, mock LLM, logger
-- Config: Defaults, overrides, validation, transport
+- Unit: All core logic, edge cases
+- Integration: LLM, config, transport, logger
 - E2E: Agent, transport, tools, token/cost
-- **Orphaned tool_call detection:** Tests simulate a tool_call without a result and verify that the system detects and auto-cleans it, logging a warning.
+- Orphaned tool_call detection: Simulated and auto-cleaned
+- **BuildLogConfig**: tests for all output/format/level variants, including invalid values
+- **GetAgentConfig, GetLLMConfig, GetMCPServerConfig, GetMCPConnectorConfig**: tests for correct config mapping
+- **Golden serialization tests**: compare config structure serialization with golden file
+- **Overlay property-based tests**: verify correct config overlay (edge-cases, map merge, zero-value preservation)
 
 ## Example Env Vars
 ```env
-SPL_AGENT_NAME="architect-speelka-agent"
-SPL_TOOL_NAME="architect"
+SPL_AGENT_NAME="speelka-agent"
+SPL_TOOL_NAME="process"
 SPL_LLM_PROVIDER="openai"
-SPL_LLM_API_KEY="your_api_key_here"
+SPL_LLM_APIKEY="your_api_key_here"
 SPL_LLM_MODEL="gpt-4o"
 SPL_LLM_MAX_TOKENS=0
-SPL_LLM_TEMPERATURE=0.2
+SPL_LLM_TEMPERATURE=0.7
 SPL_LLM_RETRY_MAX_RETRIES=3
 SPL_LLM_RETRY_INITIAL_BACKOFF=1.0
 SPL_LLM_RETRY_MAX_BACKOFF=30.0
@@ -104,81 +153,91 @@ SPL_LLM_RETRY_BACKOFF_MULTIPLIER=2.0
 SPL_CHAT_REQUEST_BUDGET=0.0
 ```
 
-## MCPServerConnection Tool Filtering
+## Direct Call Mode
+- `--call` flag: single-shot agent run, outputs structured JSON to stdout
+- All errors mapped to JSON and exit codes (0: success, 1: user/config, 2: internal/tool)
+- Use cases: scripting, automation, CI
 
-- The fields `IncludeTools` and `ExcludeTools` in `MCPServerConnection` allow fine-grained control over which tools are available from each MCP server.
-- These fields can be set in YAML/JSON configuration files, and now also via environment variables:
-  - `SPL_MCPS_<N>_INCLUDE_TOOLS` (comma- or space-separated list)
-  - `SPL_MCPS_<N>_EXCLUDE_TOOLS` (comma- or space-separated list)
-- The configuration overlay logic (Apply) merges these fields as follows:
-  - If the overlay config provides a non-nil value for `IncludeTools` or `ExcludeTools`, it replaces the previous value.
-  - If the overlay config provides nil, the previous value is preserved.
-- Comprehensive tests cover all edge cases for loading and merging these fields.
+## Logging
+- Centralized logger (logrus/MCP)
+- Dynamic log level and format via config
+- Output: stdout, stderr, file, or MCP protocol
+- No log duplication
+- No secrets/PII in logs
+- **LoggerSpec**: extended logger interface with SetFormatter, SetMCPServer (via MCPServerNotifier)
+- **MCPServerNotifier**: interface for sending MCP notifications from the logger
 
-## MCPConnector
-- Now supports per-server tool call timeout: each MCP server in config can specify a `timeout` (seconds, float or int). If not set, defaults to 30s.
-- Timeout is loaded from YAML/JSON, merged in `Apply`, copied in `GetMCPConnectorConfig`, and enforced in `MCPConnector.ExecuteTool`.
-- Manual timeout logic replaces context.WithTimeout for better control and logging. Enhanced logging for tool execution, including timeout/cancellation details.
-- Comprehensive tests added for timeout propagation and enforcement.
+## Direct-call MCP logging
 
-## Logger
-- After config is loaded, logger's level is set to match config (`logger.SetLevel(configManager.GetLogConfig().Level)`).
-- Added test to ensure logger respects config log level.
+In direct-call (CLI) mode, all MCP logs (notifications/message) are routed to stderr using a stub implementation of MCPServerNotifier (`mcpLogStub`). This stub is set in `app_direct.NewDirectApp` and prints logs in the format `[MCP level] message` for the user. This ensures:
 
-## File Removals
-- Deleted: `internal/app/direct_app_test.go`, `internal/app/direct_types.go`, `internal/app/util.go`, `site/examples/ai-news-subagent-extractor.yaml` (obsolete, replaced by `text-extractor.yaml`).
-- Tests and code referencing these files removed or updated.
+- No conditional logic in main.go for logging mode.
+- No empty `mcp` file is created.
+- All MCP logs are visible to CLI users.
 
-## Test Coverage
-- Added/updated tests for:
-  - Per-server timeout propagation and enforcement (YAML/JSON loader, config manager, MCPConnector).
-  - Logger respects config log level.
-  - Removal of obsolete files and references.
+The logger is always created according to the configuration, and the stub is injected only for direct-call mode inside the application layer.
 
-## Direct Call Mode (CLI)
-- **Flag:** `--call` (string, user query)
-- **Usage:** `./bin/speelka-agent --config config.yaml --call 'What is the weather?'
-- **Behavior:** Runs agent in single-shot mode, outputs structured JSON to stdout. Uses `internal/app.DirectApp` (independent from `App`, wires up agent and dependencies for direct call mode).
-- **Output Example:**
-  ```json
-  {
-    "success": true,
-    "result": { "answer": "The weather is sunny." },
-    "meta": { "tokens": 42, "cost": 0.01, "duration_ms": 1234 },
-    "error": { "type": "", "message": "" }
-  }
-  ```
-- **Error Handling:** All errors are mapped to JSON output and exit codes:
-  - `0`: success
-  - `1`: user/config error
-  - `2`: internal/agent/LLM/tool error
-- **Implementation:** Uses `DirectApp`, reuses agent core/config/env logic.
-- **Use Cases:** Scripting, automation, debugging, CI integration.
+// See architecture.md for high-level design.
 
-## Shell/Integration Test Plan: run Script check Sequence
+# MCPConnector Fallback Logging Implementation
 
-### Purpose
-To verify that the `./run check` sequence:
-- Prints a clear error message and exits before the success message if any step fails.
-- Prints the final success message only if all steps succeed.
+## Functionality
+- MCPConnector determines MCP logging support via capabilities after initialize.
+- If logging is supported — subscribes to notifications/message.
+- If not — fallback: reads stderr of the child process (only for stdio servers).
+- All log routes are managed via LogConfig and support dynamic format and level changes.
 
-### Test Cases
+## Test Examples
+- MCP log routing test:
+  - capabilities.Logging != nil
+  - Simulate MCP log (info/debug/error) — logger receives message with prefix [MCP ...]
+- Fallback to stderr test:
+  - capabilities.Logging == nil
+  - Simulate line in stderr — logger receives message with prefix stderr
+- Helper functions for testing are in internal/mcp_connector/utils_test.go
+- BuildLogConfig tests: all output/format/level variants, including invalid values
+- Golden serialization tests: compare config structure serialization with golden file
+- Overlay property-based tests: edge-cases, map merge, zero-value preservation
 
-1. **Simulate Failure in a Step**
-   - Temporarily modify one of the steps (e.g., `./run lint`) to return a non-zero exit code.
-   - Run `./run check`.
-   - **Expected:**
-     - The script prints an error message indicating which step failed (e.g., `Lint failed`).
-     - The script exits before printing `✓ All checks passed!`.
+## Test Environment
+- All tests run via ./run test
+- For linter/build check: ./run check
+- Mocks: mockLogger, fakeMCPClient (see internal/mcp_connector/mcp_connector_test.go)
 
-2. **All Steps Succeed**
-   - Ensure all steps (`build`, `lint`, `test`, `call`, `call-multistep`, `test-direct-call`) succeed.
-   - Run `./run check`.
-   - **Expected:**
-     - The script prints all intermediate step outputs.
-     - The script prints `✓ All checks passed!` at the end.
+## Important Details
+- For HTTP servers, fallback is not possible (no access to stderr).
+- For stdio servers, fallback is implemented via a separate goroutine and bufio.Scanner.
+- All changes are covered by unit tests.
 
-### Implementation Notes
-- Use explicit error handling in the `check` block for each step.
-- For CI, capture and assert on the presence/absence of the success message in the output.
-- Document any temporary modifications for failure simulation and revert after testing.
+## Overlay and Config Compatibility
+
+### Property-based overlay tests
+- Goal: ensure correct overlay for any value combinations.
+- Uses `testing/quick` to generate random config pairs.
+- Checks:
+  - overlay does not overwrite default values with zero-value fields;
+  - correctly merges maps;
+  - does not lose values;
+  - edge-cases: empty strings, zeros, nil maps, partially filled structs.
+- Test: `TestConfiguration_Overlay_PropertyBased` (`internal/types/configuration_test.go`).
+
+### Golden compatibility tests
+- Goal: control serialization compatibility of `types.Configuration` structure.
+- Test serializes default config and compares with golden file.
+- On structure change, test signals incompatibility.
+- Test: `TestConfiguration_Serialization_Golden` (`internal/types/configuration_test.go`).
+
+## New MCPServer Test Cases
+- Thread safety check: concurrent Stop and Serve calls do not cause races or panics.
+- Error logging check: BroadcastNotification logs an error if sending a notification fails (uses mock interface notificationBroadcasterWithError).
+- Tool consistency check: the set of tools from GetAllTools matches those actually registered on the server.
+- Log filtering and secret passing check: logger does not filter PII/secrets, responsibility is on business logic.
+
+## Mock Interfaces for Testing
+- notificationBroadcaster: allows substituting the internal MCP server to check notification sending.
+- notificationBroadcasterWithError: extends notificationBroadcaster to simulate errors when sending notifications.
+- errorCatchingLogger: records the fact of error logging to check BroadcastNotification behavior.
+
+## Example of Using Mocks
+In the BroadcastNotification_LogsError test, MCPServer replaces the server field with mockServerWithError and the logger with errorCatchingLogger. This allows checking that the error is actually logged without affecting production code.
+// exitTool is now built based on MCPServerConfig.Tool (name, description, argument, argument description), not hardcoded.

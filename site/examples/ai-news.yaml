@@ -6,7 +6,8 @@
 # Runtime configuration
 runtime:
   log:
-    level: "info"
+    defaultLevel: "info"
+    output: ':stderr:' # Log output: file path or :stderr:/:stdout:/:mcp:
 
   transports:
     stdio:
@@ -37,10 +38,10 @@ agent:
   # LLM configuration
   llm:
     provider: "openai"
-    api_key: ""  # Set via environment variable for security
+    apiKey: ""  # Set via environment variable for security
     model: "gpt-4.1-mini"
     temperature: 0.2
-    prompt_template: |
+    promptTemplate: |
       You are an elite AI news curator and analyst, internationally recognized for your ability to synthesize complex AI events into clear, multi-source digests. You work as part of an intelligence analysis team tasked with providing daily overviews of the latest developments in artificial intelligence.
 
       ### User Request

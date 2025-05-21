@@ -2,235 +2,230 @@ package configuration
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
-	"github.com/korchasa/speelka-agent-go/internal/utils"
+	"github.com/knadh/koanf/parsers/json"
+	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/providers/confmap"
+	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
 
-	"github.com/korchasa/speelka-agent-go/internal/types"
+	goyaml "gopkg.in/yaml.v3"
 )
 
 // Manager implements the types.ConfigurationManagerSpec interface.
 // Responsibility: Managing application configuration by coordinating multiple loaders
 type Manager struct {
-	logger        types.LoggerSpec
-	config        *types.Configuration
-	defaultLoader LoaderSpec
-	envLoader     LoaderSpec
+	config *Configuration
+	k      *koanf.Koanf
 }
 
 // NewConfigurationManager creates a new instance of ConfigurationManagerSpec.
 // Responsibility: Factory method for creating a configuration manager
-func NewConfigurationManager(logger types.LoggerSpec) *Manager {
-	manager := &Manager{
-		logger: logger,
+func NewConfigurationManager() *Manager {
+	return &Manager{
+		k: koanf.New("."),
 	}
-	// Initialize loaders
-	manager.defaultLoader = NewDefaultLoader()
-	manager.envLoader = NewEnvLoader()
-
-	return manager
 }
 
-// LoadConfiguration loads configuration using the configured loaders.
-// It first loads default values, then from a configuration file if specified,
+// LoadConfiguration loads configuration using KoanfWrapper.
+// Loads default values, then from a configuration file if specified,
 // and finally applies environment variables which take precedence.
-// Responsibility: Coordinating the loading of configuration from multiple sources
 func (cm *Manager) LoadConfiguration(ctx context.Context, configFilePath string) error {
-	cm.logger.Infof("Loading configuration...")
-
-	// Start with default configuration
-	cm.logger.Debugf("Loading default configuration...")
-	defaultConfig, err := cm.defaultLoader.LoadConfiguration()
-	if err != nil {
-		return fmt.Errorf("failed to load default configuration: %w", err)
+	cm.k = koanf.New(".")
+	if err := cm.k.Load(confmap.Provider(getDefaultConfigMap(), "."), nil); err != nil {
+		return fmt.Errorf("failed to load defaults: %w", err)
 	}
-	cm.config = defaultConfig
-
-	// Load from file if specified
 	if configFilePath != "" {
-		cm.logger.Infof("Loading configuration from file: %s", configFilePath)
-		var fileLoader LoaderSpec
-
-		// Choose loader based on file extension
+		var parser koanf.Parser
 		if strings.HasSuffix(configFilePath, ".yaml") || strings.HasSuffix(configFilePath, ".yml") {
-			fileLoader = NewYAMLLoader(configFilePath)
+			parser = yaml.Parser()
 		} else if strings.HasSuffix(configFilePath, ".json") {
-			fileLoader = NewJSONLoader(configFilePath)
+			parser = json.Parser()
 		} else {
-			return fmt.Errorf("unsupported configuration file format: %s", configFilePath)
+			return fmt.Errorf("unsupported config file format: %s", configFilePath)
 		}
-
-		// Load configuration from file
-		fileConfig, err := fileLoader.LoadConfiguration()
-		if err != nil {
-			return fmt.Errorf("failed to load configuration from file: %w", err)
+		if err := cm.k.Load(file.Provider(configFilePath), parser); err != nil {
+			return fmt.Errorf("failed to load config file: %w", err)
 		}
-
-		// Apply file configuration to default configuration instead of replacing it
-		cm.config.Apply(fileConfig)
 	}
-
-	// Load and apply environment variables (highest precedence)
-	cm.logger.Debugf("Loading environment variables...")
-	envConfig, err := cm.envLoader.LoadConfiguration()
-	if err != nil {
-		return fmt.Errorf("failed to load environment variables: %w", err)
+	if err := cm.k.Load(env.Provider("SPL_", ".", envKeyToPath), nil); err != nil {
+		return fmt.Errorf("failed to load env: %w", err)
 	}
-
-	// Apply environment variables if they exist
-	cm.logger.Debugf("Applying environment configurations...")
-	cm.config.Apply(envConfig)
-
-	cm.logger.Infof("Configuration: %s", utils.SDump(cm.config.RedactedCopy()))
-
-	// Validate the final configuration
-	cm.logger.Debugf("Validating configuration...")
-	err = cm.config.Validate()
-	if err != nil {
-		return fmt.Errorf("invalid configuration: %w", err)
+	cfg := &Configuration{}
+	unmarshalConf := koanf.UnmarshalConf{Tag: "koanf", FlatPaths: false}
+	if err := cm.k.UnmarshalWithConf("", cfg, unmarshalConf); err != nil {
+		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-
-	cm.logger.Infof("Configuration loaded successfully")
+	cm.config = cfg
 	return nil
 }
 
-// GetMCPServerConfig returns the MCP server configuration.
-func (cm *Manager) GetMCPServerConfig() types.MCPServerConfig {
-	// Convert from the new configuration format to the MCP server config format
-	mcpConfig := types.MCPServerConfig{
-		Name: cm.config.Agent.Name,
-		// Use version from agent config
-		Version: cm.config.Agent.Version,
-		Tool: types.MCPServerToolConfig{
-			Name:                cm.config.Agent.Tool.Name,
-			Description:         cm.config.Agent.Tool.Description,
-			ArgumentName:        cm.config.Agent.Tool.ArgumentName,
-			ArgumentDescription: cm.config.Agent.Tool.ArgumentDescription,
-		},
-		// Use HTTP config from RuntimeTransportConfig
-		HTTP: types.HTTPConfig{
-			Enabled: cm.config.Runtime.Transports.HTTP.Enabled,
-			Host:    cm.config.Runtime.Transports.HTTP.Host,
-			Port:    cm.config.Runtime.Transports.HTTP.Port,
-		},
-		// Use Stdio config from RuntimeTransportConfig
-		Stdio: types.StdioConfig{
-			Enabled:    cm.config.Runtime.Transports.Stdio.Enabled,
-			BufferSize: cm.config.Runtime.Transports.Stdio.BufferSize,
-		},
+// envKeyToPath converts SPL_* variables to a path for koanf
+// Now splits by a single underscore, does not change case.
+func envKeyToPath(s string) string {
+	s = strings.TrimPrefix(s, "SPL_")
+	parts := strings.Split(s, "_")
+	for i, p := range parts {
+		if len(p) == 0 {
+			continue
+		}
+		parts[i] = strings.ToLower(p)
 	}
-
-	return mcpConfig
+	return strings.Join(parts, ".")
 }
 
-// GetMCPConnectorConfig returns the MCP connector configuration.
-func (cm *Manager) GetMCPConnectorConfig() types.MCPConnectorConfig {
-	// Convert from the new configuration format to the MCP connector config format
-	mcpConnectorConfig := types.MCPConnectorConfig{
-		McpServers: make(map[string]types.MCPServerConnection),
-		RetryConfig: types.RetryConfig{
-			MaxRetries:        cm.config.Agent.Connections.Retry.MaxRetries,
-			InitialBackoff:    cm.config.Agent.Connections.Retry.InitialBackoff,
-			MaxBackoff:        cm.config.Agent.Connections.Retry.MaxBackoff,
-			BackoffMultiplier: cm.config.Agent.Connections.Retry.BackoffMultiplier,
-		},
-	}
+// GetConfiguration returns the loaded configuration
+func (cm *Manager) GetConfiguration() *Configuration {
+	return cm.config
+}
 
-	// Set default values for retry config if not specified
-	if mcpConnectorConfig.RetryConfig.MaxRetries == 0 {
-		mcpConnectorConfig.RetryConfig.MaxRetries = 3
-	}
-	if mcpConnectorConfig.RetryConfig.InitialBackoff == 0 {
-		mcpConnectorConfig.RetryConfig.InitialBackoff = 1.0
-	}
-	if mcpConnectorConfig.RetryConfig.MaxBackoff == 0 {
-		mcpConnectorConfig.RetryConfig.MaxBackoff = 60.0
-	}
-	if mcpConnectorConfig.RetryConfig.BackoffMultiplier == 0 {
-		mcpConnectorConfig.RetryConfig.BackoffMultiplier = 2.0
-	}
+// Validate checks if the configuration is valid
+func (cm *Manager) Validate() error {
+	var validationErrors []string
 
-	// Convert MCP server connections
-	for id, conn := range cm.config.Agent.Connections.McpServers {
-		mcpConnectorConfig.McpServers[id] = types.MCPServerConnection{
-			URL:          conn.URL,
-			APIKey:       conn.APIKey,
-			Command:      conn.Command,
-			Args:         conn.Args,
-			Environment:  conn.Environment,
-			IncludeTools: conn.IncludeTools,
-			ExcludeTools: conn.ExcludeTools,
-			Timeout:      conn.Timeout,
+	if err := cm.validateAgent(cm.config); err != nil {
+		validationErrors = append(validationErrors, err.Error())
+	}
+	if err := cm.validateTool(cm.config); err != nil {
+		validationErrors = append(validationErrors, err.Error())
+	}
+	if err := cm.validateLLM(cm.config); err != nil {
+		validationErrors = append(validationErrors, err.Error())
+	}
+	if err := cm.validatePrompt(cm.config); err != nil {
+		validationErrors = append(validationErrors, err.Error())
+	}
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(validationErrors, "; "))
+	}
+	return nil
+}
+
+func (cm *Manager) validateAgent(config *Configuration) error {
+	if config.Agent.Name == "" {
+		return fmt.Errorf("agent name is required")
+	}
+	return nil
+}
+
+func (cm *Manager) validateTool(config *Configuration) error {
+	var errs []string
+	if config.Agent.Tool.Name == "" {
+		errs = append(errs, "Tool name is required")
+	}
+	if config.Agent.Tool.Description == "" {
+		errs = append(errs, "Tool description is required")
+	}
+	if config.Agent.Tool.ArgumentName == "" {
+		errs = append(errs, "Tool argument name is required")
+	}
+	if config.Agent.Tool.ArgumentDescription == "" {
+		errs = append(errs, "Tool argument description is required")
+	}
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+func (cm *Manager) validateLLM(config *Configuration) error {
+	var errs []string
+	if config.Agent.LLM.APIKey == "" {
+		errs = append(errs, "LLM API key is required")
+	}
+	if config.Agent.LLM.Provider == "" {
+		errs = append(errs, "LLM provider is required")
+	}
+	if config.Agent.LLM.Model == "" {
+		errs = append(errs, "LLM model is required")
+	}
+	if config.Agent.LLM.PromptTemplate == "" {
+		errs = append(errs, "LLM prompt template is required")
+	}
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+func (cm *Manager) validatePrompt(config *Configuration) error {
+	if config.Agent.LLM.PromptTemplate != "" {
+		err := cm.validatePromptTemplate(config.Agent.LLM.PromptTemplate, config.Agent.Tool.ArgumentName)
+		if err != nil {
+			return fmt.Errorf("invalid prompt template: %v", err)
 		}
 	}
-
-	return mcpConnectorConfig
+	return nil
 }
 
-// GetLLMConfig returns the LLM configuration.
-func (cm *Manager) GetLLMConfig() types.LLMConfig {
-	// Create a new LLMConfig based on the configuration
-	llmConfig := types.LLMConfig{
-		Provider:             cm.config.Agent.LLM.Provider,
-		APIKey:               cm.config.Agent.LLM.APIKey,
-		Model:                cm.config.Agent.LLM.Model,
-		MaxTokens:            cm.config.Agent.LLM.MaxTokens,
-		SystemPromptTemplate: cm.config.Agent.LLM.PromptTemplate,
+func (cm *Manager) validatePromptTemplate(template string, argumentName string) error {
+	if strings.TrimSpace(template) == "" {
+		return fmt.Errorf("prompt template cannot be empty")
 	}
-
-	// Set MaxTokens if explicitly provided, otherwise leave at default
-	if cm.config.Agent.LLM.IsMaxTokensSet {
-		llmConfig.MaxTokens = cm.config.Agent.LLM.MaxTokens
-		llmConfig.IsMaxTokensSet = true
+	placeholders, err := cm.extractPlaceholders(template)
+	if err != nil {
+		return fmt.Errorf("failed to extract placeholders: %w", err)
 	}
-
-	// Set Temperature if provided
-	llmConfig.Temperature = cm.config.Agent.LLM.Temperature
-	llmConfig.IsTemperatureSet = true
-
-	// Set RetryConfig with default values if not specified
-	llmConfig.RetryConfig = types.RetryConfig{
-		MaxRetries:        cm.config.Agent.LLM.Retry.MaxRetries,
-		InitialBackoff:    cm.config.Agent.LLM.Retry.InitialBackoff,
-		MaxBackoff:        cm.config.Agent.LLM.Retry.MaxBackoff,
-		BackoffMultiplier: cm.config.Agent.LLM.Retry.BackoffMultiplier,
+	if !contains(placeholders, argumentName) && !contains(placeholders, "input") {
+		return fmt.Errorf("template must contain either {{%s}} or {{input}} placeholder", argumentName)
 	}
-
-	// Set default values for retry config if not specified
-	if llmConfig.RetryConfig.MaxRetries == 0 {
-		llmConfig.RetryConfig.MaxRetries = 3
-	}
-	if llmConfig.RetryConfig.InitialBackoff == 0 {
-		llmConfig.RetryConfig.InitialBackoff = 1.0
-	}
-	if llmConfig.RetryConfig.MaxBackoff == 0 {
-		llmConfig.RetryConfig.MaxBackoff = 60.0
-	}
-	if llmConfig.RetryConfig.BackoffMultiplier == 0 {
-		llmConfig.RetryConfig.BackoffMultiplier = 2.0
-	}
-
-	return llmConfig
+	return nil
 }
 
-// GetLogConfig returns the logging configuration.
-func (cm *Manager) GetLogConfig() types.LogConfig {
-	// Convert from the new configuration format to the Log config format
-	logConfig := types.LogConfig{
-		RawLevel:  cm.config.Runtime.Log.RawLevel,
-		RawOutput: cm.config.Runtime.Log.RawOutput,
-		Level:     cm.config.Runtime.Log.LogLevel,
-		Output:    cm.config.Runtime.Log.Output,
+func (cm *Manager) extractPlaceholders(template string) ([]string, error) {
+	r, err := regexp.Compile(`\{\{([^{}]+)\}\}`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile placeholder regex: %w", err)
 	}
-	return logConfig
+	matches := r.FindAllStringSubmatch(template, -1)
+	var placeholders []string
+	for _, match := range matches {
+		if len(match) > 1 {
+			placeholders = append(placeholders, strings.TrimSpace(match[1]))
+		}
+	}
+	return placeholders, nil
 }
 
-// GetAgentConfig returns the agent configuration.
-func (cm *Manager) GetAgentConfig() types.AgentConfig {
-	// Convert from the new configuration format to the Agent config format
-	agentConfig := types.AgentConfig{
-		Tool: types.MCPServerToolConfig{
+func contains(slice []string, str string) bool {
+	for _, item := range slice {
+		if item == str {
+			return true
+		}
+	}
+	return false
+}
+
+// RedactedCopy returns a copy of the configuration with private data masked for safe logging.
+func RedactedCopy(config *Configuration) *Configuration {
+	cpy := *config // shallow copy
+	cpy.Agent.LLM.APIKey = "***REDACTED***"
+	if cpy.Agent.Connections.McpServers != nil {
+		redactedServers := make(map[string]MCPServerConnection, len(cpy.Agent.Connections.McpServers))
+		for k, v := range cpy.Agent.Connections.McpServers {
+			redacted := v
+			redacted.APIKey = "***REDACTED***"
+			redactedServers[k] = redacted
+		}
+		cpy.Agent.Connections.McpServers = redactedServers
+	}
+	return &cpy
+}
+
+// GetAgentConfig returns the business AgentConfig structure based on rawConfig
+// While rawConfig is not filled by loaders, use cm.config for backward compatibility
+func (cm *Manager) GetAgentConfig() AgentConfig {
+	// While rawConfig is not filled by loaders, use cm.config for backward compatibility
+	if cm.config == nil {
+		return AgentConfig{}
+	}
+	return AgentConfig{
+		Tool: MCPServerToolConfig{
 			Name:                cm.config.Agent.Tool.Name,
 			Description:         cm.config.Agent.Tool.Description,
 			ArgumentName:        cm.config.Agent.Tool.ArgumentName,
@@ -241,6 +236,97 @@ func (cm *Manager) GetAgentConfig() types.AgentConfig {
 		MaxTokens:            cm.config.Agent.Chat.MaxTokens,
 		MaxLLMIterations:     cm.config.Agent.Chat.MaxLLMIterations,
 	}
+}
 
-	return agentConfig
+// getDefaultConfigMap returns default values for configuration as map[string]interface{}
+func getDefaultConfigMap() map[string]interface{} {
+	return map[string]interface{}{
+		"runtime": map[string]interface{}{
+			"log": map[string]interface{}{
+				"format":       "text",
+				"defaultLevel": "info",
+				"disableMcp":   false,
+			},
+			"transports": map[string]interface{}{
+				"stdio": map[string]interface{}{
+					"enabled":    true,
+					"bufferSize": 8192,
+				},
+				"http": map[string]interface{}{
+					"enabled": false,
+					"host":    "localhost",
+					"port":    3000,
+				},
+			},
+		},
+		"agent": map[string]interface{}{
+			"name":    "speelka-agent",
+			"version": "1.0.0",
+			"tool": map[string]interface{}{
+				"name":                "process",
+				"description":         "Process user queries with LLM",
+				"argumentName":        "input",
+				"argumentDescription": "The user query to process",
+			},
+			"chat": map[string]interface{}{
+				"maxTokens":        8192,
+				"maxLLMIterations": 100,
+				"requestBudget":    1.0,
+			},
+			"llm": map[string]interface{}{
+				"provider":       "openai",
+				"model":          "gpt-4",
+				"promptTemplate": "You are a helpful assistant. Respond to the following request: {{input}}. Available tools: {{tools}}",
+				"temperature":    0.7,
+				"apiKey":         "",
+				"retry": map[string]interface{}{
+					"maxRetries":        3,
+					"initialBackoff":    1.0,
+					"maxBackoff":        30.0,
+					"backoffMultiplier": 2.0,
+				},
+			},
+			"connections": map[string]interface{}{
+				"retry": map[string]interface{}{
+					"maxRetries":        3,
+					"initialBackoff":    1.0,
+					"maxBackoff":        30.0,
+					"backoffMultiplier": 2.0,
+				},
+				"mcpServers": map[string]interface{}{},
+			},
+		},
+	}
+}
+
+// MarshalConfiguration serializes the current configuration to map[string]interface{} using yaml.Marshal/yaml.Unmarshal
+func (cm *Manager) MarshalConfiguration() (map[string]interface{}, error) {
+	if cm.config == nil {
+		return nil, fmt.Errorf("no configuration loaded")
+	}
+	b, err := goyaml.Marshal(cm.config)
+	if err != nil {
+		return nil, fmt.Errorf("marshal to yaml: %w", err)
+	}
+	var out map[string]interface{}
+	if err := goyaml.Unmarshal(b, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal to map: %w", err)
+	}
+	return out, nil
+}
+
+// UnmarshalConfiguration deserializes map[string]interface{} into Configuration struct using koanf.Unmarshal
+func (cm *Manager) UnmarshalConfiguration(data map[string]interface{}) error {
+	if cm.k == nil {
+		cm.k = koanf.New(".")
+	}
+	if err := cm.k.Load(confmap.Provider(data, "."), nil); err != nil {
+		return fmt.Errorf("failed to load confmap: %w", err)
+	}
+	cfg := &Configuration{}
+	if err := cm.k.Unmarshal("", cfg); err != nil {
+		return fmt.Errorf("failed to unmarshal: %w", err)
+	}
+	cm.config = cfg
+	return nil
 }
