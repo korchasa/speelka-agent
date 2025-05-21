@@ -40,6 +40,7 @@ function help() {
     echo "  test-direct-call-with-mcps Run integration test for --call flag (with child mcps)"
     echo "  test-emulation-single      Run emulation test with a single-step request"
     echo "  test-emulation-with-mcps  Run emulation test with a multi-step request"
+    echo "  test-emulator         Test the emulator"
     echo "  inspect               Inspect project with MCP Inspector"
     echo "  no-fixme              Scan for TODOs, FIXMEs, and Println in the code"
     echo "  check                 Run all checks in project (format, build, lint, test, integration, no-fixme)"
@@ -161,7 +162,10 @@ case $CMD in
             load_env
             go build -o bin/mcp-call ./cmd/mcp-call/main.go
             check_command "mcp"
-            ./bin/mcp-call --tool process --params '{"input": "What time is it now?"}' go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
+            ./bin/mcp-call \
+              --tool process \
+              --params '{"input": "What time is it now?"}'
+              go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
         )
         ;;
     test-emulation-with-mcps)
@@ -170,7 +174,24 @@ case $CMD in
             load_env
             go build -o bin/mcp-call ./cmd/mcp-call/main.go
             check_command "mcp"
-            SPL_AGENT_LLM_TEMPERATURE=0.2 SPL_AGENT_CHAT_MAX_TOKENS=16000 ./bin/mcp-call --tool process --call-timeout 30 --params '{"input": "What time has passed since the last commit in the project https://github.com/korchasa/speelka-agent?"}' go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
+            SPL_AGENT_LLM_TEMPERATURE=0.2 SPL_AGENT_CHAT_MAX_TOKENS=16000 ./bin/mcp-call \
+              --tool process \
+              --call-timeout 30 \
+              --params '{"input": "What time has passed since the last commit in the project https://github.com/korchasa/speelka-agent?"}' \
+              go run -race ./cmd/server/main.go --config ./site/examples/minimal.yaml
+        )
+        ;;
+    test-emulator-stdio)
+        echo -e "${BLUE}Test emulator{NC}"
+        (
+            load_env
+            go build -race -o bin/mcp-call ./cmd/mcp-call/main.go
+            check_command "npx"
+            ./bin/mcp-call \
+              --tool longRunningOperation \
+              --params '{"duration": 5}' \
+              --set-log-level debug \
+              npx @modelcontextprotocol/server-everything stdio
         )
         ;;
     inspect)

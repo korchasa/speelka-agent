@@ -294,7 +294,7 @@ func Test_initSSEServer_and_initStdioServer(t *testing.T) {
 	})
 	t.Run("Stdio server not initialized", func(t *testing.T) {
 		srv.server = nil
-		err := srv.initStdioServer(nil, context.Background())
+		err := srv.initStdioServer(context.Background(), nil)
 		if err == nil || err.Error() != "server is not *server.MCPServer" {
 			t.Errorf("expected error for nil server, got %v", err)
 		}
@@ -356,7 +356,7 @@ func Test_initSSEServer_and_initStdioServer_nilServer(t *testing.T) {
 
 	srv, _ = NewMCPServer(cfg, log)
 	srv.server = nil
-	err = srv.initStdioServer(nil, context.Background())
+	err = srv.initStdioServer(context.Background(), nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "server is not *server.MCPServer")
 }

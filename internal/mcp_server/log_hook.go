@@ -1,23 +1,24 @@
 package mcp_server
 
 import (
-	"context"
+    "context"
 
-	"github.com/sirupsen/logrus"
+    "github.com/sirupsen/logrus"
 )
 
 type LogHook struct {
-	server *MCPServer
+    server *MCPServer
+    ctx    context.Context
 }
 
 func (h *LogHook) Fire(entry *logrus.Entry) error {
-	err := h.server.SendNotificationToClient(context.Background(), "notifications/message", entry.Data)
-	if err != nil {
-		return err
-	}
-	return nil
+    err := h.server.SendNotificationToClient(h.ctx, "notifications/message", entry.Data)
+    if err != nil {
+        return err
+    }
+    return nil
 }
 
 func (h *LogHook) Levels() []logrus.Level {
-	return logrus.AllLevels
+    return logrus.AllLevels
 }
