@@ -181,7 +181,6 @@ func (c *Chat) AddToolCall(toolCall types.CallToolRequest) {
 	c.messagesStack = append(c.messagesStack, message)
 	c.info.TotalTokens += messageTokens
 	c.info.MessageStackLen = len(c.messagesStack)
-	c.info.ToolCallCount++
 
 	c.logger.Debugf("Added tool call with %d tokens, total now %d", messageTokens, c.info.TotalTokens)
 }

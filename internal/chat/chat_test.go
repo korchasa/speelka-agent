@@ -152,6 +152,31 @@ func TestChat_AddToolCall_And_AddToolResult(t *testing.T) {
 	assert.Greater(t, info2.TotalTokens, 0)
 }
 
+func TestChat_AddToolCall_DoesNotIncrementCount(t *testing.T) {
+	log := newTestLogger()
+	calculator := cost.NewCalculator()
+	ch := chat.NewChat("gpt-4o", "System: {{query}}", "query", log, calculator, 2048, 0.0)
+	_ = ch.Begin("Hi", nil)
+
+	toolCall := llms.ToolCall{
+		ID:   "tool-only",
+		Type: "function",
+		FunctionCall: &llms.FunctionCall{
+			Name:      "echo",
+			Arguments: `{"msg":"hello"}`,
+		},
+	}
+	callReq, err := types.NewCallToolRequest(toolCall)
+	assert.NoError(t, err)
+
+	ch.AddToolCall(callReq)
+
+	info := ch.GetInfo()
+	assert.Equal(t, 0, info.ToolCallCount)
+	assert.Equal(t, 2, info.MessageStackLen)
+	assert.Greater(t, info.TotalTokens, 0)
+}
+
 func TestChat_AddToolResult_ErrorHandling(t *testing.T) {
 	log := newTestLogger()
 	calculator := cost.NewCalculator()
