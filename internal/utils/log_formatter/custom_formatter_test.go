@@ -36,13 +36,10 @@ func TestCustomLogFormatter_appendKeyValue(t *testing.T) {
 
 func TestNewCustomLogFormatter(t *testing.T) {
 	f := NewCustomLogFormatter()
-	if f == nil {
-		t.Fatal("NewCustomLogFormatter returned nil")
-	}
 	if f.TimestampFormat != "15:04:05" {
 		t.Errorf("unexpected TimestampFormat: %s", f.TimestampFormat)
 	}
-	if f.FullTimestamp != false {
+	if f.FullTimestamp {
 		t.Errorf("unexpected FullTimestamp: %v", f.FullTimestamp)
 	}
 }
