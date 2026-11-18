@@ -11,7 +11,7 @@ runtime:
   transports:
     stdio:
       enabled: true
-      buffer_size: 8192
+      bufferSize: 8192
 
 agent:
   name: "summary-extractor"
@@ -21,13 +21,13 @@ agent:
   tool:
     name: "extract-summary"
     description: "Extract summary from given URL"
-    argument_name: "url"
-    argument_description: "The URL of the page to extract summary from"
+    argumentName: "url"
+    argumentDescription: "The URL of the page to extract summary from"
 
   # Chat configuration
   chat:
-    max_tokens: 150000
-    request_budget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
+    maxTokens: 150000
+    requestBudget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
 
   # LLM configuration
   llm:

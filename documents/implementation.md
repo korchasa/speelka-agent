@@ -13,7 +13,7 @@
 ## Environment Setup
 
 - The `run` script has been updated for better clarity and accuracy in test output and Russian text checks.
-- Example config (`site/examples/minimal.yaml`) now uses `npx fetcher-mcp` for the `filesystem` tool and omits the `disableMcp` log config.
+- Example config (`site/examples/minimal.yaml`) now runs the `ghcr.io/jae-jae/fetcher-mcp` Docker image over stdio as the `fetcher` server and omits the `disableMcp` log config.
 
 ## Summary
 
@@ -42,7 +42,7 @@ runtime:
   transports:
     stdio:
       enabled: true
-      buffer_size: 1024
+      bufferSize: 1024
     http:
       enabled: false
       host: localhost
@@ -53,12 +53,12 @@ agent:
   tool:
     name: "process"
     description: "Process tool for user queries"
-    argument_name: "input"
-    argument_description: "User query"
+    argumentName: "input"
+    argumentDescription: "User query"
   chat:
-    max_tokens: 0
-    max_llm_iterations: 25
-    request_budget: 0.0
+    maxTokens: 0
+    maxLLMIterations: 25
+    requestBudget: 0.0
   llm:
     provider: "openai"
     apiKey: "dummy-api-key"
@@ -66,10 +66,10 @@ agent:
     temperature: 0.7
     promptTemplate: "You are a helpful assistant. {{input}}. Available tools: {{tools}}"
     retry:
-      max_retries: 3
-      initial_backoff: 1.0
-      max_backoff: 30.0
-      backoff_multiplier: 2.0
+      maxRetries: 3
+      initialBackoff: 1.0
+      maxBackoff: 30.0
+      backoffMultiplier: 2.0
   connections:
     mcpServers:
       time:
@@ -80,10 +80,10 @@ agent:
         command: "mcp-filesystem-server"
         args: ["/path/to/directory"]
     retry:
-      max_retries: 2
-      initial_backoff: 1.5
-      max_backoff: 10.0
-      backoff_multiplier: 2.5
+      maxRetries: 2
+      initialBackoff: 1.5
+      maxBackoff: 10.0
+      backoffMultiplier: 2.5
 ```
 
 ## Log Configuration

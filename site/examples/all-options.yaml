@@ -11,7 +11,7 @@ runtime:
   transports:
     stdio:
       enabled: true            # Enable stdio transport (CLI/daemon)
-      buffer_size: 8192        # Buffer size for stdio (bytes)
+      bufferSize: 8192        # Buffer size for stdio (bytes)
     http:
       enabled: false           # Enable HTTP server
       host: localhost          # HTTP server host

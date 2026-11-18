@@ -13,7 +13,7 @@ runtime:
   transports:
     stdio:
       enabled: true
-      buffer_size: 8192
+      bufferSize: 8192
     http:
       enabled: false
       host: localhost
@@ -27,12 +27,12 @@ agent:
   tool:
     name: architect
     description: Architecture design and assessment tool for software systems
-    argument_name: query
-    argument_description: Architecture query or task to process
+    argumentName: query
+    argumentDescription: Architecture query or task to process
 
   # Chat configuration
   chat:
-    max_llm_iterations: 0
+    maxLLMIterations: 0
     requestBudget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
 
   # LLM configuration
@@ -40,7 +40,7 @@ agent:
     provider: openai
     apiKey: ''
     model: gpt-4o
-    max_tokens: 0
+    maxTokens: 0
     temperature: 0.2
     promptTemplate: >-
       You are an experienced Software Architect with extensive expertise in system design and planning. Your task is to address the following user query by making optimal, autonomous decisions based on the information provided and the tools available to you.
@@ -90,10 +90,10 @@ agent:
          e. Improvement Proposals: Three suggestions for potential enhancements or alternatives
     # Retry configuration for LLM
     retry:
-      max_retries: 3
-      initial_backoff: 1
-      max_backoff: 30
-      backoff_multiplier: 2
+      maxRetries: 3
+      initialBackoff: 1
+      maxBackoff: 30
+      backoffMultiplier: 2
 
   # MCP Server connections
   connections:
@@ -114,10 +114,7 @@ agent:
 
     # Retry configuration for MCP connections
     retry:
-      max_retries: 3
-      initial_backoff: 1
-      max_backoff: 30
-      backoff_multiplier: 2
-
-defaultLevel: info
-
+      maxRetries: 3
+      initialBackoff: 1
+      maxBackoff: 30
+      backoffMultiplier: 2

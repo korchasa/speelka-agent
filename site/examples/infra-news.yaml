@@ -11,7 +11,7 @@ runtime:
   transports:
     stdio:
       enabled: true
-      buffer_size: 8192
+      bufferSize: 8192
 
     http:
       enabled: false
@@ -26,13 +26,13 @@ agent:
   tool:
     name: "make-infra-digest"
     description: "Looking for news related to infrastructure, DevOps, DevSecOps, and SRE"
-    argument_name: "query"
-    argument_description: "The user request to process"
+    argumentName: "input"
+    argumentDescription: "The user request to process"
 
   # Chat configuration
   chat:
-    max_tokens: 150000
-    request_budget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
+    maxTokens: 150000
+    requestBudget: 1.0  # Maximum cost (USD or token-equivalent) per request (0 = unlimited)
 
   # LLM configuration
   llm:
@@ -44,7 +44,7 @@ agent:
       You are an elite news curator and analyst, internationally recognized for your ability to synthesize complex developments in infrastructure, DevOps, DevSecOps, and SRE into clear, multi-source digests. Your task is to provide a daily overview of the latest happenings in these fields based on the following user query and using the provided tools.
 
       ### User Request
-      {{query}}
+      {{input}}
 
       ### Objective
       Gather, analyze, and summarize the most recent and significant news related to infrastructure, DevOps, DevSecOps, and SRE from the authoritative sources listed below. For each news item, extract the headline, provide a brief summary, and include the corresponding source link(s) using Markdown formatting (e.g., [Source Name](URL)). Consolidate similar news items into unified narratives when they cover the same event, ensuring that all critical details and source links are preserved.
@@ -111,9 +111,7 @@ agent:
 
     # Retry configuration for MCP connections
     retry:
-      max_retries: 3
-      initial_backoff: 1.0
-      max_backoff: 30.0
-      backoff_multiplier: 2.0
-
-defaultLevel: "info"
+      maxRetries: 3
+      initialBackoff: 1.0
+      maxBackoff: 30.0
+      backoffMultiplier: 2.0

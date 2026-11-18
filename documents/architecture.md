@@ -7,7 +7,7 @@ The system has been simplified by removing all interface/spec files from `intern
 - **Removed:** All interface/spec files for LLM, logger, MCP server, metrics, and connectors.
 - **Removed:** Utility functions for dumping, time, and JSON (`internal/utils/dump.go`).
 - **Updated:** The `run` script now has clearer test output, improved Russian text checks, and updated integration/emulation test prompts.
-- **Updated:** Example config (`site/examples/minimal.yaml`) now uses `npx fetcher-mcp` for the `filesystem` tool and omits the `disableMcp` log config.
+- **Updated:** Example config (`site/examples/minimal.yaml`) now runs the `ghcr.io/jae-jae/fetcher-mcp` Docker image over stdio as the `fetcher` server and omits the `disableMcp` log config.
 
 ## Design Patterns
 - **Direct Implementation:** The system now uses direct struct and function implementations, reducing the need for interface-based abstraction unless required for testing or extensibility.

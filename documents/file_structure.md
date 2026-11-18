@@ -9,7 +9,7 @@
   - **Removed:** All files in `internal/types/`.
   - **Removed:** `internal/utils/dump.go` and `internal/utils/dump_test.go`.
 - `site/`: Static site and example configs.
-  - `examples/minimal.yaml`: Updated to use `npx fetcher-mcp` for the `filesystem` tool; removed `disableMcp` from log config.
+  - `examples/minimal.yaml`: Runs the `ghcr.io/jae-jae/fetcher-mcp` Docker image over stdio as the `fetcher` server; removed `disableMcp` from log config.
 - `run`: Project management script. Now improved for test clarity, Russian text check excludes itself, and test prompts updated.
 
 ## Root

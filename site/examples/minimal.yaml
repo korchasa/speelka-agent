@@ -28,9 +28,10 @@ agent:
       time:
         command: "docker"
         args: ["run", "-i", "--rm", "mcp/time"]
-      filesystem:
-        command: "npx"
-        args: ["-y", "fetcher-mcp"]
+      fetcher:
+        command: "docker"
+        args: ["run", "-i", "--rm", "ghcr.io/jae-jae/fetcher-mcp:sha-652ec7b", "node", "build/index.js"]
+        timeout: 30
 
   # Chat configuration
   chat:
