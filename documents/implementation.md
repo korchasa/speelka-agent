@@ -30,14 +30,13 @@ The codebase is now simpler, with less indirection and easier-to-follow logic. A
 - **LLM Service**: Integrates LLM providers, returns structured responses, retry/backoff logic.
 - **MCP Server**: HTTP/stdio, routes requests, real-time SSE.
 - **MCP Connector**: Manages external MCP servers, tool discovery, per-server timeouts.
-- **Logger**: Centralized logging (logrus/MCP), level mapping, client notifications, flexible output and format.
+- **Logger**: Centralized logging (logrus/MCP), level mapping, client notifications, configurable format.
 
 ## Example Configuration (YAML)
 ```yaml
 runtime:
   log:
     defaultLevel: info
-    output: ':mcp:'
     format: json
   transports:
     stdio:
@@ -89,10 +88,8 @@ agent:
 ## Log Configuration
 - **LogConfig**: Centralized structure for log management.
     - `DefaultLevel`: log level string (info, debug, warn, error, etc.)
-    - `Output`: output destination (`:stdout:`, `:stderr:`, `:mcp:`, file path)
     - `Format`: log format (`custom`, `json`, `text`, `unknown`)
     - `UseMCPLogs`: flag for MCP logging
-    - Constants: `LogOutputStdout`, `LogOutputStderr`, `LogOutputMCP`
 - **LoggerSpec**: Extended logger interface with SetFormatter, SetMCPServer (via MCPServerNotifier)
 - **MCPServerNotifier**: Interface for sending MCP notifications from the logger
 
@@ -132,7 +129,7 @@ agent:
 - Integration: LLM, config, transport, logger
 - E2E: Agent, transport, tools, token/cost
 - Orphaned tool_call detection: Simulated and auto-cleaned
-- **BuildLogConfig**: tests for all output/format/level variants, including invalid values
+- **BuildLogConfig**: tests for all format/level variants, including invalid values
 - **GetAgentConfig, GetLLMConfig, GetMCPServerConfig, GetMCPConnectorConfig**: tests for correct config mapping
 - **Golden serialization tests**: compare config structure serialization with golden file
 - **Overlay property-based tests**: verify correct config overlay (edge-cases, map merge, zero-value preservation)
@@ -140,17 +137,17 @@ agent:
 ## Example Env Vars
 ```env
 SPL_AGENT_NAME="speelka-agent"
-SPL_TOOL_NAME="process"
-SPL_LLM_PROVIDER="openai"
-SPL_LLM_APIKEY="your_api_key_here"
-SPL_LLM_MODEL="gpt-4o"
-SPL_LLM_MAX_TOKENS=0
-SPL_LLM_TEMPERATURE=0.7
-SPL_LLM_RETRY_MAX_RETRIES=3
-SPL_LLM_RETRY_INITIAL_BACKOFF=1.0
-SPL_LLM_RETRY_MAX_BACKOFF=30.0
-SPL_LLM_RETRY_BACKOFF_MULTIPLIER=2.0
-SPL_CHAT_REQUEST_BUDGET=0.0
+SPL_AGENT_TOOL_NAME="process"
+SPL_AGENT_LLM_PROVIDER="openai"
+SPL_AGENT_LLM_APIKEY="your_api_key_here"
+SPL_AGENT_LLM_MODEL="gpt-4o"
+SPL_AGENT_LLM_MAXTOKENS=0
+SPL_AGENT_LLM_TEMPERATURE=0.7
+SPL_AGENT_LLM_RETRY_MAXRETRIES=3
+SPL_AGENT_LLM_RETRY_INITIALBACKOFF=1.0
+SPL_AGENT_LLM_RETRY_MAXBACKOFF=30.0
+SPL_AGENT_LLM_RETRY_BACKOFFMULTIPLIER=2.0
+SPL_AGENT_CHAT_REQUESTBUDGET=0.0
 ```
 
 ## Direct Call Mode
@@ -195,7 +192,7 @@ The logger is always created according to the configuration, and the stub is inj
   - capabilities.Logging == nil
   - Simulate line in stderr — logger receives message with prefix stderr
 - Helper functions for testing are in internal/mcp_connector/utils_test.go
-- BuildLogConfig tests: all output/format/level variants, including invalid values
+- BuildLogConfig tests: all format/level variants, including invalid values
 - Golden serialization tests: compare config structure serialization with golden file
 - Overlay property-based tests: edge-cases, map merge, zero-value preservation
 

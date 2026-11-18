@@ -221,7 +221,7 @@ flowchart TB
                     <div class="important-note">
                         <h4><i class="fas fa-exclamation-circle"></i> Important Security Note</h4>
                         <p>Create a new API key from your LLM provider and set it as an environment variable:</p>
-                        <pre class="code-block small-code"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>export SPL_LLM_API_KEY=your_llm_api_key_here</code></pre>
+                        <pre class="code-block small-code"><button class="copy-btn" aria-label="Copy code"><i class="fas fa-copy"></i></button><code>export SPL_AGENT_LLM_APIKEY=your_llm_api_key_here</code></pre>
                         <p>You can get an API key from <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI's website</a> or your preferred LLM provider.</p>
                     </div>
                 </div>
@@ -272,7 +272,7 @@ flowchart TB
       "command": "./speelka-agent",
       "args": ["--config", "config.yaml"],
       "env": {
-        "SPL_LLM_API_KEY": "your_llm_api_key_here"
+        "SPL_AGENT_LLM_APIKEY": "your_llm_api_key_here"
       }
     }
   }

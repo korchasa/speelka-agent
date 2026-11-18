@@ -49,7 +49,7 @@ flowchart TB
 - **MCP Server**: Exposes agent via HTTP/stdio, manages tools, processes requests.
 - **MCP Connector**: Connects to external MCP servers, routes tool calls, manages timeouts.
 - **Chat**: Manages history, formatting, token/cost tracking, enforces request budget.
-- **Logger**: Centralized logging (logrus/MCP protocol), client notifications, flexible output and format.
+- **Logger**: Centralized logging (logrus/MCP protocol), client notifications, configurable format.
 
 ## Data Flow
 1. User → MCP Server
@@ -91,8 +91,7 @@ flowchart TB
 - Load order: default → file → env
 - All configuration loading, merging, and env parsing is now handled by koanf (core + providers), following official best practices. No custom loaders remain (DefaultLoader, EnvLoader, YAML/JSONLoader are removed).
 - All config structs use `koanf` tags for field mapping; `json`/`yaml` tags are removed.
-- **LogConfig**: Centralized log configuration with support for output (stdout, stderr, file, MCP), format (custom, json, text, unknown), and dynamic log level.
-- **Log Output Constants**: `LogOutputStdout`, `LogOutputStderr`, `LogOutputMCP` for unified output selection.
+- **LogConfig**: Centralized log configuration with support for MCP notifications on/off (`disableMcp`; logs always go to stderr), format (custom, json, text, unknown), and dynamic log level.
 
 ## Logging
 - Centralized logger (logrus/MCP)

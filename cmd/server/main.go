@@ -54,7 +54,7 @@ func main() {
     if err != nil {
         startupLogger.Fatalf("Failed to load configuration: %v", err)
     }
-    // Get final log level and output from configuration
+    // Get final log level and format from configuration
     logConfig, err := conf.BuildLogConfig()
     if err != nil {
         startupLogger.Fatalf("Invalid log config: %v", err)

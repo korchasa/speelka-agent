@@ -175,7 +175,7 @@ case $CMD in
             load_env
             go build -o bin/mcp-call ./cmd/mcp-call/main.go
             check_command "mcp"
-            SPL_AGENT_LLM_TEMPERATURE=0.2 SPL_AGENT_CHAT_MAX_TOKENS=16000 ./bin/mcp-call \
+            SPL_AGENT_LLM_TEMPERATURE=0.2 SPL_AGENT_CHAT_MAXTOKENS=16000 ./bin/mcp-call \
               --tool process \
               --call-timeout 30 \
               --params '{"input": "What time has passed since the last commit in the project https://github.com/korchasa/speelka-agent?"}' \

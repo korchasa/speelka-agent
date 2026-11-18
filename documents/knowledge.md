@@ -43,24 +43,24 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{..
 |----------|----------|-------------|---------|
 | Agent    | SPL_AGENT_NAME | Agent name | *req* |
 |          | SPL_AGENT_VERSION | Version | 1.0.0 |
-| Tool     | SPL_TOOL_NAME | Tool name | *req* |
-|          | SPL_TOOL_DESCRIPTION | Desc | *req* |
-|          | SPL_TOOL_ARGUMENT_NAME | Arg name | *req* |
-|          | SPL_TOOL_ARGUMENT_DESCRIPTION | Arg desc | *req* |
-| LLM      | SPL_LLM_PROVIDER | Provider | *req* |
-|          | SPL_LLM_APIKEY | API key | *req* |
-|          | SPL_LLM_MODEL | Model | *req* |
-|          | SPL_LLM_MAX_TOKENS | Max tokens | 0 |
-|          | SPL_LLM_TEMPERATURE | Temp | 0.7 |
-|          | SPL_LLM_PROMPTTEMPLATE | Prompt | *req* |
-| Chat     | SPL_CHAT_MAX_TOKENS | Max hist tokens | 0 |
-|          | SPL_CHAT_MAX_ITERATIONS | Max LLM iters | 25 |
-|          | SPL_CHAT_REQUEST_BUDGET | Max cost per request | 0.0 |
-| Retry    | SPL_LLM_RETRY_MAX_RETRIES | Max retries | 3 |
-|          | SPL_LLM_RETRY_INITIAL_BACKOFF | Init backoff | 1.0 |
-|          | SPL_LLM_RETRY_MAX_BACKOFF | Max backoff | 30.0 |
-|          | SPL_LLM_RETRY_BACKOFF_MULTIPLIER | Multiplier | 2.0 |
-| Runtime  | SPL_LOG_DEFAULTLEVEL | Log defaultLevel | info |
+| Tool     | SPL_AGENT_TOOL_NAME | Tool name | *req* |
+|          | SPL_AGENT_TOOL_DESCRIPTION | Desc | *req* |
+|          | SPL_AGENT_TOOL_ARGUMENTNAME | Arg name | *req* |
+|          | SPL_AGENT_TOOL_ARGUMENTDESCRIPTION | Arg desc | *req* |
+| LLM      | SPL_AGENT_LLM_PROVIDER | Provider | *req* |
+|          | SPL_AGENT_LLM_APIKEY | API key | *req* |
+|          | SPL_AGENT_LLM_MODEL | Model | *req* |
+|          | SPL_AGENT_LLM_MAXTOKENS | Max tokens | 0 |
+|          | SPL_AGENT_LLM_TEMPERATURE | Temp | 0.7 |
+|          | SPL_AGENT_LLM_PROMPTTEMPLATE | Prompt | *req* |
+| Chat     | SPL_AGENT_CHAT_MAXTOKENS | Max hist tokens | 0 |
+|          | SPL_AGENT_CHAT_MAXLLMITERATIONS | Max LLM iters | 25 |
+|          | SPL_AGENT_CHAT_REQUESTBUDGET | Max cost per request | 0.0 |
+| Retry    | SPL_AGENT_LLM_RETRY_MAXRETRIES | Max retries | 3 |
+|          | SPL_AGENT_LLM_RETRY_INITIALBACKOFF | Init backoff | 1.0 |
+|          | SPL_AGENT_LLM_RETRY_MAXBACKOFF | Max backoff | 30.0 |
+|          | SPL_AGENT_LLM_RETRY_BACKOFFMULTIPLIER | Multiplier | 2.0 |
+| Runtime  | SPL_RUNTIME_LOG_DEFAULTLEVEL | Log defaultLevel | info |
 
 # Reference Patterns
 
@@ -105,21 +105,21 @@ err = error_handling.RetryWithBackoff(ctx, sendFn, error_handling.RetryConfig{..
 |----------|----------|-------------|---------|
 | Agent    | SPL_AGENT_NAME | Agent name | *req* |
 |          | SPL_AGENT_VERSION | Version | 1.0.0 |
-| Tool     | SPL_TOOL_NAME | Tool name | *req* |
-|          | SPL_TOOL_DESCRIPTION | Desc | *req* |
-|          | SPL_TOOL_ARGUMENT_NAME | Arg name | *req* |
-|          | SPL_TOOL_ARGUMENT_DESCRIPTION | Arg desc | *req* |
-| LLM      | SPL_LLM_PROVIDER | Provider | *req* |
-|          | SPL_LLM_APIKEY | API key | *req* |
-|          | SPL_LLM_MODEL | Model | *req* |
-|          | SPL_LLM_MAX_TOKENS | Max tokens | 0 |
-|          | SPL_LLM_TEMPERATURE | Temp | 0.7 |
-|          | SPL_LLM_PROMPTTEMPLATE | Prompt | *req* |
-| Chat     | SPL_CHAT_MAX_TOKENS | Max hist tokens | 0 |
-|          | SPL_CHAT_MAX_ITERATIONS | Max LLM iters | 25 |
-|          | SPL_CHAT_REQUEST_BUDGET | Max cost per request | 0.0 |
-| Retry    | SPL_LLM_RETRY_MAX_RETRIES | Max retries | 3 |
-|          | SPL_LLM_RETRY_INITIAL_BACKOFF | Init backoff | 1.0 |
-|          | SPL_LLM_RETRY_MAX_BACKOFF | Max backoff | 30.0 |
-|          | SPL_LLM_RETRY_BACKOFF_MULTIPLIER | Multiplier | 2.0 |
-| Runtime  | SPL_LOG_DEFAULTLEVEL | Log defaultLevel | info |
+| Tool     | SPL_AGENT_TOOL_NAME | Tool name | *req* |
+|          | SPL_AGENT_TOOL_DESCRIPTION | Desc | *req* |
+|          | SPL_AGENT_TOOL_ARGUMENTNAME | Arg name | *req* |
+|          | SPL_AGENT_TOOL_ARGUMENTDESCRIPTION | Arg desc | *req* |
+| LLM      | SPL_AGENT_LLM_PROVIDER | Provider | *req* |
+|          | SPL_AGENT_LLM_APIKEY | API key | *req* |
+|          | SPL_AGENT_LLM_MODEL | Model | *req* |
+|          | SPL_AGENT_LLM_MAXTOKENS | Max tokens | 0 |
+|          | SPL_AGENT_LLM_TEMPERATURE | Temp | 0.7 |
+|          | SPL_AGENT_LLM_PROMPTTEMPLATE | Prompt | *req* |
+| Chat     | SPL_AGENT_CHAT_MAXTOKENS | Max hist tokens | 0 |
+|          | SPL_AGENT_CHAT_MAXLLMITERATIONS | Max LLM iters | 25 |
+|          | SPL_AGENT_CHAT_REQUESTBUDGET | Max cost per request | 0.0 |
+| Retry    | SPL_AGENT_LLM_RETRY_MAXRETRIES | Max retries | 3 |
+|          | SPL_AGENT_LLM_RETRY_INITIALBACKOFF | Init backoff | 1.0 |
+|          | SPL_AGENT_LLM_RETRY_MAXBACKOFF | Max backoff | 30.0 |
+|          | SPL_AGENT_LLM_RETRY_BACKOFFMULTIPLIER | Multiplier | 2.0 |
+| Runtime  | SPL_RUNTIME_LOG_DEFAULTLEVEL | Log defaultLevel | info |

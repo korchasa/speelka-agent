@@ -5,7 +5,7 @@ Universal LLM agent based on Model Context Protocol (MCP) with support for exter
 ## Key Features
 - **Multi-agent orchestration**: Supports tools from other MCP servers.
 - **Flexible configuration**: YAML, JSON, environment variables, overlay, and property-based overlay.
-- **Extensible logging**: Centralized LogConfig, output to stdout, stderr, file, MCP protocol, custom/json/text formats.
+- **Extensible logging**: logs to stderr and, unless `disableMcp` is set, to the MCP client as notifications; custom/json/text formats.
 - **Security**: Key isolation, log protection, tool access control.
 - **Testing**: Golden serialization tests, property-based overlay, unit/integration/E2E.
 - **Scalability**: HTTP and stdio support, dynamic tool/session management.
@@ -19,7 +19,6 @@ Universal LLM agent based on Model Context Protocol (MCP) with support for exter
 runtime:
   log:
     defaultLevel: info
-    output: ':mcp:'
     format: json
   transports:
     stdio:
@@ -69,7 +68,7 @@ agent:
 ```
 
 ## Logging
-- Managed via LogConfig: level, format, output (stdout, stderr, file, MCP).
+- Managed via LogConfig: level, format, and `disableMcp`. Logs always go to stderr; `disableMcp: true` stops sending them to the MCP client.
 - MCP logs available via protocol or fallback to stderr (for stdio servers).
 - Formats: custom, json, text, unknown.
 - See [documents/architecture.md](documents/architecture.md) and [documents/implementation.md](documents/implementation.md) for details.
@@ -222,43 +221,41 @@ All environment variables are prefixed with `SPL_`:
 | **Tool Configuration**              |               |                                                                                                                    |
 | `SPL_AGENT_TOOL_NAME`                     | *Required*    | Name of the tool provided by the agent                                                                             |
 | `SPL_AGENT_TOOL_DESCRIPTION`              | *Required*    | Description of the tool functionality                                                                              |
-| `SPL_AGENT_TOOL_ARGUMENT_NAME`            | *Required*    | Name of the argument for the tool                                                                                  |
-| `SPL_AGENT_TOOL_ARGUMENT_DESCRIPTION`     | *Required*    | Description of the argument for the tool                                                                           |
+| `SPL_AGENT_TOOL_ARGUMENTNAME`            | *Required*    | Name of the argument for the tool                                                                                  |
+| `SPL_AGENT_TOOL_ARGUMENTDESCRIPTION`     | *Required*    | Description of the argument for the tool                                                                           |
 | **LLM Configuration**               |               |                                                                                                                    |
 | `SPL_AGENT_LLM_PROVIDER`                  | *Required*    | Provider of LLM service (e.g., "openai", "anthropic")                                                              |
 | `SPL_AGENT_LLM_APIKEY`                   | *Required*    | API key for the LLM provider                                                                                       |
 | `SPL_AGENT_LLM_MODEL`                     | *Required*    | Model name (e.g., "gpt-4o", "claude-3-opus-20240229")                                                              |
-| `SPL_AGENT_LLM_MAX_TOKENS`                | 0             | Maximum tokens to generate (0 means no limit)                                                                      |
+| `SPL_AGENT_LLM_MAXTOKENS`                | 0             | Maximum tokens to generate (0 means no limit)                                                                      |
 | `SPL_AGENT_LLM_TEMPERATURE`               | 0.7           | Temperature parameter for randomness in generation                                                                 |
 | `SPL_AGENT_LLM_PROMPTTEMPLATE`           | *Required*    | Template for system prompts (must include placeholder matching the `SPL_AGENT_TOOL_ARGUMENTNAME` value and `{{tools}}`) |
 | **Chat Configuration**              |               |                                                                                                                    |
-| `SPL_AGENT_CHAT_MAX_LLM_ITERATIONS`           | 100           | Maximum number of LLM iterations                                                                                   |
-| `SPL_AGENT_CHAT_MAX_TOKENS`               | 0             | Maximum tokens in chat history (0 means based on model)                                                            |
-| `SPL_AGENT_CHAT_REQUEST_BUDGET`           | 1.0           | Maximum cost (USD or token-equivalent) per request (0 = unlimited)                                                 |
+| `SPL_AGENT_CHAT_MAXLLMITERATIONS`           | 100           | Maximum number of LLM iterations                                                                                   |
+| `SPL_AGENT_CHAT_MAXTOKENS`               | 0             | Maximum tokens in chat history (0 means based on model)                                                            |
+| `SPL_AGENT_CHAT_REQUESTBUDGET`           | 1.0           | Maximum cost (USD or token-equivalent) per request (0 = unlimited)                                                 |
 | **LLM Retry Configuration**         |               |                                                                                                                    |
-| `SPL_AGENT_LLM_RETRY_MAX_RETRIES`         | 3             | Maximum number of retry attempts for LLM API calls                                                                 |
-| `SPL_AGENT_LLM_RETRY_INITIAL_BACKOFF`     | 1.0           | Initial backoff time in seconds                                                                                    |
-| `SPL_AGENT_LLM_RETRY_MAX_BACKOFF`         | 30.0          | Maximum backoff time in seconds                                                                                    |
-| `SPL_AGENT_LLM_RETRY_BACKOFF_MULTIPLIER`  | 2.0           | Multiplier for increasing backoff time                                                                             |
+| `SPL_AGENT_LLM_RETRY_MAXRETRIES`         | 3             | Maximum number of retry attempts for LLM API calls                                                                 |
+| `SPL_AGENT_LLM_RETRY_INITIALBACKOFF`     | 1.0           | Initial backoff time in seconds                                                                                    |
+| `SPL_AGENT_LLM_RETRY_MAXBACKOFF`         | 30.0          | Maximum backoff time in seconds                                                                                    |
+| `SPL_AGENT_LLM_RETRY_BACKOFFMULTIPLIER`  | 2.0           | Multiplier for increasing backoff time                                                                             |
 | **MCP Servers Configuration**       |               |                                                                                                                    |
-| `SPL_AGENT_CONNECTIONS_MCPSERVERS_0_ID`                     | ""            | Identifier for the first MCP server                                                                                |
-| `SPL_AGENT_CONNECTIONS_MCPSERVERS_0_COMMAND`                | ""            | Command to execute for the first server                                                                            |
-| `SPL_AGENT_CONNECTIONS_MCPSERVERS_0_ARGS`                   | ""            | Command arguments as space-separated string                                                                        |
-| `SPL_AGENT_CONNECTIONS_MCPSERVERS_0_ENV_*`                  | ""            | Environment variables for the server (prefix with `SPL_AGENT_CONNECTIONS_MCPSERVERS_0_ENV_`)                                               |
-| `SPL_AGENT_CONNECTIONS_MCPSERVERS_1_ID`, etc.               | ""            | Configuration for additional servers (increment index)                                                             |
+| `SPL_AGENT_CONNECTIONS_MCPSERVERS_<NAME>_COMMAND`     | ""            | Command to start the MCP server named `<name>` (the name is lowercased) |
+| `SPL_AGENT_CONNECTIONS_MCPSERVERS_<NAME>_ARGS`        | ""            | One command argument; the value is not split, so set several arguments in the config file |
+| `SPL_AGENT_CONNECTIONS_MCPSERVERS_<NAME>_ENVIRONMENT` | ""            | One `KEY=VALUE` environment variable for the server; set several in the config file |
+| `SPL_AGENT_CONNECTIONS_MCPSERVERS_<NAME>_URL`         | ""            | URL of an HTTP MCP server, used when no command is set |
 | **MCP Retry Configuration**         |               |                                                                                                                    |
-| `SPL_AGENT_CONNECTIONS_RETRY_MAX_RETRIES`        | 3             | Maximum number of retry attempts for MCP server connections                                                        |
-| `SPL_AGENT_CONNECTIONS_RETRY_INITIAL_BACKOFF`    | 1.0           | Initial backoff time in seconds                                                                                    |
-| `SPL_AGENT_CONNECTIONS_RETRY_MAX_BACKOFF`        | 30.0          | Maximum backoff time in seconds                                                                                    |
-| `SPL_AGENT_CONNECTIONS_RETRY_BACKOFF_MULTIPLIER` | 2.0           | Multiplier for increasing backoff time                                                                             |
+| `SPL_AGENT_CONNECTIONS_RETRY_MAXRETRIES`        | 3             | Maximum number of retry attempts for MCP server connections                                                        |
+| `SPL_AGENT_CONNECTIONS_RETRY_INITIALBACKOFF`    | 1.0           | Initial backoff time in seconds                                                                                    |
+| `SPL_AGENT_CONNECTIONS_RETRY_MAXBACKOFF`        | 30.0          | Maximum backoff time in seconds                                                                                    |
+| `SPL_AGENT_CONNECTIONS_RETRY_BACKOFFMULTIPLIER` | 2.0           | Multiplier for increasing backoff time                                                                             |
 | **Runtime Configuration**           |               |                                                                                                                    |
 | `SPL_RUNTIME_LOG_DEFAULTLEVEL`              | "info"        | Log defaultLevel (debug, info, warn, error)                                                                            |
-| `SPL_RUNTIME_LOG_OUTPUT`                    | ":stderr:"      | Log output destination (:stdout:, :stderr:, :mcp:, file path)                                                                 |
-| `SPL_RUNTIME_STDIO_ENABLED`         | true          | Enable stdin/stdout transport                                                                                      |
-| `SPL_RUNTIME_STDIO_BUFFER_SIZE`     | 8192          | Buffer size for stdio transport                                                                                    |
-| `SPL_RUNTIME_HTTP_ENABLED`          | false         | Enable HTTP transport                                                                                              |
-| `SPL_RUNTIME_HTTP_HOST`             | "localhost"   | Host for HTTP server                                                                                               |
-| `SPL_RUNTIME_HTTP_PORT`             | 3000          | Port for HTTP server                                                                                               |
+| `SPL_RUNTIME_TRANSPORTS_STDIO_ENABLED`         | true          | Enable stdin/stdout transport                                                                                      |
+| `SPL_RUNTIME_TRANSPORTS_STDIO_BUFFERSIZE`     | 8192          | Buffer size for stdio transport                                                                                    |
+| `SPL_RUNTIME_TRANSPORTS_HTTP_ENABLED`          | false         | Enable HTTP transport                                                                                              |
+| `SPL_RUNTIME_TRANSPORTS_HTTP_HOST`             | "localhost"   | Host for HTTP server                                                                                               |
+| `SPL_RUNTIME_TRANSPORTS_HTTP_PORT`             | 3000          | Port for HTTP server                                                                                               |
 
 For more details, see [Environment Variables Reference](documents/knowledge.md#environment-variables-reference).
 
@@ -319,14 +316,11 @@ Or using environment variables:
 
 ```bash
 # MCP server for Playwright browser automation
-export SPL_AGENT_CONNECTIONS_MCPSERVERS_0_ID="playwright"
-export SPL_AGENT_CONNECTIONS_MCPSERVERS_0_COMMAND="mcp-playwright"
-export SPL_AGENT_CONNECTIONS_MCPSERVERS_0_ARGS=""
+export SPL_AGENT_CONNECTIONS_MCPSERVERS_PLAYWRIGHT_COMMAND="mcp-playwright"
 
 # MCP server for filesystem operations
-export SPL_AGENT_CONNECTIONS_MCPSERVERS_1_ID="filesystem"
-export SPL_AGENT_CONNECTIONS_MCPSERVERS_1_COMMAND="mcp-filesystem-server"
-export SPL_AGENT_CONNECTIONS_MCPSERVERS_1_ARGS="."
+export SPL_AGENT_CONNECTIONS_MCPSERVERS_FILESYSTEM_COMMAND="mcp-filesystem-server"
+export SPL_AGENT_CONNECTIONS_MCPSERVERS_FILESYSTEM_ARGS="."
 ```
 
 ## Supported LLM Providers

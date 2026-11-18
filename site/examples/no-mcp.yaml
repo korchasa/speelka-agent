@@ -5,7 +5,6 @@
 
 runtime:
   log:
-    output: ":stderr:"
     defaultLevel: "debug"
 
 agent:
@@ -21,7 +20,7 @@ agent:
   # LLM configuration
   llm:
     provider: "openai"
-    apiKey: ""  # Set via environment variable SPL_LLM_API_KEY for security
+    apiKey: ""  # Set via environment variable SPL_AGENT_LLM_APIKEY for security
     model: "gpt-4.1-mini"
     promptTemplate: "You are a helpful AI assistant. Respond to the following request: {{input}}. Provide a detailed and helpful response. Available tools: {{tools}}"
 
