@@ -3,13 +3,18 @@ package mcp_connector
 
 import (
 	"context"
-	"github.com/korchasa/speelka-agent-go/internal/configuration"
 	"time"
+
+	"github.com/korchasa/speelka-agent-go/internal/configuration"
 
 	"github.com/korchasa/speelka-agent-go/internal/error_handling"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/pkg/errors"
+)
+
+const (
+	initTimeout = 30 * time.Second
 )
 
 // ConnectServer connects to an MCP server using HTTP or stdio transport.
@@ -67,7 +72,7 @@ func (mc *MCPConnector) connectStdioServer(ctx context.Context, serverID string,
 			error_handling.ErrorCategoryExternal,
 		)
 	}
-	initCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	initCtx, cancel := context.WithTimeout(ctx, initTimeout)
 	defer cancel()
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
@@ -120,7 +125,7 @@ func (mc *MCPConnector) connectHTTPServer(ctx context.Context, serverID string, 
 			error_handling.ErrorCategoryExternal,
 		)
 	}
-	initCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	initCtx, cancel := context.WithTimeout(ctx, initTimeout)
 	defer cancel()
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
